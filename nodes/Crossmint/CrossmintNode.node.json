@@ -1,0 +1,22 @@
+{
+	"node": "n8n-nodes-base.crossmintNode",
+	"nodeVersion": "1.0.0",
+	"codexVersion": "1.0.0",
+	"categories": ["Blockchain"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://docs.crossmint.com/api-reference/authentication"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://docs.crossmint.com/solutions/ai-agents"
+			}
+		]
+	},
+	"alias": ["Crossmint", "Agent", "AI", "Commerce"],
+	"subcategories": {
+		"Blockchain": ["AI Agents", "Autonomous Commerce"]
+	}
+}
