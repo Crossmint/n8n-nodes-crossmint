@@ -1,0 +1,207 @@
+{
+    "name": "My workflow 5",
+    "nodes": [
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "={{ $json.message.text }}",
+                "hasOutputParser": true,
+                "options": {
+                    "systemMessage": "You are an extraction and validation agent.\nYou will receive a free-form message (ES/EN) containing order data.\nYour task is:\n\t1.\tExtract the fields listed below.\n\t2.\tValidate each field with the given rules.\n\t3.\tNormalize values according to the normalization rules.\n\t4.\tRespond only with a JSON object matching the schema (no extra text, no markdown, no arrays, no strings with escaped JSON).\n\n⸻\n\n📌 Fields to extract\n\t•\tplatform (only amazon or shopify)\n\t•\tproduct_identifier (product URL)\n\t•\trecipient_email\n\t•\trecipient_name\n\t•\taddress_line1\n\t•\taddress_line2 (optional)\n\t•\tcity\n\t•\tstate\n\t•\tzip_code\n\t•\tcountry (must be exactly \"US\")\n\t•\tpayment_chain (only allowed values:\n\"arbitrum-sepolia\", \"base-sepolia\", \"ethereum-sepolia\", \"optimism-sepolia\", \"polygon-amoy\", \"world-chain-sepolia\", \"arbitrum\", \"base\", \"ethereum\", \"optimism\", \"polygon\").\n→ Parse to the closest match if variations are found.\n\t•\tpayment_currency (e.g., usdc, usdt, eth)\n\t•\tpayer_wallet_address (Don't normalize)\n\nPARSE ALL TO THE MOST SIMILAR.\n\nValidation rules\n\t•\tproduct_identifier: must be a valid http/https URL.\n\t•\tAmazon products: must contain /dp/ or /gp/product/.\n\t•\tShopify products: path must contain /products/.\n\t•\trecipient_email: must be a valid email address.\n\t•\taddress_line2: optional (may be null).\n\nNormalization rules\n\t•\tConvert to lowercase:\n\t•\tplatform, payment_chain, payment_currency.\n\t•\trecipient_email.\n\t•\tKeep original casing (do not lowercase):\n\t•\trecipient_name, address_line1, address_line2, city, state, zip_code, product_identifier.\n\nMissing or invalid values\n\t•\tIf a field is missing or fails validation, set its value to null and include its name in the missing_or_invalid array.\n\nReturn only one JSON object specified in the json parser tool.\n\nCompleteness rules\n\t•\tcomplete = true only if all required fields (all except address_line2) are not null and valid.\n\t•\tOtherwise, complete = false and all missing/invalid field names must be listed in missing_or_invalid.\n\nIMPORTANT: Don't normalize the wallet address"
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 2.2,
+            "position": [
+                224,
+                -48
+            ],
+            "id": "11b68917-b84f-4a3b-89b6-5c4832d55661",
+            "name": "AI Agent"
+        },
+        {
+            "parameters": {
+                "model": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "gpt-4.1-mini"
+                },
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "typeVersion": 1.2,
+            "position": [
+                96,
+                160
+            ],
+            "id": "79b14121-8e5d-4ba0-bcee-6e5dc6f53045",
+            "name": "OpenAI Chat Model",
+            "credentials": {
+                "openAiApi": {
+                    "id": "bop0xo9oWuYaTyeA",
+                    "name": "OpenAi account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "updates": [
+                    "message"
+                ],
+                "additionalFields": {}
+            },
+            "type": "n8n-nodes-base.telegramTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                -368,
+                -48
+            ],
+            "id": "0e4d36f1-d705-42bc-808b-2fe24b36dbdc",
+            "name": "Telegram Trigger",
+            "webhookId": "cc6f4e51-5206-40b2-b96b-3973bf0a5848",
+            "credentials": {
+                "telegramApi": {
+                    "id": "ynXMBmiz1NfTWIsY",
+                    "name": "Telegram account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "function safeParse(text) {\n  if (text == null) return null;\n  if (typeof text === 'object') return text; // already an object\n  if (typeof text !== 'string') return null;\n\n  // Try direct JSON.parse first\n  try {\n    return JSON.parse(text);\n  } catch {}\n\n  // Fallback: cut from first { to last } (handles extra text around JSON)\n  const start = text.indexOf('{');\n  const end = text.lastIndexOf('}');\n  if (start >= 0 && end > start) {\n    try {\n      return JSON.parse(text.slice(start, end + 1));\n    } catch {}\n  }\n  return null;\n}\n\nconst inputItems = $input.all();\nconst out = [];\n\n// We’ll process only the first incoming item by default.\n// If you expect multiple, you can loop all and push one result per item.\nconst item = inputItems[0] ?? { json: {} };\nlet payload = item.json;\n\n// Case A: The whole payload is an array like: [ { output: \"...\" } ]\nif (Array.isArray(payload)) {\n  if (payload.length > 0) {\n    payload = payload[0];\n  } else {\n    return [{ json: { error: 'Empty array input' } }];\n  }\n}\n\n// At this point, payload should be an object.\n// Common shapes we handle:\n// 1) payload.output is a JSON string\n// 2) payload.output is already an object\n// 3) payload is already the final object (fallback)\n\nlet parsed = null;\n\nif (payload && typeof payload === 'object' && 'output' in payload) {\n  parsed = safeParse(payload.output);\n} else {\n  // Maybe the model already returned the final object at top level\n  parsed = safeParse(payload) || payload;\n}\n\nif (!parsed || typeof parsed !== 'object') {\n  return [{ json: { error: 'Could not parse output into an object', raw: payload } }];\n}\n\n// OPTIONAL: If your desired final shape is nested under data or flat,\n// adapt here. Below, we pass through the parsed object as-is.\n// If you want to **flatten** from { complete, missing_or_invalid, data:{...} } to a single object, you could do:\n//\n// const final = parsed.data ? { ...parsed.data, complete: parsed.complete } : parsed;\n\nconst final = parsed;\n\n// Ensure we return a proper n8n array of items\nout.push({ json: final });\nreturn out;"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                576,
+                -48
+            ],
+            "id": "363937d4-6d0f-48a8-8bf6-ab8fabcd0ad5",
+            "name": "Code"
+        },
+        {
+            "parameters": {
+                "resource": "checkout",
+                "platform": "={{ $json.platform }}",
+                "productIdentifier": "={{ $json.product_identifier }}",
+                "recipientEmail": "={{ $json.recipient_email }}",
+                "recipientName": "={{ $json.recipient_name }}",
+                "addressLine1": "={{ $json.address_line1 }}",
+                "addressLine2": "={{ $json.address_line2 }}",
+                "city": "={{ $json.city }}",
+                "state": "={{ $json.state }}",
+                "postalCode": "={{ $json.zip_code }}",
+                "environment": "=staging",
+                "paymentMethod": "={{ $json.payment_chain }}",
+                "paymentCurrency": "={{ $json.payment_currency }}",
+                "payerAddress": "={{ $json.payer_wallet_address }}"
+            },
+            "type": "n8n-nodes-crossmint.crossmintNode",
+            "typeVersion": 1,
+            "position": [
+                784,
+                -48
+            ],
+            "id": "857b8921-7e57-4861-a4af-e14ed7c6dc85",
+            "name": "Create order",
+            "credentials": {
+                "crossmintApi": {
+                    "id": "pQETd69keNeYGtci",
+                    "name": "Crossmint account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "resource": "checkout",
+                "operation": "purchaseProduct",
+                "serializedTransaction": "={{ $json.order.payment.preparation.serializedTransaction }}",
+                "paymentMethod": "={{ $('Code').item.json.payment_chain }}",
+                "payerAddress": "={{ $('Code').item.json.payer_wallet_address }}"
+            },
+            "type": "n8n-nodes-crossmint.crossmintNode",
+            "typeVersion": 1,
+            "position": [
+                992,
+                -48
+            ],
+            "id": "d681d7ad-d73c-4df9-a7b5-bd33ce01ddd7",
+            "name": "Pay order",
+            "credentials": {
+                "crossmintApi": {
+                    "id": "pQETd69keNeYGtci",
+                    "name": "Crossmint account"
+                }
+            }
+        }
+    ],
+    "pinData": {},
+    "connections": {
+        "OpenAI Chat Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Telegram Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Agent": {
+            "main": [
+                [
+                    {
+                        "node": "Code",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Code": {
+            "main": [
+                [
+                    {
+                        "node": "Create order",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create order": {
+            "main": [
+                [
+                    {
+                        "node": "Pay order",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": false,
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "versionId": "1b752ab3-3a1f-4b21-b290-8ba2e9c44108",
+    "meta": {
+        "templateCredsSetupCompleted": true,
+        "instanceId": "41a06fe6b2ed299ea808b59c408ee1da81d2a19e619828c3930d8d1554f4b813"
+    },
+    "id": "68ytbkeAxVjVsHMk",
+    "tags": []
+}
