@@ -583,16 +583,16 @@ export class CrossmintNode implements INodeType {
 				displayOptions: { show: { resource: ['checkout'] } },
 				options: [
 					{
-						name: 'Find Product',
+						name: 'Create Order',
 						value: 'findProduct',
 						description: 'Search and find products on Amazon and Shopify',
-						action: 'Find product',
+						action: 'Create order',
 					},
 					{
-						name: 'Purchase Product',
+						name: 'Pay Order',
 						value: 'purchaseProduct',
 						description: 'Purchase a product with automated checkout',
-						action: 'Purchase product',
+						action: 'Pay order',
 					},
 				],
 				default: 'findProduct',
