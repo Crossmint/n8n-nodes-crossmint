@@ -13,6 +13,57 @@ This community node for n8n provides a complete integration with Crossmint's **W
 
 Once installed, the "Crossmint" node will appear in your workflow editor.
 
+## 🛠️ Development Setup
+
+For contributing to this project:
+
+1.  **Clone the repository:**
+    ```bash
+    git clone [https://github.com/YourUsername/n8n-nodes-crossmint.git](https://github.com/YourUsername/n8n-nodes-crossmint.git)
+    cd n8n-nodes-crossmint
+    ```
+2.  **Install dependencies and build:**
+    ```bash
+    npm install
+    npm run build
+    ```
+3.  **Link your node for testing:**
+    ```bash
+    npm link
+    cd ~/.n8n/
+    npm link n8n-nodes-crossmint
+    ```
+4.  Start n8n in a separate terminal (`n8n start`) and your node will appear.
+
+### Quick Setup for Testing Locally (Recommended)
+
+If you want to test the node locally without installing it globally:
+
+1. **Install n8n globally:**
+   ```bash
+   npm install n8n -g
+   ```
+
+2. **Install the Crossmint node:**
+   ```bash
+   npm install n8n-nodes-crossmint
+   ```
+
+3. **Start n8n:**
+   ```bash
+   n8n start
+   ```
+
+4. **Configure the community node:**
+   - Open your browser and go to the n8n interface (usually `http://localhost:5678`)
+   - Click on **Settings** (bottom left corner)
+   - Go to **Community Nodes**
+   - Click **Install a community node**
+   - Enter: `n8n-nodes-crossmint`
+   - Click **Install**
+
+For more information about n8n installation, see: [n8n Installation Guide](https://docs.n8n.io/hosting/installation/npm/#try-n8n-with-npx)
+
 ## ⚙️ Configuration
 
 Before using the node, you must configure your Crossmint credentials:
@@ -108,91 +159,18 @@ For more detailed information about wallet locator formats and specifications, s
 4. **User ID locators** work well with existing user management systems
 5. Always specify the correct chain type for non-address locators
 
-## Example Workflows
+## 📁 Example Workflows
 
-### Workflow 1: Create a Wallet and Send Funds
+Ready-to-use workflow examples are available in the `workflows-examples/` folder:
 
-This workflow creates a wallet for a new user and sends them 5 USDC.
+- **`crossmint-nodes-examples.json`**: Complete workflow demonstrating all wallet operations (create wallet, get wallet details, check balance) followed by a checkout flow (create order and pay order).
+- **`buy-items-from-amazon.json`**: Advanced workflow with AI-powered order processing that accepts free-form messages via Telegram, extracts order details using OpenAI, and automatically purchases Amazon products.
 
-1.  **Start Node**: Initiates the workflow.
-2.  **Crossmint Node (Wallet > Get or Create Wallet)**:
-    * **User Identifier**: `user-001`
-    * **Identifier Type**: `User ID`
-    * **Chain**: `Polygon Amoy`
-3.  **Crossmint Node (Wallet > Transfer Token)**:
-    * **Origin Wallet Locator**: Your main wallet's email (e.g., `email:company@funds.com:evm:smart`).
-    * **Recipient Wallet Locator**: The email of the user whose wallet was just created (e.g., `email:user@example.com:evm`).
-    * **Token**: `polygon-amoy:usdc`
-    * **Amount**: `5`
-
-### Workflow 2: Purchase an Amazon Product with an Agent
-
-This workflow simulates an AI agent purchasing a product for a user.
-
-1.  **Start Node**: Could be a webhook that receives an instruction like `{"product": "amazon:B01DFKC2SO", "email": "customer@email.com", ...}`.
-2.  **Crossmint Node (Checkout > Create Order)**:
-    * **Platform**: `Amazon`
-    * **Product Identifier**: `{{ $json.body.product }}`
-    * **Recipient Email**: `{{ $json.body.email }}`
-    * **Recipient Name, Address, etc.**: Filled in with data from the webhook.
-    * **Payer Wallet Address**: The address of the agent's wallet that holds the funds (USDC).
-3.  **Crossmint Node (Checkout > Pay Order)**:
-    * **Serialized Transaction**: Mapped from the previous node's output: `{{ $('Create Order').item.json.result.order.payment.preparation.serializedTransaction }}`.
-    * **Payer Wallet Address**: The same agent wallet address.
-4.  **Send Email Node**: Notifies the user that their purchase is in process, including the `orderId` from the response.
-
-## 🛠️ Local Development & Testing
-
-### Quick Setup for Testing Locally
-
-If you want to test the node locally without installing it globally:
-
-1. **Install n8n globally:**
-   ```bash
-   npm install n8n -g
-   ```
-
-2. **Install the Crossmint node:**
-   ```bash
-   npm install n8n-nodes-crossmint
-   ```
-
-3. **Start n8n:**
-   ```bash
-   n8n start
-   ```
-
-4. **Configure the community node:**
-   - Open your browser and go to the n8n interface (usually `http://localhost:5678`)
-   - Click on **Settings** (bottom left corner)
-   - Go to **Community Nodes**
-   - Click **Install a community node**
-   - Enter: `n8n-nodes-crossmint`
-   - Click **Install**
-
-For more information about n8n installation, see: [n8n Installation Guide](https://docs.n8n.io/hosting/installation/npm/#try-n8n-with-npx)
-
-### Development Setup
-
-For contributing to this project:
-
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/YourUsername/n8n-nodes-crossmint.git](https://github.com/YourUsername/n8n-nodes-crossmint.git)
-    cd n8n-nodes-crossmint
-    ```
-2.  **Install dependencies and build:**
-    ```bash
-    npm install
-    npm run build
-    ```
-3.  **Link your node for testing:**
-    ```bash
-    npm link
-    cd ~/.n8n/
-    npm link n8n-nodes-crossmint
-    ```
-4.  Start n8n in a separate terminal (`n8n start`) and your node will appear.
+To use these examples:
+1. Import the JSON file into your n8n instance
+2. Configure your Crossmint API credentials
+3. Update any personal information (email addresses, wallet addresses, etc.)
+4. Execute the workflow
 
 ## 📄 License
 
