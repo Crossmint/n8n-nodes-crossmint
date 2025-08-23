@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-crossmint",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "n8n node for Crossmint - send USDC from wallets",
   "keywords": [
     "n8n-community-node-package"
