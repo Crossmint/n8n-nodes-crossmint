@@ -13,16 +13,55 @@ This community node for n8n provides a complete integration with Crossmint's **W
 
 Once installed, the "Crossmint" node will appear in your workflow editor.
 
-## ⚙️ Set Up
+## ⚙️ Your First Crossmint Node in n8n
 
-Before using the node, you must configure your Crossmint credentials:
-1.  In n8n, go to **Credentials** and click **Add credential**.
-2.  Search for "Crossmint API" and select it.
-3.  Enter your Crossmint **API Key** (must be a **server-side** API key with appropriate permissions).
-4.  Select the **Environment** (Staging for testing, Production for real operations).
-5.  Save the credentials.
+Once you've installed the community node, here's how to add and configure your first Crossmint node:
 
-> **⚠️ Important**: This node requires a **server-side API key** from Crossmint. Client-side keys will not work. Ensure your API key has the necessary permissions for wallet and checkout operations.
+### Step 1: Add the Crossmint Node to Your Workflow
+
+1. In your n8n workflow editor, click the **"+"** button to add a new node
+2. Search for **"Crossmint"** in the node library
+3. Select the **Crossmint** node from the results
+
+![Crossmint node search](./images/crossmint-search.png)
+
+4. For this example, we'll use **"Get or Create Wallet"** operation:
+   - Set **Resource** to **"Wallet"**
+   - Set **Operation** to **"Get or Create Wallet"**
+
+![Crossmint node configuration](./images/crossmint-config.png)
+
+### Step 2: Set Up Crossmint Project & Credentials
+
+5. First, create a Crossmint project in Staging:
+   - Go to [Crossmint Staging Console](https://staging.crossmint.com/console/overview)
+   - Create a new project or select an existing one
+   - Copy your **server-side API key** from the project settings
+
+![Crossmint staging console](./images/crossmint-staging-console.png)
+
+6. Back in n8n, in your Crossmint node, click on **"Credential for Crossmint API"** dropdown
+7. Select **"Create New"** to add your Crossmint credentials (this will be available for all future Crossmint nodes)
+
+8. In the credential configuration:
+   - Enter your Crossmint **API Key** (must be a **server-side** API key)
+   - Set **Environment** to **"Staging"** for testing
+   - Click **"Save"**
+
+![Crossmint API credential form](./images/credential-form.png)
+
+9. Complete the wallet configuration (e.g., set Owner Type to "Email" and enter an email address)
+
+![Completed node configuration](./images/completed-config.png)
+
+> **⚠️ Important**: Always use **server-side API keys** from Crossmint. Client-side keys will not work. For initial testing, always use **Staging** environment.
+
+### Getting Test USDC for Staging
+
+To test transactions in staging, you'll need test USDC tokens. You can get them from:
+
+- **Circle Faucet**: [https://faucet.circle.com/](https://faucet.circle.com/) - Get free testnet USDC
+- **Crossmint Telegram**: [https://t.me/crossmintdevs](https://t.me/crossmintdevs) - Request USDC from Crossmint
 
 ## 💡 Supported Operations
 
@@ -102,19 +141,18 @@ For more detailed information about wallet locator formats and specifications, s
 Ready-to-use workflow examples are available in the `workflows-examples/` folder:
 
 - **`crossmint-nodes-examples.json`**: Complete workflow demonstrating all wallet operations (create wallet, get wallet details, check balance) followed by a checkout flow (create order and pay order).
+
+![Crossmint API credential form](./images/crossmint-nodes-examples.png)
+
 - **`buy-items-from-amazon.json`**: Advanced workflow with AI-powered order processing that accepts free-form messages via Telegram, extracts order details using OpenAI, and automatically purchases Amazon products.
+
+![Crossmint API credential form](./images/buy-items-from-amazon.png)
 
 To use these examples:
 1. Import the JSON file into your n8n instance
 2. Configure your Crossmint API credentials
 3. Update any personal information (email addresses, wallet addresses, etc.)
 4. Execute the workflow
-
-## 📄 License
-
-MIT
-
------
 
 ## 🛠️ Development Setup
 
@@ -166,3 +204,10 @@ If you want to test the node locally without installing it globally:
    - Click **Install**
 
 For more information about n8n installation, see: [n8n Installation Guide](https://docs.n8n.io/hosting/installation/npm/#try-n8n-with-npx)
+
+
+## 📄 License
+
+MIT
+
+-----
