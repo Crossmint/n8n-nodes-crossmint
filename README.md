@@ -141,19 +141,18 @@ For more detailed information about wallet locator formats and specifications, s
 Ready-to-use workflow examples are available in the `workflows-examples/` folder:
 
 - **`crossmint-nodes-examples.json`**: Complete workflow demonstrating all wallet operations (create wallet, get wallet details, check balance) followed by a checkout flow (create order and pay order).
+
+![Crossmint API credential form](./images/crossmint-nodes-examples.png)
+
 - **`buy-items-from-amazon.json`**: Advanced workflow with AI-powered order processing that accepts free-form messages via Telegram, extracts order details using OpenAI, and automatically purchases Amazon products.
+
+![Crossmint API credential form](./images/buy-items-from-amazon.png)
 
 To use these examples:
 1. Import the JSON file into your n8n instance
 2. Configure your Crossmint API credentials
 3. Update any personal information (email addresses, wallet addresses, etc.)
 4. Execute the workflow
-
-## 📄 License
-
-MIT
-
------
 
 ## 🛠️ Development Setup
 
@@ -205,3 +204,10 @@ If you want to test the node locally without installing it globally:
    - Click **Install**
 
 For more information about n8n installation, see: [n8n Installation Guide](https://docs.n8n.io/hosting/installation/npm/#try-n8n-with-npx)
+
+
+## 📄 License
+
+MIT
+
+-----
