@@ -13,16 +13,48 @@ This community node for n8n provides a complete integration with Crossmint's **W
 
 Once installed, the "Crossmint" node will appear in your workflow editor.
 
-## ⚙️ Set Up
+## ⚙️ Your First Crossmint Node in n8n
 
-Before using the node, you must configure your Crossmint credentials:
-1.  In n8n, go to **Credentials** and click **Add credential**.
-2.  Search for "Crossmint API" and select it.
-3.  Enter your Crossmint **API Key** (must be a **server-side** API key with appropriate permissions).
-4.  Select the **Environment** (Staging for testing, Production for real operations).
-5.  Save the credentials.
+Once you've installed the community node, here's how to add and configure your first Crossmint node:
 
-> **⚠️ Important**: This node requires a **server-side API key** from Crossmint. Client-side keys will not work. Ensure your API key has the necessary permissions for wallet and checkout operations.
+### Step 1: Add the Crossmint Node to Your Workflow
+
+1. In your n8n workflow editor, click the **"+"** button to add a new node
+2. Search for **"Crossmint"** in the node library
+3. Select the **Crossmint** node from the results
+
+![Crossmint node search](./images/crossmint-search.png)
+
+4. For this example, we'll use **"Get or Create Wallet"** operation:
+   - Set **Resource** to **"Wallet"**
+   - Set **Operation** to **"Get or Create Wallet"**
+
+![Crossmint node configuration](./images/crossmint-config.png)
+
+### Step 2: Set Up Crossmint Project & Credentials
+
+5. First, create a Crossmint project in Staging:
+   - Go to [Crossmint Staging Console](https://staging.crossmint.com/console/overview)
+   - Create a new project or select an existing one
+   - Copy your **server-side API key** from the project settings
+
+![Crossmint staging console](./images/crossmint-staging-console.png)
+
+6. Back in n8n, in your Crossmint node, click on **"Credential for Crossmint API"** dropdown
+7. Select **"Create New"** to add your Crossmint credentials (this will be available for all future Crossmint nodes)
+
+8. In the credential configuration:
+   - Enter your Crossmint **API Key** (must be a **server-side** API key)
+   - Set **Environment** to **"Staging"** for testing
+   - Click **"Save"**
+
+![Crossmint API credential form](./images/credential-form.png)
+
+9. Complete the wallet configuration (e.g., set Owner Type to "Email" and enter an email address)
+
+![Completed node configuration](./images/completed-config.png)
+
+> **⚠️ Important**: Always use **server-side API keys** from Crossmint. Client-side keys will not work. For initial testing, always use **Staging** environment.
 
 ## 💡 Supported Operations
 
