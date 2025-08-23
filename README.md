@@ -56,6 +56,13 @@ Once you've installed the community node, here's how to add and configure your f
 
 > **⚠️ Important**: Always use **server-side API keys** from Crossmint. Client-side keys will not work. For initial testing, always use **Staging** environment.
 
+### Getting Test USDC for Staging
+
+To test transactions in staging, you'll need test USDC tokens. You can get them from:
+
+- **Circle Faucet**: [https://faucet.circle.com/](https://faucet.circle.com/) - Get free testnet USDC
+- **Crossmint Telegram**: [https://t.me/crossmintdevs](https://t.me/crossmintdevs) - Request help from the community
+
 ## 💡 Supported Operations
 
 The node is organized into two primary resources: **Wallet** and **Checkout**.
