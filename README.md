@@ -39,14 +39,14 @@ Operations for managing blockchain wallets.
 ### Resource: Checkout
 Operations to automate the purchase of physical products with cryptocurrency. This is a two-step process.
 
-* **1. Find Product**:
+* **1. Create Order**:
     * **Function**: Creates a purchase order in Crossmint for a product from Amazon or Shopify.
     * **Key Input**: Product URL or identifier, recipient details (name, email, physical address), and payment details (which cryptocurrency to use and from which wallet to pay).
     * **Key Output**: Returns an order object containing the final price and, most importantly, a `serializedTransaction`. This serialized transaction is the "payment authorization" needed for the next step.
 
-* **2. Purchase Product**:
+* **2. Pay Order**:
     * **Function**: Executes the payment for a previously created order.
-    * **Key Input**: The `serializedTransaction` obtained from the "Find Product" step.
+    * **Key Input**: The `serializedTransaction` obtained from the "Create Order" step.
     * **Key Output**: The transaction confirmation once it's submitted to the blockchain, with a `pending` status.
 
 ## 📖 API Reference
@@ -60,8 +60,8 @@ For detailed information about each operation, parameters, and response formats,
 - **Get Balance**: [Crossmint Wallets API - Get Balance](https://docs.crossmint.com/api-reference/wallets/get-wallet-balance)
 
 ### Checkout Operations
-- **Find Product**: [Crossmint Checkout API - Create Order](https://docs.crossmint.com/api-reference/headless/create-order)
-- **Purchase Product**: [Crossmint Checkout API - Submit Transaction](https://docs.crossmint.com/api-reference/wallets/create-transaction)
+- **Create Order**: [Crossmint Checkout API - Create Order](https://docs.crossmint.com/api-reference/headless/create-order)
+- **Pay Order**: [Crossmint Checkout API - Submit Transaction](https://docs.crossmint.com/api-reference/wallets/create-transaction)
 
 ### Additional Resources
 - [Supported Chains and Tokens](https://docs.crossmint.com/introduction/supported-chains#supported-chains)
@@ -98,7 +98,7 @@ For more detailed information about wallet locator formats and specifications, s
 - **Get Balance**: Check balances for wallets identified by locators
 
 **Checkout Operations:**
-- **Purchase Product**: Use wallet locators to specify the payer address
+- **Pay Order**: Use wallet locators to specify the payer address
 
 ### Best Practices
 
@@ -130,14 +130,14 @@ This workflow creates a wallet for a new user and sends them 5 USDC.
 This workflow simulates an AI agent purchasing a product for a user.
 
 1.  **Start Node**: Could be a webhook that receives an instruction like `{"product": "amazon:B01DFKC2SO", "email": "customer@email.com", ...}`.
-2.  **Crossmint Node (Checkout > Find Product)**:
+2.  **Crossmint Node (Checkout > Create Order)**:
     * **Platform**: `Amazon`
     * **Product Identifier**: `{{ $json.body.product }}`
     * **Recipient Email**: `{{ $json.body.email }}`
     * **Recipient Name, Address, etc.**: Filled in with data from the webhook.
     * **Payer Wallet Address**: The address of the agent's wallet that holds the funds (USDC).
-3.  **Crossmint Node (Checkout > Purchase Product)**:
-    * **Serialized Transaction**: Mapped from the previous node's output: `{{ $('Find Product').item.json.result.order.payment.preparation.serializedTransaction }}`.
+3.  **Crossmint Node (Checkout > Pay Order)**:
+    * **Serialized Transaction**: Mapped from the previous node's output: `{{ $('Create Order').item.json.result.order.payment.preparation.serializedTransaction }}`.
     * **Payer Wallet Address**: The same agent wallet address.
 4.  **Send Email Node**: Notifies the user that their purchase is in process, including the `orderId` from the response.
 
