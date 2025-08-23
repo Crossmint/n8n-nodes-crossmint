@@ -61,7 +61,7 @@ Once you've installed the community node, here's how to add and configure your f
 To test transactions in staging, you'll need test USDC tokens. You can get them from:
 
 - **Circle Faucet**: [https://faucet.circle.com/](https://faucet.circle.com/) - Get free testnet USDC
-- **Crossmint Telegram**: [https://t.me/crossmintdevs](https://t.me/crossmintdevs) - Request help from the community
+- **Crossmint Telegram**: [https://t.me/crossmintdevs](https://t.me/crossmintdevs) - Request USDC from Crossmint
 
 ## 💡 Supported Operations
 
