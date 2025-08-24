@@ -348,4 +348,207 @@ describe('CrossmintNode', () => {
 			json: true,
 		});
 	});
+
+	describe('createWalletWithSigner', () => {
+		it('should create wallet with EVM external signer', async () => {
+			const mockCredentials = {
+				apiKey: 'test-api-key',
+			};
+
+			const mockPrivateKeyCredentials = {
+				privateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+				chainType: 'evm',
+			};
+
+			const mockResponse = {
+				id: 'wallet-123',
+				address: '0x742d35Cc6634C0532925a3b8D0C9e0e7C0C0C0C0',
+				type: 'evm-smart-wallet',
+			};
+
+			mockGetCredentials
+				.mockResolvedValueOnce(mockCredentials)
+				.mockResolvedValueOnce(mockPrivateKeyCredentials);
+
+			mockHttpRequest.mockResolvedValue(mockResponse);
+
+			mockGetNodeParameter
+				.mockReturnValueOnce('wallet')
+				.mockReturnValueOnce('createWalletWithSigner')
+				.mockReturnValueOnce('evm');
+
+			const result = await crossmintNode.execute.call(mockContext);
+
+			expect(result).toEqual([
+				[
+					{
+						json: {
+							...mockResponse,
+							derivedAddress: expect.stringMatching(/^0x[a-fA-F0-9]{40}$/),
+							derivedPublicKey: expect.stringMatching(/^0x[a-fA-F0-9]{128}$/),
+						},
+					},
+				],
+			]);
+
+			expect(mockHttpRequest).toHaveBeenCalledWith({
+				method: 'POST',
+				url: 'https://staging.crossmint.com/api/2025-06-09/wallets',
+				headers: {
+					'X-API-KEY': 'test-api-key',
+					'Content-Type': 'application/json',
+				},
+				body: {
+					type: 'evm-smart-wallet',
+					config: {
+						adminSigner: expect.stringMatching(/^0x[a-fA-F0-9]{40}$/),
+					},
+				},
+				json: true,
+			});
+		});
+
+		it('should create wallet with Solana external signer', async () => {
+			const mockCredentials = {
+				apiKey: 'test-api-key',
+			};
+
+			const mockPrivateKeyCredentials = {
+				privateKey: '5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtrzVHpcXjn5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtrzVHpcXjn',
+				chainType: 'solana',
+			};
+
+			const mockResponse = {
+				id: 'wallet-456',
+				address: 'DjVE6JNiYqPL2QXyCUUh8rNjHrbz6hXHNYt99MQ59qw1',
+				type: 'solana-custodial-wallet',
+			};
+
+			mockGetCredentials
+				.mockResolvedValueOnce(mockCredentials)
+				.mockResolvedValueOnce(mockPrivateKeyCredentials);
+
+			mockHttpRequest.mockResolvedValue(mockResponse);
+
+			mockGetNodeParameter
+				.mockReturnValueOnce('wallet')
+				.mockReturnValueOnce('createWalletWithSigner')
+				.mockReturnValueOnce('solana');
+
+			const result = await crossmintNode.execute.call(mockContext);
+
+			expect(result).toEqual([
+				[
+					{
+						json: {
+							...mockResponse,
+							derivedAddress: expect.any(String),
+							derivedPublicKey: expect.any(String),
+						},
+					},
+				],
+			]);
+
+			expect(mockHttpRequest).toHaveBeenCalledWith({
+				method: 'POST',
+				url: 'https://staging.crossmint.com/api/2025-06-09/wallets',
+				headers: {
+					'X-API-KEY': 'test-api-key',
+					'Content-Type': 'application/json',
+				},
+				body: {
+					type: 'solana-custodial-wallet',
+					config: {
+						adminSigner: expect.any(String),
+					},
+				},
+				json: true,
+			});
+		});
+	});
+
+	describe('signTransaction', () => {
+		it('should sign EVM transaction', async () => {
+			const mockPrivateKeyCredentials = {
+				privateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+				chainType: 'evm',
+			};
+
+			const transactionData = {
+				nonce: 0,
+				gasPrice: '0x3b9aca00',
+				gasLimit: '0x5208',
+				to: '0x742d35Cc6634C0532925a3b8D0C9e0e7C0C0C0C0',
+				value: '0xde0b6b3a7640000',
+				data: '0x',
+			};
+
+			mockGetCredentials.mockResolvedValue(mockPrivateKeyCredentials);
+
+			mockGetNodeParameter
+				.mockReturnValueOnce('wallet')
+				.mockReturnValueOnce('signTransaction')
+				.mockReturnValueOnce(JSON.stringify(transactionData))
+				.mockReturnValueOnce(1);
+
+			const result = await crossmintNode.execute.call(mockContext);
+
+			expect(result[0][0].json).toHaveProperty('rawTransaction');
+			expect(result[0][0].json).toHaveProperty('transactionHash');
+			expect(result[0][0].json).toHaveProperty('r');
+			expect(result[0][0].json).toHaveProperty('s');
+			expect(result[0][0].json).toHaveProperty('v');
+			expect(result[0][0].json).toHaveProperty('from');
+
+			expect(result[0][0].json.rawTransaction).toMatch(/^0x[a-fA-F0-9]+$/);
+			expect(result[0][0].json.transactionHash).toMatch(/^0x[a-fA-F0-9]{64}$/);
+			expect(result[0][0].json.from).toMatch(/^0x[a-fA-F0-9]{40}$/);
+		});
+
+		it('should sign Solana transaction', async () => {
+			const mockPrivateKeyCredentials = {
+				privateKey: '5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtrzVHpcXjn5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtrzVHpcXjn',
+				chainType: 'solana',
+			};
+
+			const transactionData = {
+				message: 'SGVsbG8gU29sYW5hIQ==',
+			};
+
+			mockGetCredentials.mockResolvedValue(mockPrivateKeyCredentials);
+
+			mockGetNodeParameter
+				.mockReturnValueOnce('wallet')
+				.mockReturnValueOnce('signTransaction')
+				.mockReturnValueOnce(JSON.stringify(transactionData))
+				.mockReturnValueOnce(1);
+
+			const result = await crossmintNode.execute.call(mockContext);
+
+			expect(result[0][0].json).toHaveProperty('signature');
+			expect(result[0][0].json).toHaveProperty('publicKey');
+			expect(result[0][0].json).toHaveProperty('signedMessage');
+
+			expect(typeof result[0][0].json.signature).toBe('string');
+			expect(typeof result[0][0].json.publicKey).toBe('string');
+			expect(typeof result[0][0].json.signedMessage).toBe('string');
+		});
+
+		it('should handle invalid transaction data', async () => {
+			const mockPrivateKeyCredentials = {
+				privateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+				chainType: 'evm',
+			};
+
+			mockGetCredentials.mockResolvedValue(mockPrivateKeyCredentials);
+
+			mockGetNodeParameter
+				.mockReturnValueOnce('wallet')
+				.mockReturnValueOnce('signTransaction')
+				.mockReturnValueOnce('invalid json')
+				.mockReturnValueOnce(1);
+
+			await expect(crossmintNode.execute.call(mockContext)).rejects.toThrow('Invalid transaction data JSON');
+		});
+	});
 });

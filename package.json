@@ -33,17 +33,21 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "credentials": [
-      "dist/credentials/CrossmintApi.credentials.js"
+      "dist/credentials/CrossmintApi.credentials.js",
+      "dist/credentials/CrossmintPrivateKeyApi.credentials.js"
     ],
     "nodes": [
       "dist/nodes/Crossmint/CrossmintNode.node.js"
     ]
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.3.0",
     "@typescript-eslint/parser": "~8.32.0",
     "eslint": "^8.57.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.3",
     "gulp": "^5.0.0",
+    "jest": "^30.0.5",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2"
   },
