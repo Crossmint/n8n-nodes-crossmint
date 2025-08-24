@@ -5,8 +5,8 @@ import type {
 	INodeTypeDescription,
 	IHttpRequestOptions,
 } from 'n8n-workflow';
-import { NodeConnectionType, NodeOperationError, NodeApiError } from 'n8n-workflow';
-import { createHash, createPrivateKey, sign, createPublicKey } from 'crypto';
+import { NodeConnectionType, NodeOperationError, NodeApiError, ApplicationError } from 'n8n-workflow';
+import { createHash, createPrivateKey, sign, createPublicKey, createECDH } from 'crypto';
 
 export class CrossmintNode implements INodeType {
 	description: INodeTypeDescription = {
@@ -910,7 +910,7 @@ export class CrossmintNode implements INodeType {
 
 				if (operation === 'createWalletWithSigner' || operation === 'signTransaction') {
 					credentials = await this.getCredentials('crossmintApi', i);
-					const privateKeyCredentials = await this.getCredentials('crossmintPrivateKey', i);
+					const privateKeyCredentials = await this.getCredentials('crossmintPrivateKeyApi', i);
 					
 					const environment = credentials.environment as string;
 					const baseUrl =
@@ -1814,9 +1814,9 @@ export class CrossmintNode implements INodeType {
 		
 		if (typeof input === 'string') {
 			if (input.startsWith('0x')) {
-				const hex = input.slice(2);
+				let hex = input.slice(2);
 				if (hex.length % 2 !== 0) {
-					throw new Error('Invalid hex string');
+					hex = '0' + hex;
 				}
 				const buffer = Buffer.from(hex, 'hex');
 				return CrossmintNode.encodeLength(buffer.length, 0x80, buffer);
@@ -1845,7 +1845,7 @@ export class CrossmintNode implements INodeType {
 			return Buffer.concat([lengthEncoding, ...encodedItems]);
 		}
 		
-		throw new Error('Unsupported input type for RLP encoding');
+		throw new ApplicationError('Unsupported input type for RLP encoding');
 	}
 
 	private static encodeLength(length: number, offset: number, data: Buffer): Buffer {
@@ -1871,7 +1871,7 @@ export class CrossmintNode implements INodeType {
 			const char = str[i];
 			const index = alphabet.indexOf(char);
 			if (index === -1) {
-				throw new Error('Invalid base58 character');
+				throw new ApplicationError('Invalid base58 character');
 			}
 			decoded += BigInt(index) * multi;
 			multi *= BigInt(58);
@@ -1916,19 +1916,11 @@ export class CrossmintNode implements INodeType {
 					throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
 				}
 				
-				const keyObject = createPrivateKey({
-					key: Buffer.concat([
-						Buffer.from('302e0201010420', 'hex'),
-						privateKeyBuffer,
-						Buffer.from('a00706052b8104000a', 'hex')
-					]),
-					format: 'der',
-					type: 'pkcs8'
-				});
+				const ecdh = createECDH('secp256k1');
+				ecdh.setPrivateKey(privateKeyBuffer);
+				const publicKeyBuffer = ecdh.getPublicKey();
+				const uncompressedPubKey = publicKeyBuffer.slice(1);
 				
-				const pubKeyObject = createPublicKey(keyObject);
-				const pubKeyBuffer = pubKeyObject.export({ format: 'der', type: 'spki' });
-				const uncompressedPubKey = pubKeyBuffer.slice(-65).slice(1);
 				
 				const addressHash = CrossmintNode.keccak256(uncompressedPubKey);
 				address = '0x' + addressHash.slice(-20).toString('hex');
@@ -2061,33 +2053,32 @@ export class CrossmintNode implements INodeType {
 			throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
 		}
 		
-		const keyObject = createPrivateKey({
+		const ecdh = createECDH('secp256k1');
+		ecdh.setPrivateKey(privateKeyBuffer);
+		
+		const txArray = [
+			typeof nonce === 'number' ? (nonce === 0 ? '0x00' : '0x' + nonce.toString(16).padStart(2, '0')) : nonce,
+			gasPrice,
+			gasLimit,
+			to,
+			value,
+			data,
+			chainId === 1 ? '0x01' : '0x' + chainId.toString(16).padStart(2, '0'),
+			'0x00',
+			'0x00'
+		];
+		
+		const rlpEncoded = CrossmintNode.rlpEncode(txArray);
+		const txHash = CrossmintNode.keccak256(rlpEncoded);
+		
+		const signature = sign('sha256', txHash, {
 			key: Buffer.concat([
 				Buffer.from('302e0201010420', 'hex'),
 				privateKeyBuffer,
 				Buffer.from('a00706052b8104000a', 'hex')
 			]),
 			format: 'der',
-			type: 'pkcs8'
-		});
-		
-		const txArray = [
-			typeof nonce === 'number' ? '0x' + nonce.toString(16) : nonce,
-			gasPrice,
-			gasLimit,
-			to,
-			value,
-			data,
-			'0x' + chainId.toString(16),
-			'0x',
-			'0x'
-		];
-		
-		const rlpEncoded = CrossmintNode.rlpEncode(txArray);
-		const txHash = CrossmintNode.keccak256(rlpEncoded);
-		
-		const signature = sign(null, txHash, {
-			key: keyObject,
+			type: 'sec1',
 			dsaEncoding: 'ieee-p1363'
 		});
 		
@@ -2095,9 +2086,8 @@ export class CrossmintNode implements INodeType {
 		const s = signature.slice(32, 64);
 		
 		let recoveryId = 0;
-		const pubKeyObject = createPublicKey(keyObject);
-		const pubKeyBuffer = pubKeyObject.export({ format: 'der', type: 'spki' });
-		const uncompressedPubKey = pubKeyBuffer.slice(-65).slice(1);
+		const publicKeyBuffer = ecdh.getPublicKey();
+		const uncompressedPubKey = publicKeyBuffer.slice(1);
 		const expectedAddress = '0x' + CrossmintNode.keccak256(uncompressedPubKey).slice(-20).toString('hex');
 		
 		recoveryId = 0;
@@ -2106,7 +2096,7 @@ export class CrossmintNode implements INodeType {
 		
 		const signedTxArray = [
 			txArray[0], txArray[1], txArray[2], txArray[3], txArray[4], txArray[5],
-			'0x' + v.toString(16),
+			'0x' + v.toString(16).padStart(2, '0'),
 			'0x' + r.toString('hex'),
 			'0x' + s.toString('hex')
 		];
@@ -2130,17 +2120,22 @@ export class CrossmintNode implements INodeType {
 		itemIndex: number,
 	): Promise<any> {
 		let privateKeyBuffer: Buffer;
-		if (privateKeyStr.length === 88) {
+		try {
 			privateKeyBuffer = CrossmintNode.base58Decode(privateKeyStr);
-		} else {
+		} catch (error) {
 			throw new NodeOperationError(context.getNode(), 'Solana private key must be base58 encoded');
 		}
 		
-		if (privateKeyBuffer.length !== 64) {
-			throw new NodeOperationError(context.getNode(), 'Solana private key must be 64 bytes when decoded');
+		if (privateKeyBuffer.length === 37) {
+			privateKeyBuffer = privateKeyBuffer.slice(1, 33);
+		} else if (privateKeyBuffer.length === 32) {
+		} else if (privateKeyBuffer.length === 33) {
+			privateKeyBuffer = privateKeyBuffer.slice(0, 32);
+		} else {
+			throw new NodeOperationError(context.getNode(), `Solana private key must be 32 bytes when decoded, got ${privateKeyBuffer.length} bytes`);
 		}
 		
-		const secretKey = privateKeyBuffer.slice(0, 32);
+		const secretKey = privateKeyBuffer;
 		const keyObject = createPrivateKey({
 			key: Buffer.concat([
 				Buffer.from('302e020100300506032b657004220420', 'hex'),
