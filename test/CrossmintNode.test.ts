@@ -321,7 +321,7 @@ describe('CrossmintNode', () => {
 					case 'operation': return 'createWallet';
 					case 'chainType': return 'evm';
 					case 'ownerType': return 'externalSigner';
-					case 'signerChainType': return 'evm';
+					case 'externalSignerDetails': return 'evm';
 					default: return '';
 				}
 			});
@@ -386,7 +386,7 @@ describe('CrossmintNode', () => {
 					case 'operation': return 'createWallet';
 					case 'chainType': return 'evm';
 					case 'ownerType': return 'externalSigner';
-					case 'signerChainType': return 'solana';
+					case 'externalSignerDetails': return 'solana';
 					default: return '';
 				}
 			});

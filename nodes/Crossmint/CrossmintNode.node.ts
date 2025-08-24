@@ -40,16 +40,6 @@ export class CrossmintNode implements INodeType {
 					},
 				},
 			},
-			{
-				name: 'crossmintPrivateKeyApi',
-				required: true,
-				displayOptions: {
-					show: {
-						operation: ['createWallet'],
-						ownerType: ['externalSigner'],
-					},
-				},
-			},
 		],
 
 		properties: [
@@ -194,16 +184,13 @@ export class CrossmintNode implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'Signer Chain Type',
-				name: 'signerChainType',
-				type: 'options',
+				displayName: 'External Signer Details',
+				name: 'externalSignerDetails',
+				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'], ownerType: ['externalSigner'] } },
-				options: [
-					{ name: 'EVM', value: 'evm', description: 'Ethereum Virtual Machine' },
-					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
-				],
-				default: 'evm',
-				description: 'Blockchain type for the external signer',
+				default: '',
+				placeholder: 'Enter chain type (evm or solana) and any additional signer details',
+				description: 'Chain type and details for the external signer (e.g., "evm" or "solana")',
 				required: true,
 			},
 
@@ -617,18 +604,6 @@ export class CrossmintNode implements INodeType {
 				required: true,
 			},
 
-			{
-				displayName: 'Chain Type',
-				name: 'signerChainType',
-				type: 'options',
-				displayOptions: { show: { resource: ['wallet'], operation: ['createWalletWithSigner'] } },
-				options: [
-					{ name: 'EVM', value: 'evm', description: 'Ethereum Virtual Machine' },
-					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
-				],
-				default: 'evm',
-				description: 'Blockchain type for the wallet',
-			},
 
 			{
 				displayName: 'Transaction Data',
@@ -1017,7 +992,8 @@ export class CrossmintNode implements INodeType {
 		// Handle external signer case
 		if (ownerType === 'externalSigner') {
 			const privateKeyCredentials = await context.getCredentials('crossmintPrivateKeyApi', itemIndex);
-			const signerChainType = context.getNodeParameter('signerChainType', itemIndex) as string;
+			const externalSignerDetails = context.getNodeParameter('externalSignerDetails', itemIndex) as string;
+			const signerChainType = externalSignerDetails.toLowerCase().includes('solana') ? 'solana' : 'evm';
 			return await CrossmintNode.createWalletWithSignerLogic(context, baseUrl, credentials, privateKeyCredentials, signerChainType, itemIndex);
 		}
 		
