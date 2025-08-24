@@ -25,20 +25,6 @@ export class CrossmintNode implements INodeType {
 			{
 				name: 'crossmintApi',
 				required: true,
-				displayOptions: {
-					show: {
-						operation: ['createWallet', 'getWallet', 'transferToken', 'getBalance'],
-					},
-				},
-			},
-			{
-				name: 'crossmintPrivateKeyApi',
-				required: true,
-				displayOptions: {
-					show: {
-						operation: ['signTransaction'],
-					},
-				},
 			},
 		],
 
@@ -187,6 +173,7 @@ export class CrossmintNode implements INodeType {
 				displayName: 'External Signer Details',
 				name: 'externalSignerDetails',
 				type: 'string',
+				typeOptions: { password: true },
 				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'], ownerType: ['externalSigner'] } },
 				default: '',
 				placeholder: 'Enter chain type (evm or solana) and any additional signer details',
