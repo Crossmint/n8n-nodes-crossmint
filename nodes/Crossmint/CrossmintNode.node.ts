@@ -36,7 +36,17 @@ export class CrossmintNode implements INodeType {
 				required: true,
 				displayOptions: {
 					show: {
-						operation: ['createWalletWithSigner', 'signTransaction'],
+						operation: ['signTransaction'],
+					},
+				},
+			},
+			{
+				name: 'crossmintPrivateKeyApi',
+				required: true,
+				displayOptions: {
+					show: {
+						operation: ['createWallet'],
+						ownerType: ['externalSigner'],
 					},
 				},
 			},
@@ -94,12 +104,6 @@ export class CrossmintNode implements INodeType {
 						action: 'Get balance',
 					},
 					{
-						name: 'Create Wallet with External Signer',
-						value: 'createWalletWithSigner',
-						description: 'Create wallet with external private key ownership',
-						action: 'Create wallet with external signer',
-					},
-					{
 						name: 'Sign Transaction',
 						value: 'signTransaction',
 						description: 'Sign EVM or Solana transaction with private key',
@@ -134,6 +138,7 @@ export class CrossmintNode implements INodeType {
 					{ name: 'Phone Number', value: 'phoneNumber', description: 'Use phone number as owner' },
 					{ name: 'Twitter Handle', value: 'twitter', description: 'Use Twitter handle as owner' },
 					{ name: 'X Handle', value: 'x', description: 'Use X handle as owner' },
+					{ name: 'External Signer', value: 'externalSigner', description: 'Use external private key as wallet signer' },
 				],
 				default: 'none',
 				description: 'Type of user locator to identify the wallet owner',
@@ -186,6 +191,19 @@ export class CrossmintNode implements INodeType {
 				default: '',
 				placeholder: 'username',
 				description: 'X handle of the wallet owner (without @)',
+				required: true,
+			},
+			{
+				displayName: 'Signer Chain Type',
+				name: 'signerChainType',
+				type: 'options',
+				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'], ownerType: ['externalSigner'] } },
+				options: [
+					{ name: 'EVM', value: 'evm', description: 'Ethereum Virtual Machine' },
+					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
+				],
+				default: 'evm',
+				description: 'Blockchain type for the external signer',
 				required: true,
 			},
 
@@ -908,21 +926,11 @@ export class CrossmintNode implements INodeType {
 				let credentials: any;
 				let responseData: any;
 
-				if (operation === 'createWalletWithSigner' || operation === 'signTransaction') {
+				if (operation === 'signTransaction') {
 					credentials = await this.getCredentials('crossmintApi', i);
 					const privateKeyCredentials = await this.getCredentials('crossmintPrivateKeyApi', i);
-					
-					const environment = credentials.environment as string;
-					const baseUrl =
-						environment === 'Production'
-							? 'https://www.crossmint.com/api'
-							: 'https://staging.crossmint.com/api';
 
-					if (operation === 'createWalletWithSigner') {
-						responseData = await CrossmintNode.createWalletWithSignerMethod(this, baseUrl, credentials, privateKeyCredentials, i);
-					} else if (operation === 'signTransaction') {
-						responseData = await CrossmintNode.signTransactionMethod(this, privateKeyCredentials, i);
-					}
+					responseData = await CrossmintNode.signTransactionMethod(this, privateKeyCredentials, i);
 				} else {
 					credentials = await this.getCredentials('crossmintApi', i);
 					
@@ -1005,6 +1013,13 @@ export class CrossmintNode implements INodeType {
 	): Promise<any> {
 		const chainType = context.getNodeParameter('chainType', itemIndex) as string;
 		const ownerType = context.getNodeParameter('ownerType', itemIndex) as string;
+		
+		// Handle external signer case
+		if (ownerType === 'externalSigner') {
+			const privateKeyCredentials = await context.getCredentials('crossmintPrivateKeyApi', itemIndex);
+			const signerChainType = context.getNodeParameter('signerChainType', itemIndex) as string;
+			return await CrossmintNode.createWalletWithSignerLogic(context, baseUrl, credentials, privateKeyCredentials, signerChainType, itemIndex);
+		}
 		
 		// Build owner string based on type
 		let owner: string | undefined;
@@ -1890,14 +1905,15 @@ export class CrossmintNode implements INodeType {
 		return Buffer.concat([Buffer.alloc(leadingZeros), Buffer.from(hex, 'hex')]);
 	}
 
-	private static async createWalletWithSignerMethod(
+	private static async createWalletWithSignerLogic(
 		context: IExecuteFunctions,
 		baseUrl: string,
 		credentials: any,
 		privateKeyCredentials: any,
+		signerChainType: string,
 		itemIndex: number,
 	): Promise<any> {
-		const chainType = context.getNodeParameter('signerChainType', itemIndex) as string;
+		const chainType = signerChainType;
 		const privateKeyStr = privateKeyCredentials.privateKey as string;
 		
 		let publicKey: string;

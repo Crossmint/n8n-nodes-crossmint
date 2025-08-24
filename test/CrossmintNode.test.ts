@@ -291,7 +291,7 @@ describe('CrossmintNode', () => {
 		});
 	});
 
-	describe('createWalletWithSigner', () => {
+	describe('createWallet operation with external signer', () => {
 		it('should create wallet with EVM external signer', async () => {
 			const mockResponse = {
 				id: 'wallet-123',
@@ -318,7 +318,9 @@ describe('CrossmintNode', () => {
 
 			mockGetNodeParameter.mockImplementation((paramName: string) => {
 				switch (paramName) {
-					case 'operation': return 'createWalletWithSigner';
+					case 'operation': return 'createWallet';
+					case 'chainType': return 'evm';
+					case 'ownerType': return 'externalSigner';
 					case 'signerChainType': return 'evm';
 					default: return '';
 				}
@@ -381,7 +383,9 @@ describe('CrossmintNode', () => {
 
 			mockGetNodeParameter.mockImplementation((paramName: string) => {
 				switch (paramName) {
-					case 'operation': return 'createWalletWithSigner';
+					case 'operation': return 'createWallet';
+					case 'chainType': return 'evm';
+					case 'ownerType': return 'externalSigner';
 					case 'signerChainType': return 'solana';
 					default: return '';
 				}
