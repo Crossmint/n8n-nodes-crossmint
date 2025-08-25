@@ -622,6 +622,21 @@ export class CrossmintNode implements INodeType {
 				required: true,
 			},
 			{
+				displayName: 'Transaction Type',
+				name: 'transactionType',
+				type: 'options',
+				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'] } },
+				options: [
+					{ name: 'Raw Message/Hash', value: 'message', description: 'Sign a raw message or hash directly' },
+					{ name: 'User Operation Hash', value: 'userOp', description: 'Sign a User Operation hash for Account Abstraction' },
+					{ name: 'EVM Transaction', value: 'evmTx', description: 'Sign a complete EVM transaction' },
+					{ name: 'Solana Transaction', value: 'solanaTx', description: 'Sign a Solana transaction message' },
+				],
+				default: 'message',
+				description: 'Type of transaction or message to sign',
+				required: true,
+			},
+			{
 				displayName: 'Chain',
 				name: 'chain',
 				type: 'options',
@@ -642,6 +657,27 @@ export class CrossmintNode implements INodeType {
 				],
 				default: 'ethereum-sepolia',
 				description: 'Blockchain network for transaction signing',
+				required: true,
+			},
+			{
+				displayName: 'Message/Hash to Sign',
+				name: 'messageToSign',
+				type: 'string',
+				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'], transactionType: ['message', 'userOp'] } },
+				default: '',
+				placeholder: '0x1234abcd... or raw message text',
+				description: 'The message or hash to sign (hex string or plain text)',
+				required: true,
+			},
+			{
+				displayName: 'Private Key',
+				name: 'privateKey',
+				type: 'string',
+				typeOptions: { password: true },
+				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'] } },
+				default: '',
+				placeholder: '0x1234... for EVM or base58 for Solana',
+				description: 'Private key to sign with (32-byte hex for EVM, base58 for Solana)',
 				required: true,
 			},
 
@@ -2239,25 +2275,30 @@ export class CrossmintNode implements INodeType {
 		credentials: ICredentials,
 		itemIndex: number,
 	): Promise<any> {
-		const transactionData = context.getNodeParameter('transactionData', itemIndex) as any;
-		const externalSignerDetails = context.getNodeParameter('externalSignerDetails', itemIndex) as string;
+		const transactionType = context.getNodeParameter('transactionType', itemIndex) as string;
 		const chain = context.getNodeParameter('chain', itemIndex) as string;
+		const privateKey = context.getNodeParameter('privateKey', itemIndex) as string;
+		
+		// Get the data to sign based on transaction type
+		let dataToSign: any;
+		if (transactionType === 'message' || transactionType === 'userOp') {
+			dataToSign = context.getNodeParameter('messageToSign', itemIndex) as string;
+		} else {
+			dataToSign = context.getNodeParameter('transactionData', itemIndex) as any;
+		}
 
+		// Determine chain type and validate private key format
 		let signerChainType: string;
-		let privateKeyStr: string;
-
 		if (chain.includes('solana')) {
 			signerChainType = 'solana';
-			privateKeyStr = externalSignerDetails;
-			if (!(externalSignerDetails.length >= 80 && externalSignerDetails.length <= 90)) {
+			if (!(privateKey.length >= 80 && privateKey.length <= 90)) {
 				throw new NodeOperationError(context.getNode(), 'Invalid Solana private key format. Use base58 encoded key', {
 					itemIndex,
 				});
 			}
 		} else {
 			signerChainType = 'evm';
-			privateKeyStr = externalSignerDetails;
-			if (!(externalSignerDetails.startsWith('0x') || (externalSignerDetails.length === 64 && /^[a-fA-F0-9]+$/.test(externalSignerDetails)))) {
+			if (!(privateKey.startsWith('0x') || (privateKey.length === 64 && /^[a-fA-F0-9]+$/.test(privateKey)))) {
 				throw new NodeOperationError(context.getNode(), 'Invalid EVM private key format. Use 32-byte hex string', {
 					itemIndex,
 				});
@@ -2270,10 +2311,10 @@ export class CrossmintNode implements INodeType {
 		try {
 			if (signerChainType === 'evm') {
 				let privateKeyBuffer: Buffer;
-				if (privateKeyStr.startsWith('0x')) {
-					privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
+				if (privateKey.startsWith('0x')) {
+					privateKeyBuffer = Buffer.from(privateKey.slice(2), 'hex');
 				} else {
-					privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
+					privateKeyBuffer = Buffer.from(privateKey, 'hex');
 				}
 
 				if (privateKeyBuffer.length !== 32) {
@@ -2281,7 +2322,7 @@ export class CrossmintNode implements INodeType {
 				}
 
 				let messageToSign: Buffer;
-				const parsedData = typeof transactionData === 'string' ? JSON.parse(transactionData) : transactionData;
+				const parsedData = typeof dataToSign === 'string' ? JSON.parse(dataToSign) : dataToSign;
 				
 				if (parsedData.userOperationHash) {
 					const hashStr = parsedData.userOperationHash.startsWith('0x') ? 
@@ -2327,8 +2368,8 @@ export class CrossmintNode implements INodeType {
 
 			} else if (signerChainType === 'solana') {
 				let privateKeyBuffer: Buffer;
-				if (privateKeyStr.length === 88) {
-					privateKeyBuffer = CrossmintNode.base58Decode(privateKeyStr);
+				if (privateKey.length === 88) {
+					privateKeyBuffer = CrossmintNode.base58Decode(privateKey);
 				} else {
 					throw new NodeOperationError(context.getNode(), 'Solana private key must be base58 encoded');
 				}
@@ -2340,7 +2381,7 @@ export class CrossmintNode implements INodeType {
 				const secretKey = privateKeyBuffer.slice(0, 32);
 				
 				let messageToSign: Buffer;
-				const parsedData = typeof transactionData === 'string' ? JSON.parse(transactionData) : transactionData;
+				const parsedData = typeof dataToSign === 'string' ? JSON.parse(dataToSign) : dataToSign;
 				
 				if (parsedData.message) {
 					if (typeof parsedData.message === 'string') {
@@ -2381,7 +2422,7 @@ export class CrossmintNode implements INodeType {
 			chainType: signerChainType,
 			chain: chain,
 			chainId: signerChainType === 'evm' ? CrossmintNode.getChainId(chain) : undefined,
-			transactionData: transactionData,
+			dataToSign: dataToSign,
 		};
 	}
 }
