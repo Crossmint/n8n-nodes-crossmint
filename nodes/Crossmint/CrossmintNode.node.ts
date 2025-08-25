@@ -27,7 +27,7 @@ export class CrossmintNode implements INodeType {
 				required: true,
 				displayOptions: {
 					show: {
-						operation: ['createWallet', 'getWallet', 'transferToken', 'getBalance'],
+						operation: ['createWallet', 'getWallet', 'transferToken', 'getBalance', 'getTransactionApprovals'],
 					},
 				},
 			},
@@ -36,7 +36,7 @@ export class CrossmintNode implements INodeType {
 				required: true,
 				displayOptions: {
 					show: {
-						operation: ['signTransaction'],
+						operation: ['signTransaction', 'submitSignature'],
 					},
 				},
 			},
@@ -98,6 +98,18 @@ export class CrossmintNode implements INodeType {
 						value: 'signTransaction',
 						description: 'Sign EVM or Solana transaction with private key',
 						action: 'Sign transaction',
+					},
+					{
+						name: 'Get Transaction Approvals',
+						value: 'getTransactionApprovals',
+						description: 'Get pending transaction approvals for external signer',
+						action: 'Get transaction approvals',
+					},
+					{
+						name: 'Submit Signature',
+						value: 'submitSignature',
+						description: 'Submit signature for pending transaction approval',
+						action: 'Submit signature',
 					},
 				],
 				default: 'transferToken',
@@ -623,6 +635,35 @@ export class CrossmintNode implements INodeType {
 				description: 'Chain ID for EVM transactions (1 for Ethereum mainnet)',
 			},
 
+			{
+				displayName: 'Wallet Address',
+				name: 'walletAddress',
+				type: 'string',
+				displayOptions: { show: { resource: ['wallet'], operation: ['getTransactionApprovals'] } },
+				default: '',
+				description: 'The wallet address to get pending approvals for',
+				required: true,
+			},
+
+			{
+				displayName: 'Transaction ID',
+				name: 'transactionId',
+				type: 'string',
+				displayOptions: { show: { resource: ['wallet'], operation: ['submitSignature'] } },
+				default: '',
+				description: 'The transaction ID that needs signature approval',
+				required: true,
+			},
+			{
+				displayName: 'Message to Sign',
+				name: 'messageToSign',
+				type: 'string',
+				displayOptions: { show: { resource: ['wallet'], operation: ['submitSignature'] } },
+				default: '',
+				description: 'The message that needs to be signed (provided by getTransactionApprovals)',
+				required: true,
+			},
+
 			// =========================
 			// CHECKOUT ACTIONS
 			// =========================
@@ -933,6 +974,13 @@ export class CrossmintNode implements INodeType {
 							break;
 						case 'purchaseProduct':
 							responseData = await CrossmintNode.purchaseProductMethod(this, baseUrl, credentials, i);
+							break;
+						case 'getTransactionApprovals':
+							responseData = await CrossmintNode.getTransactionApprovalsMethod(this, baseUrl, credentials, i);
+							break;
+						case 'submitSignature':
+							const privateKeyCredentials = await this.getCredentials('crossmintPrivateKeyApi', i);
+							responseData = await CrossmintNode.submitSignatureMethod(this, baseUrl, credentials, privateKeyCredentials, i);
 							break;
 						default:
 							throw new NodeOperationError(this.getNode(), `Unsupported operation: ${operation}`);
@@ -1880,6 +1928,27 @@ export class CrossmintNode implements INodeType {
 		
 		return Buffer.concat([Buffer.alloc(leadingZeros), Buffer.from(hex, 'hex')]);
 	}
+	private static base58Encode(buffer: Buffer): string {
+		const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+		const base = BigInt(alphabet.length);
+		
+		let leadingZeros = 0;
+		for (let i = 0; i < buffer.length && buffer[i] === 0; i++) {
+			leadingZeros++;
+		}
+		
+		let num = BigInt('0x' + buffer.toString('hex'));
+		let encoded = '';
+		
+		while (num > BigInt(0)) {
+			const remainder = num % base;
+			num = num / base;
+			encoded = alphabet[Number(remainder)] + encoded;
+		}
+		
+		return '1'.repeat(leadingZeros) + encoded;
+	}
+
 
 	private static async createWalletWithSignerLogic(
 		context: IExecuteFunctions,
@@ -1913,7 +1982,6 @@ export class CrossmintNode implements INodeType {
 				const publicKeyBuffer = ecdh.getPublicKey();
 				const uncompressedPubKey = publicKeyBuffer.slice(1);
 				
-				
 				const addressHash = CrossmintNode.keccak256(uncompressedPubKey);
 				address = '0x' + addressHash.slice(-20).toString('hex');
 				publicKey = '0x' + uncompressedPubKey.toString('hex');
@@ -1942,7 +2010,9 @@ export class CrossmintNode implements INodeType {
 				
 				const pubKeyObject = createPublicKey(keyObject);
 				const pubKeyBuffer = pubKeyObject.export({ format: 'der', type: 'spki' });
-				address = pubKeyBuffer.slice(-32).toString('base64');
+				const publicKeyBytes = pubKeyBuffer.slice(-32);
+				
+				address = CrossmintNode.base58Encode(publicKeyBytes);
 				publicKey = address;
 				
 			} else {
@@ -1954,10 +2024,15 @@ export class CrossmintNode implements INodeType {
 			});
 		}
 		
+		// Build request body according to Crossmint API specification
 		const requestBody: any = {
-			type: chainType === 'evm' ? 'evm-smart-wallet' : 'solana-custodial-wallet',
+			type: 'smart',
+			chainType: chainType,
 			config: {
-				adminSigner: address,
+				adminSigner: {
+					type: 'external-wallet',
+					address: address,
+				},
 			},
 		};
 		
@@ -2161,5 +2236,165 @@ export class CrossmintNode implements INodeType {
 			publicKey: publicKey.toString('base64'),
 			signedMessage: messageBuffer.toString('base64'),
 		};
+	}
+
+	private static async getTransactionApprovalsMethod(
+		context: IExecuteFunctions,
+		baseUrl: string,
+		credentials: any,
+		itemIndex: number,
+	): Promise<any> {
+		const walletAddress = context.getNodeParameter('walletAddress', itemIndex) as string;
+		
+		if (!walletAddress || walletAddress.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Wallet address is required', {
+				description: 'Please specify the wallet address to get pending approvals for',
+				itemIndex,
+			});
+		}
+
+		const requestOptions: IHttpRequestOptions = {
+			method: 'GET',
+			url: `${baseUrl}/2025-06-09/wallets/${walletAddress}/transactions?status=awaiting-approval`,
+			headers: {
+				'X-API-KEY': credentials.apiKey,
+				'Content-Type': 'application/json',
+			},
+			json: true,
+		};
+
+		try {
+			return await context.helpers.httpRequest(requestOptions);
+		} catch (error: any) {
+			throw new NodeApiError(context.getNode(), error);
+		}
+	}
+
+	private static async submitSignatureMethod(
+		context: IExecuteFunctions,
+		baseUrl: string,
+		credentials: any,
+		privateKeyCredentials: any,
+		itemIndex: number,
+	): Promise<any> {
+		const transactionId = context.getNodeParameter('transactionId', itemIndex) as string;
+		const messageToSign = context.getNodeParameter('messageToSign', itemIndex) as string;
+		const chainType = privateKeyCredentials.chainType as string;
+		const privateKeyStr = privateKeyCredentials.privateKey as string;
+		
+		if (!transactionId || transactionId.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Transaction ID is required', {
+				description: 'Please specify the transaction ID that needs signature approval',
+				itemIndex,
+			});
+		}
+
+		if (!messageToSign || messageToSign.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Message to sign is required', {
+				description: 'Please specify the message that needs to be signed',
+				itemIndex,
+			});
+		}
+
+		let signature: string;
+		
+		try {
+			if (chainType === 'evm') {
+				let messageBuffer: Buffer;
+				if (messageToSign.startsWith('0x')) {
+					messageBuffer = Buffer.from(messageToSign.slice(2), 'hex');
+				} else {
+					messageBuffer = Buffer.from(messageToSign, 'hex');
+				}
+				
+				let privateKeyBuffer: Buffer;
+				if (privateKeyStr.startsWith('0x')) {
+					privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
+				} else {
+					privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
+				}
+				
+				if (privateKeyBuffer.length !== 32) {
+					throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
+				}
+				
+				const keyObject = createPrivateKey({
+					key: Buffer.concat([
+						Buffer.from('302e0201010420', 'hex'),
+						privateKeyBuffer,
+						Buffer.from('a00706052b8104000a', 'hex')
+					]),
+					format: 'der',
+					type: 'sec1'
+				});
+				
+				const signatureBuffer = sign(null, messageBuffer, keyObject);
+				signature = '0x' + signatureBuffer.toString('hex');
+				
+			} else if (chainType === 'solana') {
+				let messageBuffer: Buffer;
+				if (messageToSign.startsWith('0x')) {
+					messageBuffer = Buffer.from(messageToSign.slice(2), 'hex');
+				} else {
+					messageBuffer = Buffer.from(messageToSign, 'base64');
+				}
+				
+				let privateKeyBuffer: Buffer;
+				try {
+					privateKeyBuffer = CrossmintNode.base58Decode(privateKeyStr);
+				} catch (error) {
+					throw new NodeOperationError(context.getNode(), 'Solana private key must be base58 encoded');
+				}
+				
+				if (privateKeyBuffer.length === 37) {
+					privateKeyBuffer = privateKeyBuffer.slice(1, 33);
+				} else if (privateKeyBuffer.length === 32) {
+				} else if (privateKeyBuffer.length === 33) {
+					privateKeyBuffer = privateKeyBuffer.slice(0, 32);
+				} else {
+					throw new NodeOperationError(context.getNode(), `Solana private key must be 32 bytes when decoded, got ${privateKeyBuffer.length} bytes`);
+				}
+				
+				const keyObject = createPrivateKey({
+					key: Buffer.concat([
+						Buffer.from('302e020100300506032b657004220420', 'hex'),
+						privateKeyBuffer
+					]),
+					format: 'der',
+					type: 'pkcs8'
+				});
+				
+				const signatureBuffer = sign(null, messageBuffer, keyObject);
+				signature = signatureBuffer.toString('base64');
+				
+			} else {
+				throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${chainType}`);
+			}
+		} catch (error: any) {
+			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
+				itemIndex,
+			});
+		}
+
+		const requestBody = {
+			signature: signature,
+		};
+
+		const requestOptions: IHttpRequestOptions = {
+			method: 'POST',
+			url: `${baseUrl}/2025-06-09/transactions/${transactionId}/approvals`,
+			headers: {
+				'X-API-KEY': credentials.apiKey,
+				'Content-Type': 'application/json',
+			},
+			body: requestBody,
+			json: true,
+		};
+
+		try {
+			return await context.helpers.httpRequest(requestOptions);
+		} catch (error: any) {
+			throw new NodeApiError(context.getNode(), error);
+		}
 	}
 }

@@ -348,9 +348,13 @@ describe('CrossmintNode', () => {
 					'Content-Type': 'application/json',
 				},
 				body: {
-					type: 'evm-smart-wallet',
+					type: 'smart',
+					chainType: 'evm',
 					config: {
-						adminSigner: expect.stringMatching(/^0x[a-fA-F0-9]{40}$/),
+						adminSigner: {
+							type: 'external-wallet',
+							address: expect.stringMatching(/^0x[a-fA-F0-9]{40}$/),
+						},
 					},
 				},
 				json: true,
@@ -413,9 +417,13 @@ describe('CrossmintNode', () => {
 					'Content-Type': 'application/json',
 				},
 				body: {
-					type: 'solana-custodial-wallet',
+					type: 'smart',
+					chainType: 'solana',
 					config: {
-						adminSigner: expect.any(String),
+						adminSigner: {
+							type: 'external-wallet',
+							address: expect.any(String),
+						},
 					},
 				},
 				json: true,
@@ -514,6 +522,119 @@ describe('CrossmintNode', () => {
 			});
 
 			await expect(node.execute.call(mockExecuteFunctions)).rejects.toThrow('Invalid transaction data JSON');
+		});
+	});
+
+	describe('getTransactionApprovals', () => {
+		beforeEach(() => {
+			mockGetNodeParameter.mockImplementation((paramName: string) => {
+				switch (paramName) {
+					case 'resource': return 'wallet';
+					case 'operation': return 'getTransactionApprovals';
+					case 'walletAddress': return '0x1234567890123456789012345678901234567890';
+					default: return undefined;
+				}
+			});
+		});
+
+		it('should get pending transaction approvals', async () => {
+			const mockResponse = {
+				transactions: [
+					{
+						id: 'tx-123',
+						status: 'awaiting-approval',
+						approvals: {
+							pending: [
+								{
+									signer: {
+										type: 'external-wallet',
+										address: '0x1234567890123456789012345678901234567890',
+										locator: 'external-wallet:0x1234567890123456789012345678901234567890'
+									},
+									message: '0xabcdef1234567890'
+								}
+							],
+							submitted: []
+						}
+					}
+				]
+			};
+
+			mockHttpRequest.mockResolvedValue(mockResponse);
+
+			const result = await node.execute.call(mockExecuteFunctions);
+
+			expect(mockHttpRequest).toHaveBeenCalledWith({
+				method: 'GET',
+				url: 'https://staging.crossmint.com/api/2025-06-09/wallets/0x1234567890123456789012345678901234567890/transactions?status=awaiting-approval',
+				headers: {
+					'X-API-KEY': 'test-api-key',
+					'Content-Type': 'application/json',
+				},
+				json: true,
+			});
+
+			expect(result).toEqual([[{
+				json: mockResponse,
+			}]]);
+		});
+	});
+
+	describe('submitSignature', () => {
+		beforeEach(() => {
+			mockGetNodeParameter.mockImplementation((paramName: string) => {
+				switch (paramName) {
+					case 'resource': return 'wallet';
+					case 'operation': return 'submitSignature';
+					case 'transactionId': return 'tx-123';
+					case 'messageToSign': return '0xabcdef1234567890';
+					default: return undefined;
+				}
+			});
+
+			mockGetCredentials.mockImplementation((credentialType: string) => {
+				if (credentialType === 'crossmintApi') {
+					return Promise.resolve({
+						apiKey: 'test-api-key',
+						environment: 'Staging',
+					});
+				} else if (credentialType === 'crossmintPrivateKeyApi') {
+					return Promise.resolve({
+						privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
+						chainType: 'evm',
+					});
+				}
+				return Promise.resolve({});
+			});
+		});
+
+		it('should submit signature for EVM transaction', async () => {
+			const mockResponse = {
+				success: true,
+				transactionId: 'tx-123',
+				status: 'pending'
+			};
+
+			mockHttpRequest.mockResolvedValue(mockResponse);
+
+			const result = await node.execute.call(mockExecuteFunctions);
+
+			expect(mockHttpRequest).toHaveBeenCalledWith({
+				method: 'POST',
+				url: 'https://staging.crossmint.com/api/2025-06-09/transactions/tx-123/approvals',
+				headers: {
+					'X-API-KEY': 'test-api-key',
+					'Content-Type': 'application/json',
+				},
+				body: {
+					signature: expect.stringMatching(/^0x[a-fA-F0-9]+$/),
+				},
+				json: true,
+			});
+
+			expect(result).toEqual([[{
+				json: mockResponse,
+			}]]);
 		});
 	});
 });
