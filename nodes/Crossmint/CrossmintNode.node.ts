@@ -26,10 +26,6 @@ export class CrossmintNode implements INodeType {
 				name: 'crossmintApi',
 				required: true,
 			},
-			{
-				name: 'crossmintPrivateKeyApi',
-				required: false,
-			},
 		],
 
 		properties: [
