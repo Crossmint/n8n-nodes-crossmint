@@ -25,20 +25,10 @@ export class CrossmintNode implements INodeType {
 			{
 				name: 'crossmintApi',
 				required: true,
-				displayOptions: {
-					show: {
-						operation: ['createWallet', 'getWallet', 'transferToken', 'getBalance', 'getTransactionApprovals'],
-					},
-				},
 			},
 			{
 				name: 'crossmintPrivateKeyApi',
-				required: true,
-				displayOptions: {
-					show: {
-						operation: ['signTransaction', 'submitSignature'],
-					},
-				},
+				required: false,
 			},
 		],
 
