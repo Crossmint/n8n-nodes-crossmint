@@ -7,7 +7,7 @@ import type {
 	ICredentials,
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError, NodeApiError, ApplicationError } from 'n8n-workflow';
-import { createHash, createPrivateKey, createPublicKey, createECDH, sign } from 'crypto';
+import { createHash, createPrivateKey, createPublicKey, createECDH, sign, randomBytes } from 'crypto';
 
 export class CrossmintNode implements INodeType {
 	description: INodeTypeDescription = {
@@ -2216,6 +2216,104 @@ export class CrossmintNode implements INodeType {
 		}
 	}
 
+	/** secp256k1 domain parameters */
+	private static readonly secp256k1_N = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
+	private static readonly secp256k1_P = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F");
+	private static readonly secp256k1_Gx = BigInt("0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
+	private static readonly secp256k1_Gy = BigInt("0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8");
+
+	/** Compute Ethereum-compatible Keccak-256 hash */
+	private static keccak256Hash(data: Buffer | Uint8Array): Buffer {
+		const hash = createHash("sha3-256");
+		hash.update(Buffer.isBuffer(data) ? data : Buffer.from(data));
+		return hash.digest();
+	}
+
+	/** Elliptic curve point structure on secp256k1 */
+	private static ECPoint = class {
+		constructor(public x: bigint, public y: bigint, public infinity: boolean = false) {}
+	};
+
+	/** Add two secp256k1 points (P + Q) */
+	private static pointAdd(P: InstanceType<typeof CrossmintNode.ECPoint>, Q: InstanceType<typeof CrossmintNode.ECPoint>): InstanceType<typeof CrossmintNode.ECPoint> {
+		if (P.infinity) return Q;
+		if (Q.infinity) return P;
+		if (P.x === Q.x) {
+			if ((P.y + Q.y) % CrossmintNode.secp256k1_P === BigInt(0)) {
+				return new CrossmintNode.ECPoint(BigInt(0), BigInt(0), true);
+			}
+			return CrossmintNode.pointDouble(P);
+		}
+		const lambda = ((Q.y - P.y) * CrossmintNode.modInverse(Q.x - P.x, CrossmintNode.secp256k1_P)) % CrossmintNode.secp256k1_P;
+		const x3 = (lambda * lambda - P.x - Q.x) % CrossmintNode.secp256k1_P;
+		const y3 = (lambda * (P.x - x3) - P.y) % CrossmintNode.secp256k1_P;
+		return new CrossmintNode.ECPoint((x3 + CrossmintNode.secp256k1_P) % CrossmintNode.secp256k1_P, (y3 + CrossmintNode.secp256k1_P) % CrossmintNode.secp256k1_P);
+	}
+
+	/** Double a secp256k1 point (P + P) */
+	private static pointDouble(P: InstanceType<typeof CrossmintNode.ECPoint>): InstanceType<typeof CrossmintNode.ECPoint> {
+		if (P.infinity) return P;
+		const lambda = ((BigInt(3) * P.x * P.x) * CrossmintNode.modInverse(BigInt(2) * P.y, CrossmintNode.secp256k1_P)) % CrossmintNode.secp256k1_P;
+		const x3 = (lambda * lambda - BigInt(2) * P.x) % CrossmintNode.secp256k1_P;
+		const y3 = (lambda * (P.x - x3) - P.y) % CrossmintNode.secp256k1_P;
+		return new CrossmintNode.ECPoint((x3 + CrossmintNode.secp256k1_P) % CrossmintNode.secp256k1_P, (y3 + CrossmintNode.secp256k1_P) % CrossmintNode.secp256k1_P);
+	}
+
+	/** Multiply a secp256k1 point P by scalar n (n * P) */
+	private static pointMultiply(P: InstanceType<typeof CrossmintNode.ECPoint>, scalar: bigint): InstanceType<typeof CrossmintNode.ECPoint> {
+		if (scalar % CrossmintNode.secp256k1_N === BigInt(0) || P.infinity) {
+			return new CrossmintNode.ECPoint(BigInt(0), BigInt(0), true);
+		}
+		let result = new CrossmintNode.ECPoint(BigInt(0), BigInt(0), true);
+		let addend = P;
+		let k = scalar;
+		while (k > BigInt(0)) {
+			if ((k & BigInt(1)) === BigInt(1)) {
+				result = CrossmintNode.pointAdd(result, addend);
+			}
+			addend = CrossmintNode.pointDouble(addend);
+			k >>= BigInt(1);
+		}
+		return result;
+	}
+
+	/** Modular inverse of a modulo m (a^{-1} mod m), using Extended Euclidean Algorithm */
+	private static modInverse(a: bigint, m: bigint): bigint {
+		if (a < BigInt(0)) a = (a % m + m) % m;
+		let [old_r, r] = [m, a % m];
+		let [old_t, t] = [BigInt(0), BigInt(1)];
+		while (r !== BigInt(0)) {
+			const q = old_r / r;
+			[old_r, r] = [r, old_r - q * r];
+			[old_t, t] = [t, old_t - q * t];
+		}
+		if (old_r !== BigInt(1)) throw new ApplicationError("No modular inverse exists");
+		return (old_t + m) % m;
+	}
+
+	/** Compute ECDSA signature of a 32-byte message hash using secp256k1 (returns r, s, recid). */
+	private static ecdsaSign(msgHash: Buffer, privateKey: Buffer): { r: bigint, s: bigint, recid: number } {
+		const priv = BigInt("0x" + privateKey.toString("hex"));
+		const e = BigInt("0x" + msgHash.toString("hex")) % CrossmintNode.secp256k1_N;
+		let k: bigint, R: InstanceType<typeof CrossmintNode.ECPoint>, r: bigint, s: bigint;
+		do {
+			k = BigInt("0x" + randomBytes(32).toString("hex")) % CrossmintNode.secp256k1_N;
+		} while (k === BigInt(0));
+		R = CrossmintNode.pointMultiply(new CrossmintNode.ECPoint(CrossmintNode.secp256k1_Gx, CrossmintNode.secp256k1_Gy), k);
+		r = R.x % CrossmintNode.secp256k1_N;
+		if (r === BigInt(0)) {
+			return CrossmintNode.ecdsaSign(msgHash, privateKey);
+		}
+		const kInv = CrossmintNode.modInverse(k, CrossmintNode.secp256k1_N);
+		s = (kInv * (e + r * priv)) % CrossmintNode.secp256k1_N;
+		let recid = (R.y & BigInt(1)) === BigInt(1) ? 1 : 0;
+		if (s > CrossmintNode.secp256k1_N / BigInt(2)) {
+			s = CrossmintNode.secp256k1_N - s;
+			recid = recid ^ 1;
+		}
+		return { r, s, recid };
+	}
+
 	private static async signTransactionMethod(
 		context: IExecuteFunctions,
 		baseUrl: string,
@@ -2268,62 +2366,31 @@ export class CrossmintNode implements INodeType {
 					throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
 				}
 
-				// Convert input to string and prepare message to sign
-				const messageString = String(dataToSign);
 				let messageToSign: Buffer;
+				const parsedData = typeof dataToSign === 'string' ? JSON.parse(dataToSign) : dataToSign;
 				
-				if (messageString.startsWith('0x')) {
-					// It's a hex hash - remove 0x and convert to buffer
-					messageToSign = Buffer.from(messageString.slice(2), 'hex');
-				} else if (/^[a-fA-F0-9]+$/.test(messageString) && messageString.length >= 64) {
-					// It's a hex string without 0x prefix (and looks like a hash)
-					messageToSign = Buffer.from(messageString, 'hex');
+				if (parsedData.userOperationHash) {
+					const hashStr = parsedData.userOperationHash.startsWith('0x') ? 
+						parsedData.userOperationHash.slice(2) : parsedData.userOperationHash;
+					messageToSign = Buffer.from(hashStr, 'hex');
+				} else if (parsedData.hash) {
+					const hashStr = parsedData.hash.startsWith('0x') ? 
+						parsedData.hash.slice(2) : parsedData.hash;
+					messageToSign = Buffer.from(hashStr, 'hex');
 				} else {
-					// It's plain text - hash it
-					messageToSign = CrossmintNode.keccak256(Buffer.from(messageString));
+					const message = typeof parsedData === 'string' ? parsedData : JSON.stringify(parsedData);
+					messageToSign = CrossmintNode.keccak256Hash(Buffer.from(message));
 				}
 
 				const chainId = CrossmintNode.getChainId(chain);
+				const { r, s, recid } = CrossmintNode.ecdsaSign(messageToSign, privateKeyBuffer);
 
-				const ecdh = createECDH('secp256k1');
-				ecdh.setPrivateKey(privateKeyBuffer);
-				
-				const messageHash = createHash('sha256').update(messageToSign).digest();
-				
-				const privateKeyBigInt = BigInt('0x' + privateKeyBuffer.toString('hex'));
-				const messageBigInt = BigInt('0x' + messageHash.toString('hex'));
-				
-				const secp256k1Order = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141');
-				const secp256k1Generator = BigInt('0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798');
-				
-				let r = (secp256k1Generator * privateKeyBigInt) % secp256k1Order;
-				let s = (messageBigInt * privateKeyBigInt) % secp256k1Order;
-				
-				if (r === BigInt(0)) r = BigInt(1);
-				if (s === BigInt(0)) s = BigInt(1);
-				
+				const v = BigInt(recid + (chainId * 2 + 35));
 				const rBuffer = Buffer.from(r.toString(16).padStart(64, '0'), 'hex');
 				const sBuffer = Buffer.from(s.toString(16).padStart(64, '0'), 'hex');
-				
-				const signatureBuffer = Buffer.concat([rBuffer, sBuffer]);
-
-				// Extract r and s components (32 bytes each)
-				const rFinal = signatureBuffer.slice(0, 32);
-				let sFinal = signatureBuffer.slice(32, 64);
-				
-				const sBigInt = BigInt('0x' + sFinal.toString('hex'));
-				const halfOrder = secp256k1Order / BigInt('2');
-
-				let finalS = sFinal;
-				if (sBigInt > halfOrder) {
-					const lowS = secp256k1Order - sBigInt;
-					finalS = Buffer.from(lowS.toString(16).padStart(64, '0'), 'hex');
-				}
-
-				const v = 35 + 2 * chainId;
 				const vHex = v.toString(16).padStart(2, '0');
 
-				signature = '0x' + rFinal.toString('hex') + finalS.toString('hex') + vHex;
+				signature = '0x' + rBuffer.toString('hex') + sBuffer.toString('hex') + vHex;
 				signedTransaction = signature;
 
 			} else if (signerChainType === 'solana') {
