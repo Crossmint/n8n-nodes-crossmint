@@ -320,7 +320,8 @@ describe('CrossmintNode', () => {
 			switch (paramName) {
 				case 'operation': return 'createWallet';
 				case 'chainType': return 'evm';
-				case 'ownerType': return 'externalSigner';
+				case 'ownerType': return 'none';
+				case 'useExternalSigner': return true;
 				case 'externalSignerDetails': return 'abb51256c1324a1350598653f46aa3ad693ac3cf5d05f36eba3f495a1f51590f';
 				default: return '';
 			}
@@ -384,7 +385,8 @@ describe('CrossmintNode', () => {
 			switch (paramName) {
 				case 'operation': return 'createWallet';
 				case 'chainType': return 'solana';
-				case 'ownerType': return 'externalSigner';
+				case 'ownerType': return 'none';
+				case 'useExternalSigner': return true;
 				case 'externalSignerDetails': return '5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtrzVHpcXjnBtmN2jGMxgKG1H1cH8TjC2hgHqfnAHRdMeUiN';
 				default: return '';
 			}
@@ -418,6 +420,73 @@ describe('CrossmintNode', () => {
 						adminSigner: {
 							type: 'external-wallet',
 							address: expect.any(String),
+						},
+					},
+				},
+				json: true,
+			});
+		});
+
+		it('should create wallet with both owner type and external signer', async () => {
+			const mockResponse = {
+				id: 'wallet-789',
+				address: '0x9876543210987654321098765432109876543210',
+				type: 'evm-smart-wallet',
+			};
+
+			mockGetCredentials.mockImplementation((credentialType: string) => {
+				if (credentialType === 'crossmintApi') {
+					return Promise.resolve({
+						apiKey: 'test-api-key',
+						environment: 'staging',
+					});
+				}
+				return Promise.resolve({});
+			});
+
+			mockHttpRequest.mockResolvedValue(mockResponse);
+
+			mockGetNodeParameter.mockImplementation((paramName: string) => {
+				switch (paramName) {
+					case 'operation': return 'createWallet';
+					case 'chainType': return 'evm';
+					case 'ownerType': return 'email';
+					case 'ownerEmail': return 'test@example.com';
+					case 'useExternalSigner': return true;
+					case 'externalSignerDetails': return 'abb51256c1324a1350598653f46aa3ad693ac3cf5d05f36eba3f495a1f51590f';
+					default: return '';
+				}
+			});
+
+			const result = await node.execute.call(mockExecuteFunctions);
+
+			expect(result).toEqual([
+				[
+					{
+						json: {
+							...mockResponse,
+							derivedAddress: expect.stringMatching(/^0x[a-fA-F0-9]{40}$/),
+							derivedPublicKey: expect.stringMatching(/^0x[a-fA-F0-9]{128}$/),
+						},
+					},
+				],
+			]);
+
+			expect(mockHttpRequest).toHaveBeenCalledWith({
+				method: 'POST',
+				url: 'https://staging.crossmint.com/api/2025-06-09/wallets',
+				headers: {
+					'X-API-KEY': 'test-api-key',
+					'Content-Type': 'application/json',
+				},
+				body: {
+					type: 'smart',
+					chainType: 'evm',
+					owner: 'email:test@example.com',
+					config: {
+						adminSigner: {
+							type: 'external-wallet',
+							address: expect.stringMatching(/^0x[a-fA-F0-9]{40}$/),
 						},
 					},
 				},

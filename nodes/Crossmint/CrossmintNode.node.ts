@@ -127,10 +127,17 @@ export class CrossmintNode implements INodeType {
 					{ name: 'Phone Number', value: 'phoneNumber', description: 'Use phone number as owner' },
 					{ name: 'Twitter Handle', value: 'twitter', description: 'Use Twitter handle as owner' },
 					{ name: 'X Handle', value: 'x', description: 'Use X handle as owner' },
-					{ name: 'External Signer', value: 'externalSigner', description: 'Use external private key as wallet signer' },
 				],
 				default: 'none',
 				description: 'Type of user locator to identify the wallet owner',
+			},
+			{
+				displayName: 'Use External Signer',
+				name: 'useExternalSigner',
+				type: 'boolean',
+				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'] } },
+				default: false,
+				description: 'Whether to enable external signer for wallet administration using a private key',
 			},
 			{
 				displayName: 'Owner Email',
@@ -187,7 +194,7 @@ export class CrossmintNode implements INodeType {
 				name: 'externalSignerDetails',
 				type: 'string',
 				typeOptions: { password: true },
-				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'], ownerType: ['externalSigner'] } },
+				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'], useExternalSigner: [true] } },
 				default: '',
 				placeholder: 'Enter private key (32-byte hex for EVM, base58 for Solana)',
 				description: 'Private key for the external signer (e.g., "0x1234..." for EVM or base58 string for Solana)',
@@ -1019,9 +1026,14 @@ export class CrossmintNode implements INodeType {
 	): Promise<any> {
 		const chainType = context.getNodeParameter('chainType', itemIndex) as string;
 		const ownerType = context.getNodeParameter('ownerType', itemIndex) as string;
+		const useExternalSigner = context.getNodeParameter('useExternalSigner', itemIndex) as boolean;
 		
-		// Handle external signer case
-		if (ownerType === 'externalSigner') {
+		let adminSigner: any;
+		let derivedAddress: string | undefined;
+		let derivedPublicKey: string | undefined;
+		
+		// Handle external signer if enabled
+		if (useExternalSigner) {
 			const externalSignerDetails = context.getNodeParameter('externalSignerDetails', itemIndex) as string;
 			
 			let privateKeyStr: string;
@@ -1103,41 +1115,18 @@ export class CrossmintNode implements INodeType {
 				});
 			}
 			
-			const adminSigner = {
+			adminSigner = {
 				type: 'external-wallet',
 				address: address,
 			};
 			
-			// Build request body with external signer
-			const requestBody: any = {
-				type: 'smart',
-				chainType: signerChainType,
-				config: {
-					adminSigner: adminSigner,
-				},
+			derivedAddress = address;
+			derivedPublicKey = publicKey;
+		} else {
+			// Use API key for admin signer when no external signer
+			adminSigner = {
+				type: 'api-key',
 			};
-			
-			const requestOptions: IHttpRequestOptions = {
-				method: 'POST',
-				url: `${baseUrl}/2025-06-09/wallets`,
-				headers: {
-					'X-API-KEY': (credentials as any).apiKey,
-					'Content-Type': 'application/json',
-				},
-				body: requestBody,
-				json: true,
-			};
-			
-			try {
-				const response = await context.helpers.httpRequest(requestOptions);
-				return {
-					...response,
-					derivedAddress: address,
-					derivedPublicKey: publicKey,
-				};
-			} catch (error: any) {
-				throw new NodeApiError(context.getNode(), error);
-			}
 		}
 		
 		// Build owner string based on type
@@ -1172,11 +1161,6 @@ export class CrossmintNode implements INodeType {
 			}
 		}
 
-		// Always use API key for admin signer
-		const adminSigner = {
-			type: 'api-key',
-		};
-
 		// Build request body according to API specification
 		const requestBody: any = {
 			type: 'smart',
@@ -1206,7 +1190,17 @@ export class CrossmintNode implements INodeType {
 		};
 
 		try {
-			return await context.helpers.httpRequest(requestOptions);
+			const response = await context.helpers.httpRequest(requestOptions);
+			
+			if (derivedAddress && derivedPublicKey) {
+				return {
+					...response,
+					derivedAddress: derivedAddress,
+					derivedPublicKey: derivedPublicKey,
+				};
+			}
+			
+			return response;
 		} catch (error: any) {
 			// Pass through the original Crossmint API error exactly as received
 			throw new NodeApiError(context.getNode(), error);
