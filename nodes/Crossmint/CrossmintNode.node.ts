@@ -6,7 +6,7 @@ import type {
 	IHttpRequestOptions,
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError, NodeApiError, ApplicationError } from 'n8n-workflow';
-import { createHash, createPrivateKey, sign, createPublicKey, createECDH } from 'crypto';
+import { createHash, createPrivateKey, createPublicKey, createECDH } from 'crypto';
 
 export class CrossmintNode implements INodeType {
 	description: INodeTypeDescription = {
@@ -188,8 +188,8 @@ export class CrossmintNode implements INodeType {
 				typeOptions: { password: true },
 				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'], ownerType: ['externalSigner'] } },
 				default: '',
-				placeholder: 'Enter chain type (evm or solana) and any additional signer details',
-				description: 'Chain type and details for the external signer (e.g., "evm" or "solana")',
+				placeholder: 'Enter private key (32-byte hex for EVM, base58 for Solana)',
+				description: 'Private key for the external signer (e.g., "0x1234..." for EVM or base58 string for Solana)',
 				required: true,
 			},
 
@@ -930,10 +930,7 @@ export class CrossmintNode implements INodeType {
 				let responseData: any;
 
 				if (operation === 'signTransaction') {
-					credentials = await this.getCredentials('crossmintApi', i);
-					const privateKeyCredentials = await this.getCredentials('crossmintPrivateKeyApi', i);
-
-					responseData = await CrossmintNode.signTransactionMethod(this, privateKeyCredentials, i);
+					throw new NodeOperationError(this.getNode(), 'signTransaction operation is not supported without crossmintPrivateKeyApi credentials');
 				} else {
 					credentials = await this.getCredentials('crossmintApi', i);
 					
@@ -963,12 +960,10 @@ export class CrossmintNode implements INodeType {
 							responseData = await CrossmintNode.purchaseProductMethod(this, baseUrl, credentials, i);
 							break;
 						case 'getTransactionApprovals':
-							responseData = await CrossmintNode.getTransactionApprovalsMethod(this, baseUrl, credentials, i);
+							throw new NodeOperationError(this.getNode(), 'getTransactionApprovals operation is not supported without crossmintPrivateKeyApi credentials');
 							break;
 						case 'submitSignature':
-							const privateKeyCredentials = await this.getCredentials('crossmintPrivateKeyApi', i);
-							responseData = await CrossmintNode.submitSignatureMethod(this, baseUrl, credentials, privateKeyCredentials, i);
-							break;
+							throw new NodeOperationError(this.getNode(), 'submitSignature operation is not supported without crossmintPrivateKeyApi credentials');
 						default:
 							throw new NodeOperationError(this.getNode(), `Unsupported operation: ${operation}`);
 					}
@@ -1026,10 +1021,122 @@ export class CrossmintNode implements INodeType {
 		
 		// Handle external signer case
 		if (ownerType === 'externalSigner') {
-			const privateKeyCredentials = await context.getCredentials('crossmintPrivateKeyApi', itemIndex);
 			const externalSignerDetails = context.getNodeParameter('externalSignerDetails', itemIndex) as string;
-			const signerChainType = externalSignerDetails.toLowerCase().includes('solana') ? 'solana' : 'evm';
-			return await CrossmintNode.createWalletWithSignerLogic(context, baseUrl, credentials, privateKeyCredentials, signerChainType, itemIndex);
+			
+			let privateKeyStr: string;
+			let signerChainType: string;
+			
+			if (externalSignerDetails.startsWith('0x') || (externalSignerDetails.length === 64 && /^[a-fA-F0-9]+$/.test(externalSignerDetails))) {
+				signerChainType = 'evm';
+				privateKeyStr = externalSignerDetails;
+			} else if (externalSignerDetails.length >= 80 && externalSignerDetails.length <= 90) {
+				signerChainType = 'solana';
+				privateKeyStr = externalSignerDetails;
+			} else {
+				throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
+					itemIndex,
+				});
+			}
+			
+			let address: string;
+			let publicKey: string;
+			
+			try {
+				if (signerChainType === 'evm') {
+					let privateKeyBuffer: Buffer;
+					if (privateKeyStr.startsWith('0x')) {
+						privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
+					} else {
+						privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
+					}
+					
+					if (privateKeyBuffer.length !== 32) {
+						throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
+					}
+					
+					const ecdh = createECDH('secp256k1');
+					ecdh.setPrivateKey(privateKeyBuffer);
+					const publicKeyBuffer = ecdh.getPublicKey();
+					const uncompressedPubKey = publicKeyBuffer.slice(1);
+					
+					const addressHash = CrossmintNode.keccak256(uncompressedPubKey);
+					address = '0x' + addressHash.slice(-20).toString('hex');
+					publicKey = '0x' + uncompressedPubKey.toString('hex');
+					
+				} else if (signerChainType === 'solana') {
+					let privateKeyBuffer: Buffer;
+					if (privateKeyStr.length === 88) {
+						privateKeyBuffer = CrossmintNode.base58Decode(privateKeyStr);
+					} else {
+						throw new NodeOperationError(context.getNode(), 'Solana private key must be base58 encoded');
+					}
+					
+					if (privateKeyBuffer.length !== 64) {
+						throw new NodeOperationError(context.getNode(), 'Solana private key must be 64 bytes when decoded');
+					}
+					
+					const secretKey = privateKeyBuffer.slice(0, 32);
+					const keyObject = createPrivateKey({
+						key: Buffer.concat([
+							Buffer.from('302e020100300506032b657004220420', 'hex'),
+							secretKey
+						]),
+						format: 'der',
+						type: 'pkcs8'
+					});
+					
+					const pubKeyObject = createPublicKey(keyObject);
+					const pubKeyBuffer = pubKeyObject.export({ format: 'der', type: 'spki' });
+					const publicKeyBytes = pubKeyBuffer.slice(-32);
+					
+					address = CrossmintNode.base58Encode(publicKeyBytes);
+					publicKey = address;
+				} else {
+					throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${signerChainType}`, {
+						itemIndex,
+					});
+				}
+			} catch (error: any) {
+				throw new NodeOperationError(context.getNode(), `Failed to process private key: ${error.message}`, {
+					itemIndex,
+				});
+			}
+			
+			const adminSigner = {
+				type: 'external-wallet',
+				address: address,
+			};
+			
+			// Build request body with external signer
+			const requestBody: any = {
+				type: 'smart',
+				chainType: signerChainType,
+				config: {
+					adminSigner: adminSigner,
+				},
+			};
+			
+			const requestOptions: IHttpRequestOptions = {
+				method: 'POST',
+				url: `${baseUrl}/2025-06-09/wallets`,
+				headers: {
+					'X-API-KEY': credentials.apiKey,
+					'Content-Type': 'application/json',
+				},
+				body: requestBody,
+				json: true,
+			};
+			
+			try {
+				const response = await context.helpers.httpRequest(requestOptions);
+				return {
+					...response,
+					derivedAddress: address,
+					derivedPublicKey: publicKey,
+				};
+			} catch (error: any) {
+				throw new NodeApiError(context.getNode(), error);
+			}
 		}
 		
 		// Build owner string based on type
@@ -1937,451 +2044,9 @@ export class CrossmintNode implements INodeType {
 	}
 
 
-	private static async createWalletWithSignerLogic(
-		context: IExecuteFunctions,
-		baseUrl: string,
-		credentials: any,
-		privateKeyCredentials: any,
-		signerChainType: string,
-		itemIndex: number,
-	): Promise<any> {
-		const chainType = signerChainType;
-		const privateKeyStr = privateKeyCredentials.privateKey as string;
-		
-		let publicKey: string;
-		let address: string;
-		
-		try {
-			if (chainType === 'evm') {
-				let privateKeyBuffer: Buffer;
-				if (privateKeyStr.startsWith('0x')) {
-					privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
-				} else {
-					privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
-				}
-				
-				if (privateKeyBuffer.length !== 32) {
-					throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
-				}
-				
-				const ecdh = createECDH('secp256k1');
-				ecdh.setPrivateKey(privateKeyBuffer);
-				const publicKeyBuffer = ecdh.getPublicKey();
-				const uncompressedPubKey = publicKeyBuffer.slice(1);
-				
-				const addressHash = CrossmintNode.keccak256(uncompressedPubKey);
-				address = '0x' + addressHash.slice(-20).toString('hex');
-				publicKey = '0x' + uncompressedPubKey.toString('hex');
-				
-			} else if (chainType === 'solana') {
-				let privateKeyBuffer: Buffer;
-				if (privateKeyStr.length === 88) {
-					privateKeyBuffer = CrossmintNode.base58Decode(privateKeyStr);
-				} else {
-					throw new NodeOperationError(context.getNode(), 'Solana private key must be base58 encoded');
-				}
-				
-				if (privateKeyBuffer.length !== 64) {
-					throw new NodeOperationError(context.getNode(), 'Solana private key must be 64 bytes when decoded');
-				}
-				
-				const secretKey = privateKeyBuffer.slice(0, 32);
-				const keyObject = createPrivateKey({
-					key: Buffer.concat([
-						Buffer.from('302e020100300506032b657004220420', 'hex'),
-						secretKey
-					]),
-					format: 'der',
-					type: 'pkcs8'
-				});
-				
-				const pubKeyObject = createPublicKey(keyObject);
-				const pubKeyBuffer = pubKeyObject.export({ format: 'der', type: 'spki' });
-				const publicKeyBytes = pubKeyBuffer.slice(-32);
-				
-				address = CrossmintNode.base58Encode(publicKeyBytes);
-				publicKey = address;
-				
-			} else {
-				throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${chainType}`);
-			}
-		} catch (error: any) {
-			throw new NodeOperationError(context.getNode(), `Failed to process private key: ${error.message}`, {
-				itemIndex,
-			});
-		}
-		
-		// Build request body according to Crossmint API specification
-		const requestBody: any = {
-			type: 'smart',
-			chainType: chainType,
-			config: {
-				adminSigner: {
-					type: 'external-wallet',
-					address: address,
-				},
-			},
-		};
-		
-		const requestOptions: IHttpRequestOptions = {
-			method: 'POST',
-			url: `${baseUrl}/2025-06-09/wallets`,
-			headers: {
-				'X-API-KEY': credentials.apiKey,
-				'Content-Type': 'application/json',
-			},
-			body: requestBody,
-			json: true,
-		};
-		
-		try {
-			const response = await context.helpers.httpRequest(requestOptions);
-			return {
-				...response,
-				derivedAddress: address,
-				derivedPublicKey: publicKey,
-			};
-		} catch (error: any) {
-			throw new NodeApiError(context.getNode(), error);
-		}
-	}
 
-	private static async signTransactionMethod(
-		context: IExecuteFunctions,
-		privateKeyCredentials: any,
-		itemIndex: number,
-	): Promise<any> {
-		const transactionDataStr = context.getNodeParameter('transactionData', itemIndex) as string;
-		const chainId = context.getNodeParameter('chainId', itemIndex) as number;
-		const chainType = privateKeyCredentials.chainType as string;
-		const privateKeyStr = privateKeyCredentials.privateKey as string;
-		
-		let transactionData: any;
-		try {
-			transactionData = JSON.parse(transactionDataStr);
-		} catch (error) {
-			throw new NodeOperationError(context.getNode(), 'Invalid transaction data JSON', {
-				itemIndex,
-			});
-		}
-		
-		try {
-			if (chainType === 'evm') {
-				return await CrossmintNode.signEvmTransaction(context, transactionData, chainId, privateKeyStr, itemIndex);
-			} else if (chainType === 'solana') {
-				return await CrossmintNode.signSolanaTransaction(context, transactionData, privateKeyStr, itemIndex);
-			} else {
-				throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${chainType}`);
-			}
-		} catch (error: any) {
-			throw new NodeOperationError(context.getNode(), `Transaction signing failed: ${error.message}`, {
-				itemIndex,
-			});
-		}
-	}
 
-	private static async signEvmTransaction(
-		context: IExecuteFunctions,
-		transactionData: any,
-		chainId: number,
-		privateKeyStr: string,
-		itemIndex: number,
-	): Promise<any> {
-		const {
-			nonce = 0,
-			gasPrice = '0x0',
-			gasLimit = '0x5208',
-			to = '0x',
-			value = '0x0',
-			data = '0x',
-		} = transactionData;
-		
-		let privateKeyBuffer: Buffer;
-		if (privateKeyStr.startsWith('0x')) {
-			privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
-		} else {
-			privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
-		}
-		
-		if (privateKeyBuffer.length !== 32) {
-			throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
-		}
-		
-		const ecdh = createECDH('secp256k1');
-		ecdh.setPrivateKey(privateKeyBuffer);
-		
-		const txArray = [
-			typeof nonce === 'number' ? (nonce === 0 ? '0x00' : '0x' + nonce.toString(16).padStart(2, '0')) : nonce,
-			gasPrice,
-			gasLimit,
-			to,
-			value,
-			data,
-			chainId === 1 ? '0x01' : '0x' + chainId.toString(16).padStart(2, '0'),
-			'0x00',
-			'0x00'
-		];
-		
-		const rlpEncoded = CrossmintNode.rlpEncode(txArray);
-		const txHash = CrossmintNode.keccak256(rlpEncoded);
-		
-		const signature = sign('sha256', txHash, {
-			key: Buffer.concat([
-				Buffer.from('302e0201010420', 'hex'),
-				privateKeyBuffer,
-				Buffer.from('a00706052b8104000a', 'hex')
-			]),
-			format: 'der',
-			type: 'sec1',
-			dsaEncoding: 'ieee-p1363'
-		});
-		
-		const r = signature.slice(0, 32);
-		const s = signature.slice(32, 64);
-		
-		let recoveryId = 0;
-		const publicKeyBuffer = ecdh.getPublicKey();
-		const uncompressedPubKey = publicKeyBuffer.slice(1);
-		const expectedAddress = '0x' + CrossmintNode.keccak256(uncompressedPubKey).slice(-20).toString('hex');
-		
-		recoveryId = 0;
-		
-		const v = 35 + chainId * 2 + recoveryId;
-		
-		const signedTxArray = [
-			txArray[0], txArray[1], txArray[2], txArray[3], txArray[4], txArray[5],
-			'0x' + v.toString(16).padStart(2, '0'),
-			'0x' + r.toString('hex'),
-			'0x' + s.toString('hex')
-		];
-		
-		const signedRlp = CrossmintNode.rlpEncode(signedTxArray);
-		
-		return {
-			rawTransaction: '0x' + signedRlp.toString('hex'),
-			transactionHash: '0x' + CrossmintNode.keccak256(signedRlp).toString('hex'),
-			r: '0x' + r.toString('hex'),
-			s: '0x' + s.toString('hex'),
-			v: '0x' + v.toString(16),
-			from: expectedAddress,
-		};
-	}
 
-	private static async signSolanaTransaction(
-		context: IExecuteFunctions,
-		transactionData: any,
-		privateKeyStr: string,
-		itemIndex: number,
-	): Promise<any> {
-		let privateKeyBuffer: Buffer;
-		try {
-			privateKeyBuffer = CrossmintNode.base58Decode(privateKeyStr);
-		} catch (error) {
-			throw new NodeOperationError(context.getNode(), 'Solana private key must be base58 encoded');
-		}
-		
-		if (privateKeyBuffer.length === 37) {
-			privateKeyBuffer = privateKeyBuffer.slice(1, 33);
-		} else if (privateKeyBuffer.length === 32) {
-		} else if (privateKeyBuffer.length === 33) {
-			privateKeyBuffer = privateKeyBuffer.slice(0, 32);
-		} else {
-			throw new NodeOperationError(context.getNode(), `Solana private key must be 32 bytes when decoded, got ${privateKeyBuffer.length} bytes`);
-		}
-		
-		const secretKey = privateKeyBuffer;
-		const keyObject = createPrivateKey({
-			key: Buffer.concat([
-				Buffer.from('302e020100300506032b657004220420', 'hex'),
-				secretKey
-			]),
-			format: 'der',
-			type: 'pkcs8'
-		});
-		
-		let messageBuffer: Buffer;
-		if (typeof transactionData.message === 'string') {
-			if (transactionData.message.startsWith('0x')) {
-				messageBuffer = Buffer.from(transactionData.message.slice(2), 'hex');
-			} else {
-				messageBuffer = Buffer.from(transactionData.message, 'base64');
-			}
-		} else if (Buffer.isBuffer(transactionData.message)) {
-			messageBuffer = transactionData.message;
-		} else {
-			throw new NodeOperationError(context.getNode(), 'Transaction message must be a hex string, base64 string, or Buffer');
-		}
-		
-		const signature = sign(null, messageBuffer, keyObject);
-		
-		const pubKeyObject = createPublicKey(keyObject);
-		const pubKeyBuffer = pubKeyObject.export({ format: 'der', type: 'spki' });
-		const publicKey = pubKeyBuffer.slice(-32);
-		
-		return {
-			signature: signature.toString('base64'),
-			publicKey: publicKey.toString('base64'),
-			signedMessage: messageBuffer.toString('base64'),
-		};
-	}
 
-	private static async getTransactionApprovalsMethod(
-		context: IExecuteFunctions,
-		baseUrl: string,
-		credentials: any,
-		itemIndex: number,
-	): Promise<any> {
-		const walletAddress = context.getNodeParameter('walletAddress', itemIndex) as string;
-		
-		if (!walletAddress || walletAddress.trim() === '') {
-			throw new NodeOperationError(context.getNode(), 'Wallet address is required', {
-				description: 'Please specify the wallet address to get pending approvals for',
-				itemIndex,
-			});
-		}
 
-		const requestOptions: IHttpRequestOptions = {
-			method: 'GET',
-			url: `${baseUrl}/2025-06-09/wallets/${walletAddress}/transactions?status=awaiting-approval`,
-			headers: {
-				'X-API-KEY': credentials.apiKey,
-				'Content-Type': 'application/json',
-			},
-			json: true,
-		};
-
-		try {
-			return await context.helpers.httpRequest(requestOptions);
-		} catch (error: any) {
-			throw new NodeApiError(context.getNode(), error);
-		}
-	}
-
-	private static async submitSignatureMethod(
-		context: IExecuteFunctions,
-		baseUrl: string,
-		credentials: any,
-		privateKeyCredentials: any,
-		itemIndex: number,
-	): Promise<any> {
-		const transactionId = context.getNodeParameter('transactionId', itemIndex) as string;
-		const messageToSign = context.getNodeParameter('messageToSign', itemIndex) as string;
-		const chainType = privateKeyCredentials.chainType as string;
-		const privateKeyStr = privateKeyCredentials.privateKey as string;
-		
-		if (!transactionId || transactionId.trim() === '') {
-			throw new NodeOperationError(context.getNode(), 'Transaction ID is required', {
-				description: 'Please specify the transaction ID that needs signature approval',
-				itemIndex,
-			});
-		}
-
-		if (!messageToSign || messageToSign.trim() === '') {
-			throw new NodeOperationError(context.getNode(), 'Message to sign is required', {
-				description: 'Please specify the message that needs to be signed',
-				itemIndex,
-			});
-		}
-
-		let signature: string;
-		
-		try {
-			if (chainType === 'evm') {
-				let messageBuffer: Buffer;
-				if (messageToSign.startsWith('0x')) {
-					messageBuffer = Buffer.from(messageToSign.slice(2), 'hex');
-				} else {
-					messageBuffer = Buffer.from(messageToSign, 'hex');
-				}
-				
-				let privateKeyBuffer: Buffer;
-				if (privateKeyStr.startsWith('0x')) {
-					privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
-				} else {
-					privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
-				}
-				
-				if (privateKeyBuffer.length !== 32) {
-					throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
-				}
-				
-				const keyObject = createPrivateKey({
-					key: Buffer.concat([
-						Buffer.from('302e0201010420', 'hex'),
-						privateKeyBuffer,
-						Buffer.from('a00706052b8104000a', 'hex')
-					]),
-					format: 'der',
-					type: 'sec1'
-				});
-				
-				const signatureBuffer = sign(null, messageBuffer, keyObject);
-				signature = '0x' + signatureBuffer.toString('hex');
-				
-			} else if (chainType === 'solana') {
-				let messageBuffer: Buffer;
-				if (messageToSign.startsWith('0x')) {
-					messageBuffer = Buffer.from(messageToSign.slice(2), 'hex');
-				} else {
-					messageBuffer = Buffer.from(messageToSign, 'base64');
-				}
-				
-				let privateKeyBuffer: Buffer;
-				try {
-					privateKeyBuffer = CrossmintNode.base58Decode(privateKeyStr);
-				} catch (error) {
-					throw new NodeOperationError(context.getNode(), 'Solana private key must be base58 encoded');
-				}
-				
-				if (privateKeyBuffer.length === 37) {
-					privateKeyBuffer = privateKeyBuffer.slice(1, 33);
-				} else if (privateKeyBuffer.length === 32) {
-				} else if (privateKeyBuffer.length === 33) {
-					privateKeyBuffer = privateKeyBuffer.slice(0, 32);
-				} else {
-					throw new NodeOperationError(context.getNode(), `Solana private key must be 32 bytes when decoded, got ${privateKeyBuffer.length} bytes`);
-				}
-				
-				const keyObject = createPrivateKey({
-					key: Buffer.concat([
-						Buffer.from('302e020100300506032b657004220420', 'hex'),
-						privateKeyBuffer
-					]),
-					format: 'der',
-					type: 'pkcs8'
-				});
-				
-				const signatureBuffer = sign(null, messageBuffer, keyObject);
-				signature = signatureBuffer.toString('base64');
-				
-			} else {
-				throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${chainType}`);
-			}
-		} catch (error: any) {
-			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
-				itemIndex,
-			});
-		}
-
-		const requestBody = {
-			signature: signature,
-		};
-
-		const requestOptions: IHttpRequestOptions = {
-			method: 'POST',
-			url: `${baseUrl}/2025-06-09/transactions/${transactionId}/approvals`,
-			headers: {
-				'X-API-KEY': credentials.apiKey,
-				'Content-Type': 'application/json',
-			},
-			body: requestBody,
-			json: true,
-		};
-
-		try {
-			return await context.helpers.httpRequest(requestOptions);
-		} catch (error: any) {
-			throw new NodeApiError(context.getNode(), error);
-		}
-	}
 }

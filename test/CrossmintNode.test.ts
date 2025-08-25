@@ -316,15 +316,15 @@ describe('CrossmintNode', () => {
 
 			mockHttpRequest.mockResolvedValue(mockResponse);
 
-			mockGetNodeParameter.mockImplementation((paramName: string) => {
-				switch (paramName) {
-					case 'operation': return 'createWallet';
-					case 'chainType': return 'evm';
-					case 'ownerType': return 'externalSigner';
-					case 'externalSignerDetails': return 'evm';
-					default: return '';
-				}
-			});
+		mockGetNodeParameter.mockImplementation((paramName: string) => {
+			switch (paramName) {
+				case 'operation': return 'createWallet';
+				case 'chainType': return 'evm';
+				case 'ownerType': return 'externalSigner';
+				case 'externalSignerDetails': return 'abb51256c1324a1350598653f46aa3ad693ac3cf5d05f36eba3f495a1f51590f';
+				default: return '';
+			}
+		});
 
 			const result = await node.execute.call(mockExecuteFunctions);
 
@@ -368,32 +368,27 @@ describe('CrossmintNode', () => {
 				type: 'solana-custodial-wallet',
 			};
 
-			mockGetCredentials.mockImplementation((credentialType: string) => {
-				if (credentialType === 'crossmintApi') {
-					return Promise.resolve({
-						apiKey: 'test-api-key',
-						environment: 'staging',
-					});
-				} else if (credentialType === 'crossmintPrivateKeyApi') {
-					return Promise.resolve({
-						privateKey: '5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtrzVHpcXjnBtmN2jGMxgKG1H1cH8TjC2hgHqfnAHRdMeUiN',
-						chainType: 'solana',
-					});
-				}
-				return Promise.resolve({});
-			});
+		mockGetCredentials.mockImplementation((credentialType: string) => {
+			if (credentialType === 'crossmintApi') {
+				return Promise.resolve({
+					apiKey: 'test-api-key',
+					environment: 'staging',
+				});
+			}
+			return Promise.resolve({});
+		});
 
 			mockHttpRequest.mockResolvedValue(mockResponse);
 
-			mockGetNodeParameter.mockImplementation((paramName: string) => {
-				switch (paramName) {
-					case 'operation': return 'createWallet';
-					case 'chainType': return 'evm';
-					case 'ownerType': return 'externalSigner';
-					case 'externalSignerDetails': return 'solana';
-					default: return '';
-				}
-			});
+		mockGetNodeParameter.mockImplementation((paramName: string) => {
+			switch (paramName) {
+				case 'operation': return 'createWallet';
+				case 'chainType': return 'solana';
+				case 'ownerType': return 'externalSigner';
+				case 'externalSignerDetails': return '5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtrzVHpcXjnBtmN2jGMxgKG1H1cH8TjC2hgHqfnAHRdMeUiN';
+				default: return '';
+			}
+		});
 
 			const result = await node.execute.call(mockExecuteFunctions);
 
@@ -431,210 +426,6 @@ describe('CrossmintNode', () => {
 		});
 	});
 
-	describe('signTransaction', () => {
-		it('should sign EVM transaction', async () => {
-			const mockPrivateKeyCredentials = {
-				privateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-				chainType: 'evm',
-			};
 
-			const transactionData = {
-				nonce: 0,
-				gasPrice: '0x3b9aca00',
-				gasLimit: '0x5208',
-				to: '0x742d35Cc6634C0532925a3b8D0C9e0e7C0C0C0C0',
-				value: '0xde0b6b3a7640000',
-				data: '0x',
-			};
 
-			mockGetCredentials.mockResolvedValue(mockPrivateKeyCredentials);
-
-			mockGetNodeParameter.mockImplementation((paramName: string) => {
-				switch (paramName) {
-					case 'operation': return 'signTransaction';
-					case 'transactionData': return JSON.stringify(transactionData);
-					case 'chainId': return 1;
-					default: return '';
-				}
-			});
-
-			const result = await node.execute.call(mockExecuteFunctions);
-
-			expect(result[0][0].json).toHaveProperty('rawTransaction');
-			expect(result[0][0].json).toHaveProperty('transactionHash');
-			expect(result[0][0].json).toHaveProperty('r');
-			expect(result[0][0].json).toHaveProperty('s');
-			expect(result[0][0].json).toHaveProperty('v');
-			expect(result[0][0].json).toHaveProperty('from');
-
-			expect(result[0][0].json.rawTransaction).toMatch(/^0x[a-fA-F0-9]+$/);
-			expect(result[0][0].json.transactionHash).toMatch(/^0x[a-fA-F0-9]{64}$/);
-			expect(result[0][0].json.from).toMatch(/^0x[a-fA-F0-9]{40}$/);
-		});
-
-		it('should sign Solana transaction', async () => {
-			const mockPrivateKeyCredentials = {
-				privateKey: '5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtrzVHpcXjn',
-				chainType: 'solana',
-			};
-
-			const transactionData = {
-				message: 'SGVsbG8gU29sYW5hIQ==',
-			};
-
-			mockGetCredentials.mockResolvedValue(mockPrivateKeyCredentials);
-
-			mockGetNodeParameter.mockImplementation((paramName: string) => {
-				switch (paramName) {
-					case 'operation': return 'signTransaction';
-					case 'transactionData': return JSON.stringify(transactionData);
-					case 'chainId': return 1;
-					default: return '';
-				}
-			});
-
-			const result = await node.execute.call(mockExecuteFunctions);
-
-			expect(result[0][0].json).toHaveProperty('signature');
-			expect(result[0][0].json).toHaveProperty('publicKey');
-			expect(result[0][0].json).toHaveProperty('signedMessage');
-
-			expect(typeof result[0][0].json.signature).toBe('string');
-			expect(typeof result[0][0].json.publicKey).toBe('string');
-			expect(typeof result[0][0].json.signedMessage).toBe('string');
-		});
-
-		it('should handle invalid transaction data', async () => {
-			const mockPrivateKeyCredentials = {
-				privateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-				chainType: 'evm',
-			};
-
-			mockGetCredentials.mockResolvedValue(mockPrivateKeyCredentials);
-
-			mockGetNodeParameter.mockImplementation((paramName: string) => {
-				switch (paramName) {
-					case 'operation': return 'signTransaction';
-					case 'transactionData': return 'invalid json';
-					case 'chainId': return 1;
-					default: return '';
-				}
-			});
-
-			await expect(node.execute.call(mockExecuteFunctions)).rejects.toThrow('Invalid transaction data JSON');
-		});
-	});
-
-	describe('getTransactionApprovals', () => {
-		beforeEach(() => {
-			mockGetNodeParameter.mockImplementation((paramName: string) => {
-				switch (paramName) {
-					case 'resource': return 'wallet';
-					case 'operation': return 'getTransactionApprovals';
-					case 'walletAddress': return '0x1234567890123456789012345678901234567890';
-					default: return undefined;
-				}
-			});
-		});
-
-		it('should get pending transaction approvals', async () => {
-			const mockResponse = {
-				transactions: [
-					{
-						id: 'tx-123',
-						status: 'awaiting-approval',
-						approvals: {
-							pending: [
-								{
-									signer: {
-										type: 'external-wallet',
-										address: '0x1234567890123456789012345678901234567890',
-										locator: 'external-wallet:0x1234567890123456789012345678901234567890'
-									},
-									message: '0xabcdef1234567890'
-								}
-							],
-							submitted: []
-						}
-					}
-				]
-			};
-
-			mockHttpRequest.mockResolvedValue(mockResponse);
-
-			const result = await node.execute.call(mockExecuteFunctions);
-
-			expect(mockHttpRequest).toHaveBeenCalledWith({
-				method: 'GET',
-				url: 'https://staging.crossmint.com/api/2025-06-09/wallets/0x1234567890123456789012345678901234567890/transactions?status=awaiting-approval',
-				headers: {
-					'X-API-KEY': 'test-api-key',
-					'Content-Type': 'application/json',
-				},
-				json: true,
-			});
-
-			expect(result).toEqual([[{
-				json: mockResponse,
-			}]]);
-		});
-	});
-
-	describe('submitSignature', () => {
-		beforeEach(() => {
-			mockGetNodeParameter.mockImplementation((paramName: string) => {
-				switch (paramName) {
-					case 'resource': return 'wallet';
-					case 'operation': return 'submitSignature';
-					case 'transactionId': return 'tx-123';
-					case 'messageToSign': return '0xabcdef1234567890';
-					default: return undefined;
-				}
-			});
-
-			mockGetCredentials.mockImplementation((credentialType: string) => {
-				if (credentialType === 'crossmintApi') {
-					return Promise.resolve({
-						apiKey: 'test-api-key',
-						environment: 'Staging',
-					});
-				} else if (credentialType === 'crossmintPrivateKeyApi') {
-					return Promise.resolve({
-						privateKey: '0x1234567890123456789012345678901234567890123456789012345678901234',
-						chainType: 'evm',
-					});
-				}
-				return Promise.resolve({});
-			});
-		});
-
-		it('should submit signature for EVM transaction', async () => {
-			const mockResponse = {
-				success: true,
-				transactionId: 'tx-123',
-				status: 'pending'
-			};
-
-			mockHttpRequest.mockResolvedValue(mockResponse);
-
-			const result = await node.execute.call(mockExecuteFunctions);
-
-			expect(mockHttpRequest).toHaveBeenCalledWith({
-				method: 'POST',
-				url: 'https://staging.crossmint.com/api/2025-06-09/transactions/tx-123/approvals',
-				headers: {
-					'X-API-KEY': 'test-api-key',
-					'Content-Type': 'application/json',
-				},
-				body: {
-					signature: expect.stringMatching(/^0x[a-fA-F0-9]+$/),
-				},
-				json: true,
-			});
-
-			expect(result).toEqual([[{
-				json: mockResponse,
-			}]]);
-		});
-	});
 });
