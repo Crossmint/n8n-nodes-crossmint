@@ -2344,33 +2344,40 @@ export class CrossmintNode implements INodeType {
 				
 				const messageHash = createHash('sha256').update(messageToSign).digest();
 				
-				const rComponent = messageHash.slice(0, 16);
-				const sComponent = messageHash.slice(16, 32);
+				const privateKeyBigInt = BigInt('0x' + privateKeyBuffer.toString('hex'));
+				const messageBigInt = BigInt('0x' + messageHash.toString('hex'));
 				
-				const rPadded = Buffer.concat([Buffer.alloc(16, 0), rComponent]);
-				const sPadded = Buffer.concat([Buffer.alloc(16, 0), sComponent]);
+				const secp256k1Order = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141');
+				const secp256k1Generator = BigInt('0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798');
 				
-				const signatureBuffer = Buffer.concat([rPadded, sPadded]);
+				let r = (secp256k1Generator * privateKeyBigInt) % secp256k1Order;
+				let s = (messageBigInt * privateKeyBigInt) % secp256k1Order;
+				
+				if (r === BigInt(0)) r = BigInt(1);
+				if (s === BigInt(0)) s = BigInt(1);
+				
+				const rBuffer = Buffer.from(r.toString(16).padStart(64, '0'), 'hex');
+				const sBuffer = Buffer.from(s.toString(16).padStart(64, '0'), 'hex');
+				
+				const signatureBuffer = Buffer.concat([rBuffer, sBuffer]);
 
 				// Extract r and s components (32 bytes each)
-				const r = signatureBuffer.slice(0, 32);
-				let s = signatureBuffer.slice(32, 64);
+				const rFinal = signatureBuffer.slice(0, 32);
+				let sFinal = signatureBuffer.slice(32, 64);
 				
-				const secp256k1Order = Buffer.from('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141', 'hex');
-				const sBigInt = BigInt('0x' + s.toString('hex'));
-				const orderBigInt = BigInt('0x' + secp256k1Order.toString('hex'));
-				const halfOrder = orderBigInt / BigInt('2');
+				const sBigInt = BigInt('0x' + sFinal.toString('hex'));
+				const halfOrder = secp256k1Order / BigInt('2');
 
-				let finalS = s;
+				let finalS = sFinal;
 				if (sBigInt > halfOrder) {
-					const lowS = orderBigInt - sBigInt;
+					const lowS = secp256k1Order - sBigInt;
 					finalS = Buffer.from(lowS.toString(16).padStart(64, '0'), 'hex');
 				}
 
 				const v = 35 + 2 * chainId;
 				const vHex = v.toString(16).padStart(2, '0');
 
-				signature = '0x' + r.toString('hex') + finalS.toString('hex') + vHex;
+				signature = '0x' + rFinal.toString('hex') + finalS.toString('hex') + vHex;
 				signedTransaction = signature;
 
 			} else if (signerChainType === 'solana') {

@@ -507,7 +507,8 @@ describe('CrossmintNode', () => {
 						nonce: '0'
 					});
 					case 'chain': return 'ethereum';
-					case 'externalSignerDetails': return '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+					case 'privateKey': return '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+					case 'transactionType': return 'evmTx';
 					default: return '';
 				}
 			});
@@ -521,7 +522,7 @@ describe('CrossmintNode', () => {
 					chainType: 'evm',
 					chain: 'ethereum',
 					chainId: 1,
-					transactionData: expect.any(String),
+					dataToSign: expect.any(String),
 				}
 			}]]);
 		});
@@ -534,7 +535,8 @@ describe('CrossmintNode', () => {
 					message: 'SGVsbG8gU29sYW5hIFRyYW5zYWN0aW9u' // Base64 encoded test message
 				});
 					case 'chain': return 'solana';
-					case 'externalSignerDetails': return '5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtrzVHpcXjnBtmN2jGMxgKG1H1cH8TjC2hgHqfnAHRdMeUiN';
+					case 'privateKey': return '5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtrzVHpcXjnBtmN2jGMxgKG1H1cH8TjC2hgHqfnAHRdMeUiN';
+					case 'transactionType': return 'solanaTx';
 					default: return '';
 				}
 			});
@@ -548,7 +550,7 @@ describe('CrossmintNode', () => {
 					chainType: 'solana',
 					chain: 'solana',
 					chainId: undefined,
-					transactionData: expect.any(String),
+					dataToSign: expect.any(String),
 				}
 			}]]);
 		});
@@ -562,7 +564,8 @@ describe('CrossmintNode', () => {
 						value: '1000000000000000000'
 					});
 					case 'chain': return 'ethereum';
-					case 'externalSignerDetails': return 'invalid-key';
+					case 'privateKey': return 'invalid-key';
+					case 'transactionType': return 'evmTx';
 					default: return '';
 				}
 			});
