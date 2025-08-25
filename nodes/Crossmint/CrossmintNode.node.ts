@@ -4,9 +4,10 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 	IHttpRequestOptions,
+	ICredentials,
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError, NodeApiError, ApplicationError } from 'n8n-workflow';
-import { createHash, createPrivateKey, createPublicKey, createECDH } from 'crypto';
+import { createHash, createPrivateKey, createPublicKey, createECDH, sign } from 'crypto';
 
 export class CrossmintNode implements INodeType {
 	description: INodeTypeDescription = {
@@ -960,10 +961,10 @@ export class CrossmintNode implements INodeType {
 							responseData = await CrossmintNode.purchaseProductMethod(this, baseUrl, credentials, i);
 							break;
 						case 'getTransactionApprovals':
-							throw new NodeOperationError(this.getNode(), 'getTransactionApprovals operation is not supported without crossmintPrivateKeyApi credentials');
+							responseData = await CrossmintNode.getTransactionApprovalsMethod(this, baseUrl, credentials, i);
 							break;
 						case 'submitSignature':
-							throw new NodeOperationError(this.getNode(), 'submitSignature operation is not supported without crossmintPrivateKeyApi credentials');
+							responseData = await CrossmintNode.submitSignatureMethod(this, baseUrl, credentials, i);
 						default:
 							throw new NodeOperationError(this.getNode(), `Unsupported operation: ${operation}`);
 					}
@@ -1120,7 +1121,7 @@ export class CrossmintNode implements INodeType {
 				method: 'POST',
 				url: `${baseUrl}/2025-06-09/wallets`,
 				headers: {
-					'X-API-KEY': credentials.apiKey,
+					'X-API-KEY': (credentials as any).apiKey,
 					'Content-Type': 'application/json',
 				},
 				body: requestBody,
@@ -1192,7 +1193,7 @@ export class CrossmintNode implements INodeType {
 
 		// Build headers
 		const headers: any = {
-			'X-API-KEY': credentials.apiKey,
+				'X-API-KEY': (credentials as any).apiKey,
 			'Content-Type': 'application/json',
 		};
 
@@ -1321,7 +1322,7 @@ export class CrossmintNode implements INodeType {
 			method: 'GET',
 			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(walletLocator)}`,
 			headers: {
-				'X-API-KEY': credentials.apiKey,
+				'X-API-KEY': (credentials as any).apiKey,
 			},
 			json: true,
 		};
@@ -1580,7 +1581,7 @@ export class CrossmintNode implements INodeType {
 			method: 'POST',
 			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(fromWalletLocator)}/tokens/${encodeURIComponent(tokenLocator)}/transfers`,
 			headers: {
-				'X-API-KEY': credentials.apiKey,
+				'X-API-KEY': (credentials as any).apiKey,
 				'Content-Type': 'application/json',
 			},
 			body: {
@@ -1715,7 +1716,7 @@ export class CrossmintNode implements INodeType {
 			method: 'GET',
 			url: baseUrlWithParams,
 			headers: {
-				'X-API-KEY': credentials.apiKey,
+				'X-API-KEY': (credentials as any).apiKey,
 			},
 			json: true,
 		};
@@ -1860,7 +1861,7 @@ export class CrossmintNode implements INodeType {
 			method: 'POST',
 			url: `${baseUrl}/2022-06-09/orders`,
 			headers: {
-				'X-API-KEY': credentials.apiKey,
+				'X-API-KEY': (credentials as any).apiKey,
 				'Content-Type': 'application/json',
 			},
 			body: requestBody,
@@ -1908,7 +1909,7 @@ export class CrossmintNode implements INodeType {
 				method: 'POST',
 				url: `${baseUrl}/2022-06-09/wallets/${encodeURIComponent(payerAddress)}/transactions`,
 				headers: {
-					'X-API-KEY': credentials.apiKey,
+					'X-API-KEY': (credentials as any).apiKey,
 					'Content-Type': 'application/json',
 				},
 				body: {
@@ -2043,10 +2044,167 @@ export class CrossmintNode implements INodeType {
 		return '1'.repeat(leadingZeros) + encoded;
 	}
 
+	private static async getTransactionApprovalsMethod(
+		context: IExecuteFunctions,
+		baseUrl: string,
+		credentials: ICredentials,
+		itemIndex: number,
+	): Promise<any> {
+		const walletAddress = context.getNodeParameter('walletAddress', itemIndex) as string;
 
+		const requestOptions: IHttpRequestOptions = {
+			method: 'GET',
+			url: `${baseUrl}/2025-06-09/wallets/${walletAddress}/transactions?status=awaiting-approval`,
+			headers: {
+				'X-API-KEY': (credentials as any).apiKey,
+				'Content-Type': 'application/json',
+			},
+			json: true,
+		};
 
+		try {
+			const response = await context.helpers.httpRequest(requestOptions);
+			return response;
+		} catch (error: any) {
+			throw new NodeApiError(context.getNode(), error);
+		}
+	}
 
+	private static async submitSignatureMethod(
+		context: IExecuteFunctions,
+		baseUrl: string,
+		credentials: ICredentials,
+		itemIndex: number,
+	): Promise<any> {
+		const transactionId = context.getNodeParameter('transactionId', itemIndex) as string;
+		const messageToSign = context.getNodeParameter('messageToSign', itemIndex) as string;
+		const externalSignerDetails = context.getNodeParameter('externalSignerDetails', itemIndex) as string;
 
+		if (!transactionId || !messageToSign || !externalSignerDetails) {
+			throw new NodeOperationError(context.getNode(), 'Transaction ID, message to sign, and external signer details are required', {
+				itemIndex,
+			});
+		}
 
+		let privateKeyStr: string;
+		let signerChainType: string;
+		
+		if (externalSignerDetails.startsWith('0x') || (externalSignerDetails.length === 64 && /^[a-fA-F0-9]+$/.test(externalSignerDetails))) {
+			signerChainType = 'evm';
+			privateKeyStr = externalSignerDetails;
+		} else if (externalSignerDetails.length >= 80 && externalSignerDetails.length <= 90) {
+			signerChainType = 'solana';
+			privateKeyStr = externalSignerDetails;
+		} else {
+			throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
+				itemIndex,
+			});
+		}
 
+		let signature: string;
+
+		try {
+			if (signerChainType === 'evm') {
+				let privateKeyBuffer: Buffer;
+				if (privateKeyStr.startsWith('0x')) {
+					privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
+				} else {
+					privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
+				}
+
+				if (privateKeyBuffer.length !== 32) {
+					throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
+				}
+
+				const keyObject = createPrivateKey({
+					key: Buffer.concat([
+						Buffer.from('302e0201010420', 'hex'),
+						privateKeyBuffer,
+						Buffer.from('a00706052b8104000a', 'hex')
+					]),
+					format: 'der',
+					type: 'pkcs8'
+				});
+
+				let messageBuffer: Buffer;
+				if (messageToSign.startsWith('0x')) {
+					messageBuffer = Buffer.from(messageToSign.slice(2), 'hex');
+				} else {
+					messageBuffer = Buffer.from(messageToSign, 'hex');
+				}
+
+				const signatureBuffer = sign(null, messageBuffer, keyObject);
+				signature = '0x' + signatureBuffer.toString('hex');
+
+			} else if (signerChainType === 'solana') {
+				let privateKeyBuffer: Buffer;
+				if (privateKeyStr.length === 88) {
+					privateKeyBuffer = CrossmintNode.base58Decode(privateKeyStr);
+				} else {
+					throw new NodeOperationError(context.getNode(), 'Solana private key must be base58 encoded');
+				}
+
+				if (privateKeyBuffer.length !== 64) {
+					throw new NodeOperationError(context.getNode(), 'Solana private key must be 64 bytes when decoded');
+				}
+
+				const secretKey = privateKeyBuffer.slice(0, 32);
+				const keyObject = createPrivateKey({
+					key: Buffer.concat([
+						Buffer.from('302e020100300506032b657004220420', 'hex'),
+						secretKey
+					]),
+					format: 'der',
+					type: 'pkcs8'
+				});
+
+				let messageBuffer: Buffer;
+				if (messageToSign.startsWith('0x')) {
+					messageBuffer = Buffer.from(messageToSign.slice(2), 'hex');
+				} else if (messageToSign.length % 2 === 0 && /^[a-fA-F0-9]+$/.test(messageToSign)) {
+					messageBuffer = Buffer.from(messageToSign, 'hex');
+				} else {
+					messageBuffer = Buffer.from(messageToSign, 'base64');
+				}
+
+				const signatureBuffer = sign(null, messageBuffer, keyObject);
+				signature = signatureBuffer.toString('base64');
+			} else {
+				throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${signerChainType}`, {
+					itemIndex,
+				});
+			}
+		} catch (error: any) {
+			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
+				itemIndex,
+			});
+		}
+
+		const requestBody = {
+			signature: signature,
+		};
+
+		const requestOptions: IHttpRequestOptions = {
+			method: 'POST',
+			url: `${baseUrl}/2025-06-09/wallets/transactions/${transactionId}/approve`,
+			headers: {
+				'X-API-KEY': (credentials as any).apiKey,
+				'Content-Type': 'application/json',
+			},
+			body: requestBody,
+			json: true,
+		};
+
+		try {
+			const response = await context.helpers.httpRequest(requestOptions);
+			return {
+				...response,
+				signedMessage: messageToSign,
+				signature: signature,
+				chainType: signerChainType,
+			};
+		} catch (error: any) {
+			throw new NodeApiError(context.getNode(), error);
+		}
+	}
 }
