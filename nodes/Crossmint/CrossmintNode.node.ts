@@ -615,9 +615,9 @@ export class CrossmintNode implements INodeType {
 			{
 				displayName: 'Transaction Data',
 				name: 'transactionData',
-				type: 'json',
+				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'] } },
-				default: '{}',
+				default: '',
 				description: 'Transaction data to sign (JSON format)',
 				required: true,
 			},
@@ -692,21 +692,43 @@ export class CrossmintNode implements INodeType {
 			},
 
 			{
+				displayName: 'Wallet Address',
+				name: 'walletAddress',
+				type: 'string',
+				displayOptions: { show: { resource: ['wallet'], operation: ['submitSignature'] } },
+				default: '',
+				placeholder: '0xFfea937EE8DB3c1f25539aE90d6010F264f292B6',
+				description: 'Wallet address for the API endpoint (walletLocator)',
+				required: true,
+			},
+			{
 				displayName: 'Transaction ID',
 				name: 'transactionId',
 				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['submitSignature'] } },
 				default: '',
-				description: 'The transaction ID that needs signature approval',
+				placeholder: '782ffd15-4946-4e0d-8e21-023134b3d243',
+				description: 'The transaction ID that needs approval (from Transfer Token response)',
 				required: true,
 			},
 			{
-				displayName: 'Message to Sign',
-				name: 'messageToSign',
+				displayName: 'Signer Address',
+				name: 'signerAddress',
 				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['submitSignature'] } },
 				default: '',
-				description: 'The message that needs to be signed (provided by getTransactionApprovals)',
+				placeholder: '0x8ed30a8892bc3cb25ca6b52d045b51f176f55913',
+				description: 'Address of the external signer',
+				required: true,
+			},
+			{
+				displayName: 'Signature',
+				name: 'signature',
+				type: 'string',
+				displayOptions: { show: { resource: ['wallet'], operation: ['submitSignature'] } },
+				default: '',
+				placeholder: '0x00000000000000000000000000000000675ab76bc5f682dfe163a2ef...',
+				description: 'The signature from Sign Transaction node',
 				required: true,
 			},
 
@@ -2137,117 +2159,33 @@ export class CrossmintNode implements INodeType {
 		credentials: ICredentials,
 		itemIndex: number,
 	): Promise<any> {
+		// Get the new simplified parameters
+		const walletAddress = context.getNodeParameter('walletAddress', itemIndex) as string;
 		const transactionId = context.getNodeParameter('transactionId', itemIndex) as string;
-		const messageToSign = context.getNodeParameter('messageToSign', itemIndex) as string;
-		const externalSignerDetails = context.getNodeParameter('externalSignerDetails', itemIndex) as string;
+		const signerAddress = context.getNodeParameter('signerAddress', itemIndex) as string;
+		const signature = context.getNodeParameter('signature', itemIndex) as string;
 
-		if (!transactionId || !messageToSign || !externalSignerDetails) {
-			throw new NodeOperationError(context.getNode(), 'Transaction ID, message to sign, and external signer details are required', {
+		// Validate required fields
+		if (!walletAddress || !transactionId || !signerAddress || !signature) {
+			throw new NodeOperationError(context.getNode(), 'Wallet Address, Transaction ID, Signer Address, and Signature are required', {
 				itemIndex,
 			});
 		}
 
-		let privateKeyStr: string;
-		let signerChainType: string;
-		
-		if (externalSignerDetails.startsWith('0x') || (externalSignerDetails.length === 64 && /^[a-fA-F0-9]+$/.test(externalSignerDetails))) {
-			signerChainType = 'evm';
-			privateKeyStr = externalSignerDetails;
-		} else if (externalSignerDetails.length >= 80 && externalSignerDetails.length <= 90) {
-			signerChainType = 'solana';
-			privateKeyStr = externalSignerDetails;
-		} else {
-			throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
-				itemIndex,
-			});
-		}
-
-		let signature: string;
-
-		try {
-			if (signerChainType === 'evm') {
-				let privateKeyBuffer: Buffer;
-				if (privateKeyStr.startsWith('0x')) {
-					privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
-				} else {
-					privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
-				}
-
-				if (privateKeyBuffer.length !== 32) {
-					throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
-				}
-
-				const keyObject = createPrivateKey({
-					key: Buffer.concat([
-						Buffer.from('302e0201010420', 'hex'),
-						privateKeyBuffer,
-						Buffer.from('a00706052b8104000a', 'hex')
-					]),
-					format: 'der',
-					type: 'pkcs8'
-				});
-
-				let messageBuffer: Buffer;
-				if (messageToSign.startsWith('0x')) {
-					messageBuffer = Buffer.from(messageToSign.slice(2), 'hex');
-				} else {
-					messageBuffer = Buffer.from(messageToSign, 'hex');
-				}
-
-				const signatureBuffer = sign(null, messageBuffer, keyObject);
-				signature = '0x' + signatureBuffer.toString('hex');
-
-			} else if (signerChainType === 'solana') {
-				let privateKeyBuffer: Buffer;
-				if (privateKeyStr.length === 88) {
-					privateKeyBuffer = CrossmintNode.base58Decode(privateKeyStr);
-				} else {
-					throw new NodeOperationError(context.getNode(), 'Solana private key must be base58 encoded');
-				}
-
-				if (privateKeyBuffer.length !== 64) {
-					throw new NodeOperationError(context.getNode(), 'Solana private key must be 64 bytes when decoded');
-				}
-
-				const secretKey = privateKeyBuffer.slice(0, 32);
-				const keyObject = createPrivateKey({
-					key: Buffer.concat([
-						Buffer.from('302e020100300506032b657004220420', 'hex'),
-						secretKey
-					]),
-					format: 'der',
-					type: 'pkcs8'
-				});
-
-				let messageBuffer: Buffer;
-				if (messageToSign.startsWith('0x')) {
-					messageBuffer = Buffer.from(messageToSign.slice(2), 'hex');
-				} else if (messageToSign.length % 2 === 0 && /^[a-fA-F0-9]+$/.test(messageToSign)) {
-					messageBuffer = Buffer.from(messageToSign, 'hex');
-				} else {
-					messageBuffer = Buffer.from(messageToSign, 'base64');
-				}
-
-				const signatureBuffer = sign(null, messageBuffer, keyObject);
-				signature = signatureBuffer.toString('base64');
-			} else {
-				throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${signerChainType}`, {
-					itemIndex,
-				});
-			}
-		} catch (error: any) {
-			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
-				itemIndex,
-			});
-		}
-
+		// Build request body with the correct format
 		const requestBody = {
-			signature: signature,
+			approvals: [
+				{
+					signer: `external-wallet:${signerAddress}`,
+					signature: signature,
+				}
+			]
 		};
 
+		// Use the correct API endpoint format
 		const requestOptions: IHttpRequestOptions = {
 			method: 'POST',
-			url: `${baseUrl}/2025-06-09/wallets/transactions/${transactionId}/approve`,
+			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`,
 			headers: {
 				'X-API-KEY': (credentials as any).apiKey,
 				'Content-Type': 'application/json',
@@ -2260,9 +2198,18 @@ export class CrossmintNode implements INodeType {
 			const response = await context.helpers.httpRequest(requestOptions);
 			return {
 				...response,
-				signedMessage: messageToSign,
-				signature: signature,
-				chainType: signerChainType,
+				submittedApproval: {
+					walletAddress,
+					transactionId,
+					signerAddress,
+					signature,
+				},
+				___debug___: {
+					url: requestOptions.url,
+					method: requestOptions.method,
+					headers: requestOptions.headers,
+					body: requestOptions.body,
+				}
 			};
 		} catch (error: any) {
 			throw new NodeApiError(context.getNode(), error);
@@ -2321,20 +2268,19 @@ export class CrossmintNode implements INodeType {
 					throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
 				}
 
+				// Convert input to string and prepare message to sign
+				const messageString = String(dataToSign);
 				let messageToSign: Buffer;
-				const parsedData = typeof dataToSign === 'string' ? JSON.parse(dataToSign) : dataToSign;
 				
-				if (parsedData.userOperationHash) {
-					const hashStr = parsedData.userOperationHash.startsWith('0x') ? 
-						parsedData.userOperationHash.slice(2) : parsedData.userOperationHash;
-					messageToSign = Buffer.from(hashStr, 'hex');
-				} else if (parsedData.hash) {
-					const hashStr = parsedData.hash.startsWith('0x') ? 
-						parsedData.hash.slice(2) : parsedData.hash;
-					messageToSign = Buffer.from(hashStr, 'hex');
+				if (messageString.startsWith('0x')) {
+					// It's a hex hash - remove 0x and convert to buffer
+					messageToSign = Buffer.from(messageString.slice(2), 'hex');
+				} else if (/^[a-fA-F0-9]+$/.test(messageString) && messageString.length >= 64) {
+					// It's a hex string without 0x prefix (and looks like a hash)
+					messageToSign = Buffer.from(messageString, 'hex');
 				} else {
-					const message = typeof parsedData === 'string' ? parsedData : JSON.stringify(parsedData);
-					messageToSign = CrossmintNode.keccak256(Buffer.from(message));
+					// It's plain text - hash it
+					messageToSign = CrossmintNode.keccak256(Buffer.from(messageString));
 				}
 
 				const chainId = CrossmintNode.getChainId(chain);
@@ -2394,19 +2340,12 @@ export class CrossmintNode implements INodeType {
 
 				const secretKey = privateKeyBuffer.slice(0, 32);
 				
+				// Convert input to string and prepare message to sign
+				const messageString = String(dataToSign);
 				let messageToSign: Buffer;
-				const parsedData = typeof dataToSign === 'string' ? JSON.parse(dataToSign) : dataToSign;
 				
-				if (parsedData.message) {
-					if (typeof parsedData.message === 'string') {
-						messageToSign = Buffer.from(parsedData.message, 'base64');
-					} else {
-						messageToSign = Buffer.from(JSON.stringify(parsedData.message));
-					}
-				} else {
-					const message = typeof parsedData === 'string' ? parsedData : JSON.stringify(parsedData);
-					messageToSign = Buffer.from(message);
-				}
+				// For Solana, just treat everything as UTF-8 text
+				messageToSign = Buffer.from(messageString, 'utf8');
 
 				// Create Ed25519 private key object
 				const keyObject = createPrivateKey({
