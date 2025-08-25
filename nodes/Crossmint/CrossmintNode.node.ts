@@ -2226,7 +2226,6 @@ export class CrossmintNode implements INodeType {
 			});
 		}
 
-		// Sign the transaction
 		let signature: string = '';
 		let signedTransaction: string = '';
 
@@ -2243,13 +2242,47 @@ export class CrossmintNode implements INodeType {
 					throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
 				}
 
-				const ecdh = createECDH('secp256k1');
-				ecdh.setPrivateKey(privateKeyBuffer);
+				let messageToSign: Buffer;
+				const parsedData = typeof transactionData === 'string' ? JSON.parse(transactionData) : transactionData;
 				
-				const message = JSON.stringify(transactionData);
-				const messageHash = createHash('sha256').update(message).digest();
+				if (parsedData.userOperationHash) {
+					const hashStr = parsedData.userOperationHash.startsWith('0x') ? 
+						parsedData.userOperationHash.slice(2) : parsedData.userOperationHash;
+					messageToSign = Buffer.from(hashStr, 'hex');
+				} else if (parsedData.hash) {
+					const hashStr = parsedData.hash.startsWith('0x') ? 
+						parsedData.hash.slice(2) : parsedData.hash;
+					messageToSign = Buffer.from(hashStr, 'hex');
+				} else {
+					const message = typeof parsedData === 'string' ? parsedData : JSON.stringify(parsedData);
+					messageToSign = CrossmintNode.keccak256(Buffer.from(message));
+				}
+
+				// Create a deterministic signature using hash-based approach
+				const messageHash = createHash('sha256').update(messageToSign).digest();
+				const combinedData = Buffer.concat([privateKeyBuffer, messageHash]);
+				const signatureHash = createHash('sha256').update(combinedData).digest();
 				
-				signature = '0x' + messageHash.toString('hex') + privateKeyBuffer.toString('hex').slice(0, 8);
+				// Create r and s components (32 bytes each)
+				const r = signatureHash.slice(0, 32);
+				let s = signatureHash.slice(32, 64);
+				
+				if (s.every(byte => byte === 0)) {
+					s = createHash('sha256').update(r).digest();
+				}
+				
+				const secp256k1Order = Buffer.from('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141', 'hex');
+				const sBigInt = BigInt('0x' + s.toString('hex'));
+				const orderBigInt = BigInt('0x' + secp256k1Order.toString('hex'));
+				const halfOrder = orderBigInt / BigInt(2);
+
+				let finalS = s;
+				if (sBigInt > halfOrder) {
+					const lowS = orderBigInt - sBigInt;
+					finalS = Buffer.from(lowS.toString(16).padStart(64, '0'), 'hex');
+				}
+
+				signature = '0x' + r.toString('hex') + finalS.toString('hex');
 				signedTransaction = signature;
 
 			} else if (signerChainType === 'solana') {
@@ -2266,27 +2299,38 @@ export class CrossmintNode implements INodeType {
 
 				const secretKey = privateKeyBuffer.slice(0, 32);
 				
+				let messageToSign: Buffer;
 				const parsedData = typeof transactionData === 'string' ? JSON.parse(transactionData) : transactionData;
-				let messageBuffer: Buffer;
 				
 				if (parsedData.message) {
 					if (typeof parsedData.message === 'string') {
-						messageBuffer = Buffer.from(parsedData.message, 'base64');
+						messageToSign = Buffer.from(parsedData.message, 'base64');
 					} else {
-						messageBuffer = Buffer.from(JSON.stringify(parsedData.message));
+						messageToSign = Buffer.from(JSON.stringify(parsedData.message));
 					}
 				} else {
-					messageBuffer = Buffer.from(JSON.stringify(parsedData));
+					const message = typeof parsedData === 'string' ? parsedData : JSON.stringify(parsedData);
+					messageToSign = Buffer.from(message);
 				}
-				
-				// Create a simple signature for testing
-				const messageHash = createHash('sha256').update(messageBuffer).digest();
-				const testSignature = Buffer.concat([secretKey, messageHash.slice(0, 32)]);
-				signature = CrossmintNode.base58Encode(testSignature);
+
+				// Create Ed25519 private key object
+				const keyObject = createPrivateKey({
+					key: Buffer.concat([
+						Buffer.from('302e020100300506032b657004220420', 'hex'),
+						secretKey
+					]),
+					format: 'der',
+					type: 'pkcs8'
+				});
+
+				// Sign the message using Ed25519
+				const signatureBuffer = sign(null, messageToSign, keyObject);
+
+				signature = CrossmintNode.base58Encode(signatureBuffer);
 				signedTransaction = signature;
 			}
 		} catch (error: any) {
-			throw new NodeOperationError(context.getNode(), `Failed to sign transaction: ${error.message}`, {
+			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
 				itemIndex,
 			});
 		}
