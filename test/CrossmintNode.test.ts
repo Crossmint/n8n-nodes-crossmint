@@ -506,7 +506,7 @@ describe('CrossmintNode', () => {
 						gasPrice: '20000000000',
 						nonce: '0'
 					});
-					case 'chainId': return '1';
+					case 'chain': return 'ethereum';
 					case 'externalSignerDetails': return '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
 					default: return '';
 				}
@@ -519,6 +519,8 @@ describe('CrossmintNode', () => {
 					signature: expect.stringMatching(/^0x[a-fA-F0-9]+$/),
 					signedTransaction: expect.stringMatching(/^0x[a-fA-F0-9]+$/),
 					chainType: 'evm',
+					chain: 'ethereum',
+					chainId: 1,
 					transactionData: expect.any(String),
 				}
 			}]]);
@@ -531,6 +533,7 @@ describe('CrossmintNode', () => {
 				case 'transactionData': return JSON.stringify({
 					message: 'SGVsbG8gU29sYW5hIFRyYW5zYWN0aW9u' // Base64 encoded test message
 				});
+					case 'chain': return 'solana';
 					case 'externalSignerDetails': return '5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtrzVHpcXjnBtmN2jGMxgKG1H1cH8TjC2hgHqfnAHRdMeUiN';
 					default: return '';
 				}
@@ -543,6 +546,8 @@ describe('CrossmintNode', () => {
 					signature: expect.any(String),
 					signedTransaction: expect.any(String),
 					chainType: 'solana',
+					chain: 'solana',
+					chainId: undefined,
 					transactionData: expect.any(String),
 				}
 			}]]);
@@ -556,12 +561,13 @@ describe('CrossmintNode', () => {
 						to: '0x742d35Cc6634C0532925a3b8D0C9e0e7C0C0C0C0',
 						value: '1000000000000000000'
 					});
+					case 'chain': return 'ethereum';
 					case 'externalSignerDetails': return 'invalid-key';
 					default: return '';
 				}
 			});
 
-			await expect(node.execute.call(mockExecuteFunctions)).rejects.toThrow('Invalid private key format');
+			await expect(node.execute.call(mockExecuteFunctions)).rejects.toThrow('Invalid EVM private key format');
 		});
 	});
 

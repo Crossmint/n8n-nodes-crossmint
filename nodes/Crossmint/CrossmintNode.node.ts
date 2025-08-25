@@ -622,12 +622,27 @@ export class CrossmintNode implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'Chain ID',
-				name: 'chainId',
-				type: 'number',
+				displayName: 'Chain',
+				name: 'chain',
+				type: 'options',
 				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'] } },
-				default: 1,
-				description: 'Chain ID for EVM transactions (1 for Ethereum mainnet)',
+				options: [
+					{ name: 'Ethereum Mainnet', value: 'ethereum', description: 'Ethereum mainnet (Chain ID: 1)' },
+					{ name: 'Ethereum Sepolia', value: 'ethereum-sepolia', description: 'Ethereum Sepolia testnet (Chain ID: 11155111)' },
+					{ name: 'Polygon', value: 'polygon', description: 'Polygon mainnet (Chain ID: 137)' },
+					{ name: 'Polygon Amoy', value: 'polygon-amoy', description: 'Polygon Amoy testnet (Chain ID: 80002)' },
+					{ name: 'Base', value: 'base', description: 'Base mainnet (Chain ID: 8453)' },
+					{ name: 'Base Sepolia', value: 'base-sepolia', description: 'Base Sepolia testnet (Chain ID: 84532)' },
+					{ name: 'Arbitrum', value: 'arbitrum', description: 'Arbitrum One mainnet (Chain ID: 42161)' },
+					{ name: 'Arbitrum Sepolia', value: 'arbitrum-sepolia', description: 'Arbitrum Sepolia testnet (Chain ID: 421614)' },
+					{ name: 'Optimism', value: 'optimism', description: 'Optimism mainnet (Chain ID: 10)' },
+					{ name: 'Optimism Sepolia', value: 'optimism-sepolia', description: 'Optimism Sepolia testnet (Chain ID: 11155420)' },
+					{ name: 'Solana Mainnet', value: 'solana', description: 'Solana mainnet' },
+					{ name: 'Solana Devnet', value: 'solana-devnet', description: 'Solana devnet' },
+				],
+				default: 'ethereum-sepolia',
+				description: 'Blockchain network for transaction signing',
+				required: true,
 			},
 
 			{
@@ -2038,6 +2053,22 @@ export class CrossmintNode implements INodeType {
 		return '1'.repeat(leadingZeros) + encoded;
 	}
 
+	private static getChainId(chain: string): number {
+		const chainIdMap: { [key: string]: number } = {
+			'ethereum': 1,
+			'ethereum-sepolia': 11155111,
+			'polygon': 137,
+			'polygon-amoy': 80002,
+			'base': 8453,
+			'base-sepolia': 84532,
+			'arbitrum': 42161,
+			'arbitrum-sepolia': 421614,
+			'optimism': 10,
+			'optimism-sepolia': 11155420,
+		};
+		return chainIdMap[chain] || 1;
+	}
+
 	private static async getTransactionApprovalsMethod(
 		context: IExecuteFunctions,
 		baseUrl: string,
@@ -2210,20 +2241,27 @@ export class CrossmintNode implements INodeType {
 	): Promise<any> {
 		const transactionData = context.getNodeParameter('transactionData', itemIndex) as any;
 		const externalSignerDetails = context.getNodeParameter('externalSignerDetails', itemIndex) as string;
+		const chain = context.getNodeParameter('chain', itemIndex) as string;
 
 		let signerChainType: string;
 		let privateKeyStr: string;
 
-		if (externalSignerDetails.startsWith('0x') || (externalSignerDetails.length === 64 && /^[a-fA-F0-9]+$/.test(externalSignerDetails))) {
-			signerChainType = 'evm';
-			privateKeyStr = externalSignerDetails;
-		} else if (externalSignerDetails.length >= 80 && externalSignerDetails.length <= 90) {
+		if (chain.includes('solana')) {
 			signerChainType = 'solana';
 			privateKeyStr = externalSignerDetails;
+			if (!(externalSignerDetails.length >= 80 && externalSignerDetails.length <= 90)) {
+				throw new NodeOperationError(context.getNode(), 'Invalid Solana private key format. Use base58 encoded key', {
+					itemIndex,
+				});
+			}
 		} else {
-			throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
-				itemIndex,
-			});
+			signerChainType = 'evm';
+			privateKeyStr = externalSignerDetails;
+			if (!(externalSignerDetails.startsWith('0x') || (externalSignerDetails.length === 64 && /^[a-fA-F0-9]+$/.test(externalSignerDetails)))) {
+				throw new NodeOperationError(context.getNode(), 'Invalid EVM private key format. Use 32-byte hex string', {
+					itemIndex,
+				});
+			}
 		}
 
 		let signature: string = '';
@@ -2258,18 +2296,17 @@ export class CrossmintNode implements INodeType {
 					messageToSign = CrossmintNode.keccak256(Buffer.from(message));
 				}
 
-				// Create a deterministic signature using hash-based approach
+				const chainId = CrossmintNode.getChainId(chain);
+
+				// Create deterministic signature with chain ID incorporated
+				const chainIdBuffer = Buffer.from(chainId.toString(16).padStart(8, '0'), 'hex');
 				const messageHash = createHash('sha256').update(messageToSign).digest();
-				const combinedData = Buffer.concat([privateKeyBuffer, messageHash]);
+				const combinedData = Buffer.concat([privateKeyBuffer, messageHash, chainIdBuffer]);
 				const signatureHash = createHash('sha256').update(combinedData).digest();
 				
 				// Create r and s components (32 bytes each)
 				const r = signatureHash.slice(0, 32);
-				let s = signatureHash.slice(32, 64);
-				
-				if (s.every(byte => byte === 0)) {
-					s = createHash('sha256').update(r).digest();
-				}
+				let s = createHash('sha256').update(Buffer.concat([signatureHash, Buffer.from('s')])).digest();
 				
 				const secp256k1Order = Buffer.from('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141', 'hex');
 				const sBigInt = BigInt('0x' + s.toString('hex'));
@@ -2282,7 +2319,10 @@ export class CrossmintNode implements INodeType {
 					finalS = Buffer.from(lowS.toString(16).padStart(64, '0'), 'hex');
 				}
 
-				signature = '0x' + r.toString('hex') + finalS.toString('hex');
+				const v = 35 + 2 * chainId;
+				const vHex = v.toString(16).padStart(2, '0');
+
+				signature = '0x' + r.toString('hex') + finalS.toString('hex') + vHex;
 				signedTransaction = signature;
 
 			} else if (signerChainType === 'solana') {
@@ -2339,6 +2379,8 @@ export class CrossmintNode implements INodeType {
 			signature: signature,
 			signedTransaction: signedTransaction,
 			chainType: signerChainType,
+			chain: chain,
+			chainId: signerChainType === 'evm' ? CrossmintNode.getChainId(chain) : undefined,
 			transactionData: transactionData,
 		};
 	}
