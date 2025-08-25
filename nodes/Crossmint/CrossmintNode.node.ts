@@ -637,8 +637,8 @@ export class CrossmintNode implements INodeType {
 					{ name: 'Arbitrum Sepolia', value: 'arbitrum-sepolia', description: 'Arbitrum Sepolia testnet (Chain ID: 421614)' },
 					{ name: 'Optimism', value: 'optimism', description: 'Optimism mainnet (Chain ID: 10)' },
 					{ name: 'Optimism Sepolia', value: 'optimism-sepolia', description: 'Optimism Sepolia testnet (Chain ID: 11155420)' },
-					{ name: 'Solana Mainnet', value: 'solana', description: 'Solana mainnet' },
-					{ name: 'Solana Devnet', value: 'solana-devnet', description: 'Solana devnet' },
+					{ name: 'Solana Mainnet', value: 'solana' },
+					{ name: 'Solana Devnet', value: 'solana-devnet' },
 				],
 				default: 'ethereum-sepolia',
 				description: 'Blockchain network for transaction signing',
@@ -2298,20 +2298,27 @@ export class CrossmintNode implements INodeType {
 
 				const chainId = CrossmintNode.getChainId(chain);
 
-				// Create deterministic signature with chain ID incorporated
-				const chainIdBuffer = Buffer.from(chainId.toString(16).padStart(8, '0'), 'hex');
-				const messageHash = createHash('sha256').update(messageToSign).digest();
-				const combinedData = Buffer.concat([privateKeyBuffer, messageHash, chainIdBuffer]);
-				const signatureHash = createHash('sha256').update(combinedData).digest();
+				const ecdh = createECDH('secp256k1');
+				ecdh.setPrivateKey(privateKeyBuffer);
 				
-				// Create r and s components (32 bytes each)
-				const r = signatureHash.slice(0, 32);
-				let s = createHash('sha256').update(Buffer.concat([signatureHash, Buffer.from('s')])).digest();
+				const messageHash = createHash('sha256').update(messageToSign).digest();
+				
+				const rComponent = messageHash.slice(0, 16);
+				const sComponent = messageHash.slice(16, 32);
+				
+				const rPadded = Buffer.concat([Buffer.alloc(16, 0), rComponent]);
+				const sPadded = Buffer.concat([Buffer.alloc(16, 0), sComponent]);
+				
+				const signatureBuffer = Buffer.concat([rPadded, sPadded]);
+
+				// Extract r and s components (32 bytes each)
+				const r = signatureBuffer.slice(0, 32);
+				let s = signatureBuffer.slice(32, 64);
 				
 				const secp256k1Order = Buffer.from('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141', 'hex');
 				const sBigInt = BigInt('0x' + s.toString('hex'));
 				const orderBigInt = BigInt('0x' + secp256k1Order.toString('hex'));
-				const halfOrder = orderBigInt / BigInt(2);
+				const halfOrder = orderBigInt / BigInt('2');
 
 				let finalS = s;
 				if (sBigInt > halfOrder) {
