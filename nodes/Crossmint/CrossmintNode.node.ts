@@ -132,14 +132,6 @@ export class CrossmintNode implements INodeType {
 				description: 'Type of user locator to identify the wallet owner',
 			},
 			{
-				displayName: 'Use External Signer',
-				name: 'useExternalSigner',
-				type: 'boolean',
-				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'] } },
-				default: false,
-				description: 'Whether to enable external signer for wallet administration using a private key',
-			},
-			{
 				displayName: 'Owner Email',
 				name: 'ownerEmail',
 				type: 'string',
@@ -188,6 +180,14 @@ export class CrossmintNode implements INodeType {
 				placeholder: 'username',
 				description: 'X handle of the wallet owner (without @)',
 				required: true,
+			},
+			{
+				displayName: 'Use External Signer',
+				name: 'useExternalSigner',
+				type: 'boolean',
+				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'] } },
+				default: false,
+				description: 'Whether to enable external signer for wallet administration using a private key',
 			},
 			{
 				displayName: 'External Signer Details',
