@@ -54,5 +54,11 @@
   },
   "peerDependencies": {
     "n8n-workflow": "*"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.98.4",
+    "@types/bs58": "^4.0.4",
+    "ethers": "^6.15.0",
+    "tweetnacl": "^1.0.3"
   }
 }
