@@ -2366,20 +2366,19 @@ export class CrossmintNode implements INodeType {
 					throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
 				}
 
+				// Convert input to string and prepare message to sign
+				const messageString = String(dataToSign);
 				let messageToSign: Buffer;
-				const parsedData = typeof dataToSign === 'string' ? JSON.parse(dataToSign) : dataToSign;
 				
-				if (parsedData.userOperationHash) {
-					const hashStr = parsedData.userOperationHash.startsWith('0x') ? 
-						parsedData.userOperationHash.slice(2) : parsedData.userOperationHash;
-					messageToSign = Buffer.from(hashStr, 'hex');
-				} else if (parsedData.hash) {
-					const hashStr = parsedData.hash.startsWith('0x') ? 
-						parsedData.hash.slice(2) : parsedData.hash;
-					messageToSign = Buffer.from(hashStr, 'hex');
+				if (messageString.startsWith('0x')) {
+					// It's a hex hash - remove 0x and convert to buffer
+					messageToSign = Buffer.from(messageString.slice(2), 'hex');
+				} else if (/^[a-fA-F0-9]+$/.test(messageString) && messageString.length >= 64) {
+					// It's a hex string without 0x prefix (and looks like a hash)
+					messageToSign = Buffer.from(messageString, 'hex');
 				} else {
-					const message = typeof parsedData === 'string' ? parsedData : JSON.stringify(parsedData);
-					messageToSign = CrossmintNode.keccak256Hash(Buffer.from(message));
+					// It's plain text - hash it
+					messageToSign = CrossmintNode.keccak256Hash(Buffer.from(messageString));
 				}
 
 				const chainId = CrossmintNode.getChainId(chain);
