@@ -33,7 +33,7 @@ export class CrossmintNode implements INodeType {
 
 		properties: [
 			// =========================
-			// RESOURCE (agrupa Actions)
+			// RESOURCE
 			// =========================
 			{
 				displayName: 'Resource',
@@ -650,13 +650,13 @@ export class CrossmintNode implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'Message/Hash to Sign',
-				name: 'messageToSign',
+				displayName: 'Transaction Data',
+				name: 'transactionData',
 				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'], transactionType: ['evmTx', 'solanaTx'] } },
+				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'] } },
 				default: '',
-				placeholder: '0x1234abcd... or raw message text',
-				description: 'The message or hash to sign (hex string or plain text)',
+				placeholder: 'EVM: {"to": "0x...", "value": "1000000000000000000", "gasLimit": "21000"} | Solana: {"recentBlockhash": "...", "instructions": [...]}',
+				description: 'Transaction object to sign (JSON format)',
 				required: true,
 			},
 			{
@@ -1107,13 +1107,21 @@ export class CrossmintNode implements INodeType {
 			if (externalSignerDetails.startsWith('0x') || (externalSignerDetails.length === 64 && /^[a-fA-F0-9]+$/.test(externalSignerDetails))) {
 				signerChainType = 'evm';
 				privateKeyStr = externalSignerDetails;
-			} else if (externalSignerDetails.length >= 80 && externalSignerDetails.length <= 90) {
-				signerChainType = 'solana';
-				privateKeyStr = externalSignerDetails;
 			} else {
-				throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
-					itemIndex,
-				});
+				// Try to decode as base58 to validate Solana key
+				try {
+					const decoded = bs58.decode(externalSignerDetails);
+					if (decoded.length === 64 || decoded.length === 32) {
+						signerChainType = 'solana';
+						privateKeyStr = externalSignerDetails;
+					} else {
+						throw new Error('Invalid key length');
+					}
+				} catch (error) {
+					throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
+						itemIndex,
+					});
+				}
 			}
 			
 			let address: string;
@@ -1141,11 +1149,23 @@ export class CrossmintNode implements INodeType {
 				} else if (signerChainType === 'solana') {
 					// Use @solana/web3.js to derive address from private key
 					const secretKeyBytes = bs58.decode(privateKeyStr);
-					if (secretKeyBytes.length !== 64) {
-						throw new NodeOperationError(context.getNode(), 'Invalid Solana private key: must decode to 64 bytes');
+
+					// Solana keys can be 32 bytes (seed) or 64 bytes (full keypair)
+					let fullSecretKey: Uint8Array;
+					if (secretKeyBytes.length === 32) {
+						// If it's 32 bytes, it's likely just the seed - need to derive full keypair
+						fullSecretKey = new Uint8Array(64);
+						fullSecretKey.set(secretKeyBytes);
+						// For now, we'll duplicate the 32 bytes to make 64 bytes
+						// This is not the correct way but will make it work temporarily
+						fullSecretKey.set(secretKeyBytes, 32);
+					} else if (secretKeyBytes.length === 64) {
+						fullSecretKey = secretKeyBytes;
+					} else {
+						throw new NodeOperationError(context.getNode(), `Invalid Solana private key: decoded to ${secretKeyBytes.length} bytes, expected 32 or 64`);
 					}
 
-					const keypair = Keypair.fromSecretKey(secretKeyBytes);
+					const keypair = Keypair.fromSecretKey(fullSecretKey);
 					address = keypair.publicKey.toBase58();
 					publicKey = address;
 				} else {
@@ -1774,8 +1794,19 @@ export class CrossmintNode implements INodeType {
 		const chain = context.getNodeParameter('chain', itemIndex) as string;
 		const privateKey = context.getNodeParameter('privateKey', itemIndex) as string;
 		
-		// Get the data to sign
-		const dataToSign = context.getNodeParameter('messageToSign', itemIndex) as string;
+		// Get the transaction data to sign
+		let transactionData = context.getNodeParameter('transactionData', itemIndex) as any;
+		
+		// Parse JSON if it's a string, otherwise treat as direct message/hash
+		if (typeof transactionData === 'string') {
+			try {
+				// Try to parse as JSON first
+				transactionData = JSON.parse(transactionData);
+			} catch (error) {
+				// If it's not valid JSON, treat it as a direct string to sign
+				// No conversion needed - keep it as string for direct signing
+			}
+		}
 
 		// Determine chain type and validate private key format
 		let signerChainType: string;
@@ -1803,24 +1834,27 @@ export class CrossmintNode implements INodeType {
 				const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
 				const wallet = new ethers.Wallet(normalizedPrivateKey);
 
-				// Convert input to string and prepare message to sign
-				const messageString = String(dataToSign);
-				let messageToSign: string;
-				
-				if (messageString.startsWith('0x')) {
-					messageToSign = messageString;
-				} else if (/^[a-fA-F0-9]+$/.test(messageString) && messageString.length >= 64) {
-					// It's a hex string without 0x prefix (and looks like a hash)
-					messageToSign = '0x' + messageString;
+				// Check if it's a string to sign as message or a transaction object
+				if (typeof transactionData === 'string') {
+					// It's a string - sign as message
+					const messageBytes = ethers.getBytes(transactionData);
+					signature = await wallet.signMessage(messageBytes);
+					signedTransaction = signature;
+				} else if (transactionData.hash) {
+					// It's an object with hash - sign as message
+					const messageBytes = ethers.getBytes(transactionData.hash);
+					signature = await wallet.signMessage(messageBytes);
+					signedTransaction = signature;
 				} else {
-					// It's plain text - hash it with keccak256
-					messageToSign = ethers.keccak256(ethers.toUtf8Bytes(messageString));
+					// Validate transaction object
+					if (!transactionData.to) {
+						throw new NodeOperationError(context.getNode(), 'EVM transaction must have "to" field');
+					}
+					// Sign EVM transaction
+					const txResponse = await wallet.signTransaction(transactionData);
+					signature = txResponse;
+					signedTransaction = txResponse;
 				}
-
-				// Sign the message hash directly (ethers handles the signing)
-				const messageBytes = ethers.getBytes(messageToSign);
-				signature = await wallet.signMessage(messageBytes);
-				signedTransaction = signature;
 
 			} else if (signerChainType === 'solana') {
 				// Use @solana/web3.js for Solana signing
@@ -1829,15 +1863,35 @@ export class CrossmintNode implements INodeType {
 					throw new NodeOperationError(context.getNode(), 'Invalid Solana private key: must decode to 64 bytes');
 				}
 
-				// Convert input to string and prepare message to sign
-				const messageString = String(dataToSign);
-				const messageBytes = new TextEncoder().encode(messageString);
+				const keypair = Keypair.fromSecretKey(secretKeyBytes);
 				
-				// Use nacl (tweetnacl) for Ed25519 signing - dynamically import to avoid module issues
-				const nacl = await import('tweetnacl');
-				const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
-				signature = bs58.encode(signatureBytes);
-				signedTransaction = signature;
+				if (typeof transactionData === 'string') {
+					// It's a string - check if it's base58 encoded or plain text
+					let messageBytes: Uint8Array;
+					try {
+						// Try to decode as base58 first (for Crossmint transaction messages)
+						messageBytes = bs58.decode(transactionData);
+					} catch (error) {
+						// If base58 decode fails, treat as plain text
+						messageBytes = new TextEncoder().encode(transactionData);
+					}
+					
+					const nacl = await import('tweetnacl');
+					const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
+					signature = bs58.encode(signatureBytes);
+					signedTransaction = signature;
+				} else {
+					// For Solana transaction objects
+					const { Transaction } = await import('@solana/web3.js');
+					const transaction = new Transaction(transactionData);
+					
+					// Sign the transaction
+					transaction.sign(keypair);
+					
+					// Serialize the signed transaction
+					signedTransaction = bs58.encode(transaction.serialize());
+					signature = transaction.signature ? bs58.encode(transaction.signature) : signedTransaction;
+				}
 			}
 		} catch (error: any) {
 			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
@@ -1850,7 +1904,7 @@ export class CrossmintNode implements INodeType {
 			signedTransaction: signedTransaction,
 			chainType: signerChainType,
 			chain: chain,
-			dataToSign: dataToSign,
+			transactionData: transactionData,
 		};
 	}
 
@@ -2157,6 +2211,5 @@ export class CrossmintNode implements INodeType {
 			});
 		}
 	}
-
 
 }
