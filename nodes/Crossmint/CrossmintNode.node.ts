@@ -6,11 +6,10 @@ import type {
 	IHttpRequestOptions,
 	ICredentials,
 } from 'n8n-workflow';
-import { NodeConnectionType, NodeOperationError, NodeApiError, ApplicationError } from 'n8n-workflow';
-import { createHash, createECDH, createPrivateKey, createPublicKey } from 'crypto';
+import { NodeConnectionType, NodeOperationError, NodeApiError } from 'n8n-workflow';
 import { ethers } from 'ethers';
+import { Keypair } from '@solana/web3.js';
 import * as bs58 from 'bs58';
-import * as nacl from 'tweetnacl';
 
 export class CrossmintNode implements INodeType {
 	description: INodeTypeDescription = {
@@ -613,29 +612,17 @@ export class CrossmintNode implements INodeType {
 				description: 'Comma-separated list of tokens to query',
 				required: true,
 			},
-
-
-			{
-				displayName: 'Transaction Data',
-				name: 'transactionData',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'] } },
-				default: '',
-				description: 'Transaction data to sign (JSON format)',
-				required: true,
-			},
+			// Sign Transaction
 			{
 				displayName: 'Transaction Type',
 				name: 'transactionType',
 				type: 'options',
 				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'] } },
 				options: [
-					{ name: 'Raw Message/Hash', value: 'message', description: 'Sign a raw message or hash directly' },
-					{ name: 'User Operation Hash', value: 'userOp', description: 'Sign a User Operation hash for Account Abstraction' },
 					{ name: 'EVM Transaction', value: 'evmTx', description: 'Sign a complete EVM transaction' },
 					{ name: 'Solana Transaction', value: 'solanaTx', description: 'Sign a Solana transaction message' },
 				],
-				default: 'message',
+				default: 'evmTx',
 				description: 'Type of transaction or message to sign',
 				required: true,
 			},
@@ -666,7 +653,7 @@ export class CrossmintNode implements INodeType {
 				displayName: 'Message/Hash to Sign',
 				name: 'messageToSign',
 				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'], transactionType: ['message', 'userOp'] } },
+				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'], transactionType: ['evmTx', 'solanaTx'] } },
 				default: '',
 				placeholder: '0x1234abcd... or raw message text',
 				description: 'The message or hash to sign (hex string or plain text)',
@@ -1093,6 +1080,8 @@ export class CrossmintNode implements INodeType {
 	}
 
 	// ===== PRIVATE METHODS =====
+	
+	// WALLETS
 
 	private static async createWalletMethod(
 		context: IExecuteFunctions,
@@ -1143,42 +1132,21 @@ export class CrossmintNode implements INodeType {
 						throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
 					}
 					
-					const ecdh = createECDH('secp256k1');
-					ecdh.setPrivateKey(privateKeyBuffer);
-					const publicKeyBuffer = ecdh.getPublicKey();
-					const uncompressedPubKey = publicKeyBuffer.slice(1);
-					
-					const addressHash = CrossmintNode.keccak256(uncompressedPubKey);
-					address = '0x' + addressHash.slice(-20).toString('hex');
-					publicKey = '0x' + uncompressedPubKey.toString('hex');
+					// Use ethers to derive address from private key
+					const normalizedPrivateKey = privateKeyStr.startsWith('0x') ? privateKeyStr : '0x' + privateKeyStr;
+					const wallet = new ethers.Wallet(normalizedPrivateKey);
+					address = wallet.address;
+					publicKey = wallet.signingKey.publicKey;
 					
 				} else if (signerChainType === 'solana') {
-					let privateKeyBuffer: Buffer;
-					if (privateKeyStr.length === 88) {
-						privateKeyBuffer = CrossmintNode.base58Decode(privateKeyStr);
-					} else {
-						throw new NodeOperationError(context.getNode(), 'Solana private key must be base58 encoded');
+					// Use @solana/web3.js to derive address from private key
+					const secretKeyBytes = bs58.decode(privateKeyStr);
+					if (secretKeyBytes.length !== 64) {
+						throw new NodeOperationError(context.getNode(), 'Invalid Solana private key: must decode to 64 bytes');
 					}
-					
-					if (privateKeyBuffer.length !== 64) {
-						throw new NodeOperationError(context.getNode(), 'Solana private key must be 64 bytes when decoded');
-					}
-					
-					const secretKey = privateKeyBuffer.slice(0, 32);
-					const keyObject = createPrivateKey({
-						key: Buffer.concat([
-							Buffer.from('302e020100300506032b657004220420', 'hex'),
-							secretKey
-						]),
-						format: 'der',
-						type: 'pkcs8'
-					});
-					
-					const pubKeyObject = createPublicKey(keyObject);
-					const pubKeyBuffer = pubKeyObject.export({ format: 'der', type: 'spki' });
-					const publicKeyBytes = pubKeyBuffer.slice(-32);
-					
-					address = CrossmintNode.base58Encode(publicKeyBytes);
+
+					const keypair = Keypair.fromSecretKey(secretKeyBytes);
+					address = keypair.publicKey.toBase58();
 					publicKey = address;
 				} else {
 					throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${signerChainType}`, {
@@ -1404,6 +1372,134 @@ export class CrossmintNode implements INodeType {
 		}
 	}
 
+	private static async getBalanceMethod(
+		context: IExecuteFunctions,
+		baseUrl: string,
+		credentials: any,
+		itemIndex: number,
+	): Promise<any> {
+		const locatorType = context.getNodeParameter('balanceLocatorType', itemIndex) as string;
+		const chains = context.getNodeParameter('chains', itemIndex) as string;
+		const tokens = context.getNodeParameter('tokens', itemIndex) as string;
+		
+		// Build wallet locator based on type
+		let walletLocator: string;
+		
+		switch (locatorType) {
+			case 'address': {
+				const address = context.getNodeParameter('balanceWalletAddress', itemIndex) as string;
+				if (!address || address.trim() === '') {
+					throw new NodeOperationError(context.getNode(), 'Wallet address is required', {
+						description: 'Please specify the wallet address',
+						itemIndex,
+					});
+				}
+				walletLocator = address;
+				break;
+			}
+			case 'email': {
+				const email = context.getNodeParameter('balanceWalletEmail', itemIndex) as string;
+				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
+				
+				if (!email || email.trim() === '') {
+					throw new NodeOperationError(context.getNode(), 'Email is required', {
+						description: 'Please specify the email address',
+						itemIndex,
+					});
+				}
+				
+				walletLocator = `email:${email}:${chainType}:smart`;
+				break;
+			}
+			case 'userId': {
+				const userId = context.getNodeParameter('balanceWalletUserId', itemIndex) as string;
+				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
+				
+				if (!userId || userId.trim() === '') {
+					throw new NodeOperationError(context.getNode(), 'User ID is required', {
+						description: 'Please specify the user ID',
+						itemIndex,
+					});
+				}
+				
+				walletLocator = `userId:${userId}:${chainType}:smart`;
+				break;
+			}
+			case 'phoneNumber': {
+				const phoneNumber = context.getNodeParameter('balanceWalletPhoneNumber', itemIndex) as string;
+				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
+				
+				if (!phoneNumber || phoneNumber.trim() === '') {
+					throw new NodeOperationError(context.getNode(), 'Phone number is required', {
+						description: 'Please specify the phone number',
+						itemIndex,
+					});
+				}
+				
+				walletLocator = `phoneNumber:${phoneNumber}:${chainType}:smart`;
+				break;
+			}
+			case 'twitter': {
+				const twitterHandle = context.getNodeParameter('balanceWalletTwitterHandle', itemIndex) as string;
+				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
+				
+				if (!twitterHandle || twitterHandle.trim() === '') {
+					throw new NodeOperationError(context.getNode(), 'Twitter handle is required', {
+						description: 'Please specify the Twitter handle',
+						itemIndex,
+					});
+				}
+				
+				walletLocator = `twitter:${twitterHandle}:${chainType}:smart`;
+				break;
+			}
+			case 'x': {
+				const xHandle = context.getNodeParameter('balanceWalletXHandle', itemIndex) as string;
+				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
+				
+				if (!xHandle || xHandle.trim() === '') {
+					throw new NodeOperationError(context.getNode(), 'X handle is required', {
+						description: 'Please specify the X handle',
+						itemIndex,
+					});
+				}
+				
+				walletLocator = `x:${xHandle}:${chainType}:smart`;
+				break;
+			}
+			case 'me': {
+				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
+				
+				walletLocator = `me:${chainType}:smart`;
+				break;
+			}
+			default:
+				throw new NodeOperationError(context.getNode(), `Unsupported locator type: ${locatorType}`, {
+					itemIndex,
+				});
+		}
+
+		// Build URL with query parameters
+		const baseUrlWithParams = `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(
+			walletLocator,
+		)}/balances?chains=${encodeURIComponent(chains)}&tokens=${encodeURIComponent(tokens)}`;
+
+		const requestOptions: IHttpRequestOptions = {
+			method: 'GET',
+			url: baseUrlWithParams,
+			headers: {
+				'X-API-KEY': (credentials as any).apiKey,
+			},
+			json: true,
+		};
+
+		try {
+			return await context.helpers.httpRequest(requestOptions);
+		} catch (error: any) {
+			// Pass through the original Crossmint API error exactly as received
+			throw new NodeApiError(context.getNode(), error);
+		}
+	}
 	
 	private static async transferToken(
 		context: IExecuteFunctions,
@@ -1669,136 +1765,187 @@ export class CrossmintNode implements INodeType {
 		}
 	}
 
-
-	private static async getBalanceMethod(
+	private static async signTransactionMethod(
 		context: IExecuteFunctions,
 		baseUrl: string,
-		credentials: any,
+		credentials: ICredentials,
 		itemIndex: number,
 	): Promise<any> {
-		const locatorType = context.getNodeParameter('balanceLocatorType', itemIndex) as string;
-		const chains = context.getNodeParameter('chains', itemIndex) as string;
-		const tokens = context.getNodeParameter('tokens', itemIndex) as string;
+		const chain = context.getNodeParameter('chain', itemIndex) as string;
+		const privateKey = context.getNodeParameter('privateKey', itemIndex) as string;
 		
-		// Build wallet locator based on type
-		let walletLocator: string;
-		
-		switch (locatorType) {
-			case 'address': {
-				const address = context.getNodeParameter('balanceWalletAddress', itemIndex) as string;
-				if (!address || address.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Wallet address is required', {
-						description: 'Please specify the wallet address',
-						itemIndex,
-					});
-				}
-				walletLocator = address;
-				break;
-			}
-			case 'email': {
-				const email = context.getNodeParameter('balanceWalletEmail', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-				
-				if (!email || email.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Email is required', {
-						description: 'Please specify the email address',
-						itemIndex,
-					});
-				}
-				
-				walletLocator = `email:${email}:${chainType}:smart`;
-				break;
-			}
-			case 'userId': {
-				const userId = context.getNodeParameter('balanceWalletUserId', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-				
-				if (!userId || userId.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'User ID is required', {
-						description: 'Please specify the user ID',
-						itemIndex,
-					});
-				}
-				
-				walletLocator = `userId:${userId}:${chainType}:smart`;
-				break;
-			}
-			case 'phoneNumber': {
-				const phoneNumber = context.getNodeParameter('balanceWalletPhoneNumber', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-				
-				if (!phoneNumber || phoneNumber.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Phone number is required', {
-						description: 'Please specify the phone number',
-						itemIndex,
-					});
-				}
-				
-				walletLocator = `phoneNumber:${phoneNumber}:${chainType}:smart`;
-				break;
-			}
-			case 'twitter': {
-				const twitterHandle = context.getNodeParameter('balanceWalletTwitterHandle', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-				
-				if (!twitterHandle || twitterHandle.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Twitter handle is required', {
-						description: 'Please specify the Twitter handle',
-						itemIndex,
-					});
-				}
-				
-				walletLocator = `twitter:${twitterHandle}:${chainType}:smart`;
-				break;
-			}
-			case 'x': {
-				const xHandle = context.getNodeParameter('balanceWalletXHandle', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-				
-				if (!xHandle || xHandle.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'X handle is required', {
-						description: 'Please specify the X handle',
-						itemIndex,
-					});
-				}
-				
-				walletLocator = `x:${xHandle}:${chainType}:smart`;
-				break;
-			}
-			case 'me': {
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-				
-				walletLocator = `me:${chainType}:smart`;
-				break;
-			}
-			default:
-				throw new NodeOperationError(context.getNode(), `Unsupported locator type: ${locatorType}`, {
+		// Get the data to sign
+		const dataToSign = context.getNodeParameter('messageToSign', itemIndex) as string;
+
+		// Determine chain type and validate private key format
+		let signerChainType: string;
+		if (chain.includes('solana')) {
+			signerChainType = 'solana';
+			if (!(privateKey.length >= 80 && privateKey.length <= 90)) {
+				throw new NodeOperationError(context.getNode(), 'Invalid Solana private key format. Use base58 encoded key', {
 					itemIndex,
 				});
+			}
+		} else {
+			signerChainType = 'evm';
+			if (!(privateKey.startsWith('0x') || (privateKey.length === 64 && /^[a-fA-F0-9]+$/.test(privateKey)))) {
+				throw new NodeOperationError(context.getNode(), 'Invalid EVM private key format. Use 32-byte hex string', {
+					itemIndex,
+				});
+			}
 		}
 
-		// Build URL with query parameters
-		const baseUrlWithParams = `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(
-			walletLocator,
-		)}/balances?chains=${encodeURIComponent(chains)}&tokens=${encodeURIComponent(tokens)}`;
+		let signature: string = '';
+		let signedTransaction: string = '';
+
+		try {
+			if (signerChainType === 'evm') {
+				const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
+				const wallet = new ethers.Wallet(normalizedPrivateKey);
+
+				// Convert input to string and prepare message to sign
+				const messageString = String(dataToSign);
+				let messageToSign: string;
+				
+				if (messageString.startsWith('0x')) {
+					messageToSign = messageString;
+				} else if (/^[a-fA-F0-9]+$/.test(messageString) && messageString.length >= 64) {
+					// It's a hex string without 0x prefix (and looks like a hash)
+					messageToSign = '0x' + messageString;
+				} else {
+					// It's plain text - hash it with keccak256
+					messageToSign = ethers.keccak256(ethers.toUtf8Bytes(messageString));
+				}
+
+				// Sign the message hash directly (ethers handles the signing)
+				const messageBytes = ethers.getBytes(messageToSign);
+				signature = await wallet.signMessage(messageBytes);
+				signedTransaction = signature;
+
+			} else if (signerChainType === 'solana') {
+				// Use @solana/web3.js for Solana signing
+				const secretKeyBytes = bs58.decode(privateKey);
+				if (secretKeyBytes.length !== 64) {
+					throw new NodeOperationError(context.getNode(), 'Invalid Solana private key: must decode to 64 bytes');
+				}
+
+				// Convert input to string and prepare message to sign
+				const messageString = String(dataToSign);
+				const messageBytes = new TextEncoder().encode(messageString);
+				
+				// Use nacl (tweetnacl) for Ed25519 signing - dynamically import to avoid module issues
+				const nacl = await import('tweetnacl');
+				const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
+				signature = bs58.encode(signatureBytes);
+				signedTransaction = signature;
+			}
+		} catch (error: any) {
+			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
+				itemIndex,
+			});
+		}
+
+		return {
+			signature: signature,
+			signedTransaction: signedTransaction,
+			chainType: signerChainType,
+			chain: chain,
+			dataToSign: dataToSign,
+		};
+	}
+
+	private static async getTransactionApprovalsMethod(
+		context: IExecuteFunctions,
+		baseUrl: string,
+		credentials: ICredentials,
+		itemIndex: number,
+	): Promise<any> {
+		const walletAddress = context.getNodeParameter('walletAddress', itemIndex) as string;
 
 		const requestOptions: IHttpRequestOptions = {
 			method: 'GET',
-			url: baseUrlWithParams,
+			url: `${baseUrl}/2025-06-09/wallets/${walletAddress}/transactions?status=awaiting-approval`,
 			headers: {
 				'X-API-KEY': (credentials as any).apiKey,
+				'Content-Type': 'application/json',
 			},
 			json: true,
 		};
 
 		try {
-			return await context.helpers.httpRequest(requestOptions);
+			const response = await context.helpers.httpRequest(requestOptions);
+			return response;
 		} catch (error: any) {
-			// Pass through the original Crossmint API error exactly as received
 			throw new NodeApiError(context.getNode(), error);
 		}
 	}
 
+	private static async submitSignatureMethod(
+		context: IExecuteFunctions,
+		baseUrl: string,
+		credentials: ICredentials,
+		itemIndex: number,
+	): Promise<any> {
+		// Get the new simplified parameters
+		const walletAddress = context.getNodeParameter('walletAddress', itemIndex) as string;
+		const transactionId = context.getNodeParameter('transactionId', itemIndex) as string;
+		const signerAddress = context.getNodeParameter('signerAddress', itemIndex) as string;
+		const signature = context.getNodeParameter('signature', itemIndex) as string;
+
+		// Validate required fields
+		if (!walletAddress || !transactionId || !signerAddress || !signature) {
+			throw new NodeOperationError(context.getNode(), 'Wallet Address, Transaction ID, Signer Address, and Signature are required', {
+				itemIndex,
+			});
+		}
+
+		// Build request body with the correct format
+		const requestBody = {
+			approvals: [
+				{
+					signer: `external-wallet:${signerAddress}`,
+					signature: signature,
+				}
+			]
+		};
+
+		// Use the correct API endpoint format
+		const requestOptions: IHttpRequestOptions = {
+			method: 'POST',
+			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`,
+			headers: {
+				'X-API-KEY': (credentials as any).apiKey,
+				'Content-Type': 'application/json',
+			},
+			body: requestBody,
+			json: true,
+		};
+
+		try {
+			const response = await context.helpers.httpRequest(requestOptions);
+			return {
+				...response,
+				submittedApproval: {
+					walletAddress,
+					transactionId,
+					signerAddress,
+					signature,
+				},
+				___debug___: {
+					url: requestOptions.url,
+					method: requestOptions.method,
+					headers: requestOptions.headers,
+					body: requestOptions.body,
+				}
+			};
+		} catch (error: any) {
+			throw new NodeApiError(context.getNode(), error);
+		}
+	}
+
+	
+
+	// CHECKOUT
 
 	private static async findProductMethod(
 		context: IExecuteFunctions,
@@ -2011,328 +2158,5 @@ export class CrossmintNode implements INodeType {
 		}
 	}
 
-	private static rlpEncode(input: any): Buffer {
-		if (input === null || input === undefined) {
-			return Buffer.from([0x80]);
-		}
-		
-		if (typeof input === 'string') {
-			if (input.startsWith('0x')) {
-				let hex = input.slice(2);
-				if (hex.length % 2 !== 0) {
-					hex = '0' + hex;
-				}
-				const buffer = Buffer.from(hex, 'hex');
-				return CrossmintNode.encodeLength(buffer.length, 0x80, buffer);
-			}
-			const buffer = Buffer.from(input, 'utf8');
-			return CrossmintNode.encodeLength(buffer.length, 0x80, buffer);
-		}
-		
-		if (typeof input === 'number') {
-			if (input === 0) {
-				return Buffer.from([0x80]);
-			}
-			const hex = input.toString(16);
-			const buffer = Buffer.from(hex.length % 2 ? '0' + hex : hex, 'hex');
-			return CrossmintNode.encodeLength(buffer.length, 0x80, buffer);
-		}
-		
-		if (Buffer.isBuffer(input)) {
-			return CrossmintNode.encodeLength(input.length, 0x80, input);
-		}
-		
-		if (Array.isArray(input)) {
-			const encodedItems = input.map(item => CrossmintNode.rlpEncode(item));
-			const totalLength = encodedItems.reduce((sum, item) => sum + item.length, 0);
-			const lengthEncoding = CrossmintNode.encodeLength(totalLength, 0xc0, Buffer.alloc(0));
-			return Buffer.concat([lengthEncoding, ...encodedItems]);
-		}
-		
-		throw new ApplicationError('Unsupported input type for RLP encoding');
-	}
 
-	private static encodeLength(length: number, offset: number, data: Buffer): Buffer {
-		if (length < 56) {
-			return Buffer.concat([Buffer.from([offset + length]), data]);
-		}
-		
-		const lengthHex = length.toString(16);
-		const lengthBuffer = Buffer.from(lengthHex.length % 2 ? '0' + lengthHex : lengthHex, 'hex');
-		return Buffer.concat([Buffer.from([offset + 55 + lengthBuffer.length]), lengthBuffer, data]);
-	}
-
-	private static keccak256(data: Buffer): Buffer {
-		return createHash('sha3-256').update(data).digest();
-	}
-
-	private static base58Decode(str: string): Buffer {
-		const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-		let decoded = BigInt(0);
-		let multi = BigInt(1);
-		
-		for (let i = str.length - 1; i >= 0; i--) {
-			const char = str[i];
-			const index = alphabet.indexOf(char);
-			if (index === -1) {
-				throw new ApplicationError('Invalid base58 character');
-			}
-			decoded += BigInt(index) * multi;
-			multi *= BigInt(58);
-		}
-		
-		let hex = decoded.toString(16);
-		if (hex.length % 2) {
-			hex = '0' + hex;
-		}
-		
-		let leadingZeros = 0;
-		for (let i = 0; i < str.length && str[i] === '1'; i++) {
-			leadingZeros++;
-		}
-		
-		return Buffer.concat([Buffer.alloc(leadingZeros), Buffer.from(hex, 'hex')]);
-	}
-	private static base58Encode(buffer: Buffer): string {
-		const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-		const base = BigInt(alphabet.length);
-		
-		let leadingZeros = 0;
-		for (let i = 0; i < buffer.length && buffer[i] === 0; i++) {
-			leadingZeros++;
-		}
-		
-		let num = BigInt('0x' + buffer.toString('hex'));
-		let encoded = '';
-		
-		while (num > BigInt(0)) {
-			const remainder = num % base;
-			num = num / base;
-			encoded = alphabet[Number(remainder)] + encoded;
-		}
-		
-		return '1'.repeat(leadingZeros) + encoded;
-	}
-
-	private static getChainId(chain: string): number {
-		const chainIdMap: { [key: string]: number } = {
-			'ethereum': 1,
-			'ethereum-sepolia': 11155111,
-			'polygon': 137,
-			'polygon-amoy': 80002,
-			'base': 8453,
-			'base-sepolia': 84532,
-			'arbitrum': 42161,
-			'arbitrum-sepolia': 421614,
-			'optimism': 10,
-			'optimism-sepolia': 11155420,
-		};
-		return chainIdMap[chain] || 1;
-	}
-
-	private static async getTransactionApprovalsMethod(
-		context: IExecuteFunctions,
-		baseUrl: string,
-		credentials: ICredentials,
-		itemIndex: number,
-	): Promise<any> {
-		const walletAddress = context.getNodeParameter('walletAddress', itemIndex) as string;
-
-		const requestOptions: IHttpRequestOptions = {
-			method: 'GET',
-			url: `${baseUrl}/2025-06-09/wallets/${walletAddress}/transactions?status=awaiting-approval`,
-			headers: {
-				'X-API-KEY': (credentials as any).apiKey,
-				'Content-Type': 'application/json',
-			},
-			json: true,
-		};
-
-		try {
-			const response = await context.helpers.httpRequest(requestOptions);
-			return response;
-		} catch (error: any) {
-			throw new NodeApiError(context.getNode(), error);
-		}
-	}
-
-	private static async submitSignatureMethod(
-		context: IExecuteFunctions,
-		baseUrl: string,
-		credentials: ICredentials,
-		itemIndex: number,
-	): Promise<any> {
-		// Get the new simplified parameters
-		const walletAddress = context.getNodeParameter('walletAddress', itemIndex) as string;
-		const transactionId = context.getNodeParameter('transactionId', itemIndex) as string;
-		const signerAddress = context.getNodeParameter('signerAddress', itemIndex) as string;
-		const signature = context.getNodeParameter('signature', itemIndex) as string;
-
-		// Validate required fields
-		if (!walletAddress || !transactionId || !signerAddress || !signature) {
-			throw new NodeOperationError(context.getNode(), 'Wallet Address, Transaction ID, Signer Address, and Signature are required', {
-				itemIndex,
-			});
-		}
-
-		// Build request body with the correct format
-		const requestBody = {
-			approvals: [
-				{
-					signer: `external-wallet:${signerAddress}`,
-					signature: signature,
-				}
-			]
-		};
-
-		// Use the correct API endpoint format
-		const requestOptions: IHttpRequestOptions = {
-			method: 'POST',
-			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`,
-			headers: {
-				'X-API-KEY': (credentials as any).apiKey,
-				'Content-Type': 'application/json',
-			},
-			body: requestBody,
-			json: true,
-		};
-
-		try {
-			const response = await context.helpers.httpRequest(requestOptions);
-			return {
-				...response,
-				submittedApproval: {
-					walletAddress,
-					transactionId,
-					signerAddress,
-					signature,
-				},
-				___debug___: {
-					url: requestOptions.url,
-					method: requestOptions.method,
-					headers: requestOptions.headers,
-					body: requestOptions.body,
-				}
-			};
-		} catch (error: any) {
-			throw new NodeApiError(context.getNode(), error);
-		}
-	}
-
-
-	private static async signTransactionMethod(
-		context: IExecuteFunctions,
-		baseUrl: string,
-		credentials: ICredentials,
-		itemIndex: number,
-	): Promise<any> {
-		const transactionType = context.getNodeParameter('transactionType', itemIndex) as string;
-		const chain = context.getNodeParameter('chain', itemIndex) as string;
-		const privateKey = context.getNodeParameter('privateKey', itemIndex) as string;
-		
-		// Get the data to sign based on transaction type
-		let dataToSign: any;
-		if (transactionType === 'message' || transactionType === 'userOp') {
-			dataToSign = context.getNodeParameter('messageToSign', itemIndex) as string;
-		} else {
-			dataToSign = context.getNodeParameter('transactionData', itemIndex) as any;
-		}
-
-		// Determine chain type and validate private key format
-		let signerChainType: string;
-		if (chain.includes('solana')) {
-			signerChainType = 'solana';
-			if (!(privateKey.length >= 80 && privateKey.length <= 90)) {
-				throw new NodeOperationError(context.getNode(), 'Invalid Solana private key format. Use base58 encoded key', {
-					itemIndex,
-				});
-			}
-		} else {
-			signerChainType = 'evm';
-			if (!(privateKey.startsWith('0x') || (privateKey.length === 64 && /^[a-fA-F0-9]+$/.test(privateKey)))) {
-				throw new NodeOperationError(context.getNode(), 'Invalid EVM private key format. Use 32-byte hex string', {
-					itemIndex,
-				});
-			}
-		}
-
-		let signature: string = '';
-		let signedTransaction: string = '';
-
-		try {
-			if (signerChainType === 'evm') {
-				const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
-				const wallet = new ethers.Wallet(normalizedPrivateKey);
-
-				let parsedData: any;
-				try {
-					parsedData = typeof dataToSign === 'string' ? JSON.parse(dataToSign) : dataToSign;
-				} catch {
-					parsedData = null;
-				}
-
-				let messageToSign: string;
-				
-				// Handle structured data with specific hash fields
-				if (parsedData && typeof parsedData === 'object') {
-					if (parsedData.userOperationHash) {
-						messageToSign = parsedData.userOperationHash.startsWith('0x') ? 
-							parsedData.userOperationHash : '0x' + parsedData.userOperationHash;
-					} else if (parsedData.hash) {
-						messageToSign = parsedData.hash.startsWith('0x') ? 
-							parsedData.hash : '0x' + parsedData.hash;
-					} else {
-						// Fallback to stringifying the object and hashing
-						const message = JSON.stringify(parsedData);
-						messageToSign = ethers.keccak256(ethers.toUtf8Bytes(message));
-					}
-				} else {
-					// Handle string input - detect if it's a hex hash or plain text
-					const messageString = String(dataToSign);
-					if (messageString.startsWith('0x')) {
-						messageToSign = messageString;
-					} else if (/^[a-fA-F0-9]+$/.test(messageString) && messageString.length >= 64) {
-						// It's a hex string without 0x prefix (and looks like a hash)
-						messageToSign = '0x' + messageString;
-					} else {
-						// It's plain text - hash it with keccak256
-						messageToSign = ethers.keccak256(ethers.toUtf8Bytes(messageString));
-					}
-				}
-
-				// Sign the message hash directly (ethers handles the signing)
-				const messageBytes = ethers.getBytes(messageToSign);
-				signature = await wallet.signMessage(messageBytes);
-				signedTransaction = signature;
-
-			} else if (signerChainType === 'solana') {
-				const secretKeyBytes = bs58.decode(privateKey);
-				if (secretKeyBytes.length !== 64) {
-					throw new NodeOperationError(context.getNode(), 'Invalid Solana private key: must decode to 64 bytes');
-				}
-
-				// Convert input to string and prepare message to sign
-				const messageString = String(dataToSign);
-				const messageBytes = Buffer.from(messageString, 'utf8');
-
-				// Sign the message using tweetnacl Ed25519 signing
-				const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
-				signature = bs58.encode(signatureBytes);
-				signedTransaction = signature;
-			}
-		} catch (error: any) {
-			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
-				itemIndex,
-			});
-		}
-
-		return {
-			signature: signature,
-			signedTransaction: signedTransaction,
-			chainType: signerChainType,
-			chain: chain,
-			chainId: signerChainType === 'evm' ? CrossmintNode.getChainId(chain) : undefined,
-			dataToSign: dataToSign,
-		};
-	}
 }
