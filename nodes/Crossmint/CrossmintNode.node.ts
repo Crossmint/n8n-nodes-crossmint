@@ -2264,18 +2264,40 @@ export class CrossmintNode implements INodeType {
 				const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
 				const wallet = new ethers.Wallet(normalizedPrivateKey);
 
-				const parsedData = typeof dataToSign === 'string' ? JSON.parse(dataToSign) : dataToSign;
-				
+				let parsedData: any;
+				try {
+					parsedData = typeof dataToSign === 'string' ? JSON.parse(dataToSign) : dataToSign;
+				} catch {
+					parsedData = null;
+				}
+
 				let messageToSign: string;
-				if (parsedData.userOperationHash) {
-					messageToSign = parsedData.userOperationHash.startsWith('0x') ? 
-						parsedData.userOperationHash : '0x' + parsedData.userOperationHash;
-				} else if (parsedData.hash) {
-					messageToSign = parsedData.hash.startsWith('0x') ? 
-						parsedData.hash : '0x' + parsedData.hash;
+				
+				// Handle structured data with specific hash fields
+				if (parsedData && typeof parsedData === 'object') {
+					if (parsedData.userOperationHash) {
+						messageToSign = parsedData.userOperationHash.startsWith('0x') ? 
+							parsedData.userOperationHash : '0x' + parsedData.userOperationHash;
+					} else if (parsedData.hash) {
+						messageToSign = parsedData.hash.startsWith('0x') ? 
+							parsedData.hash : '0x' + parsedData.hash;
+					} else {
+						// Fallback to stringifying the object and hashing
+						const message = JSON.stringify(parsedData);
+						messageToSign = ethers.keccak256(ethers.toUtf8Bytes(message));
+					}
 				} else {
-					const message = typeof parsedData === 'string' ? parsedData : JSON.stringify(parsedData);
-					messageToSign = ethers.keccak256(ethers.toUtf8Bytes(message));
+					// Handle string input - detect if it's a hex hash or plain text
+					const messageString = String(dataToSign);
+					if (messageString.startsWith('0x')) {
+						messageToSign = messageString;
+					} else if (/^[a-fA-F0-9]+$/.test(messageString) && messageString.length >= 64) {
+						// It's a hex string without 0x prefix (and looks like a hash)
+						messageToSign = '0x' + messageString;
+					} else {
+						// It's plain text - hash it with keccak256
+						messageToSign = ethers.keccak256(ethers.toUtf8Bytes(messageString));
+					}
 				}
 
 				// Sign the message hash directly (ethers handles the signing)
