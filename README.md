@@ -203,12 +203,6 @@ If you want to test the node locally without installing it globally:
    - Enter: `n8n-nodes-crossmint`
    - Click **Install**
 
-## Development structure
-
-- This repo keeps each node implementation in a single file, following n8n guidance.
-- Crossmint node lives at: nodes/Crossmint/CrossmintNode.node.ts
-- Custom credentials live separately as required by n8n: credentials/CrossmintApi.credentials.ts
-- See docs/STRUCTURE.md for details.
 For more information about n8n installation, see: [n8n Installation Guide](https://docs.n8n.io/hosting/installation/npm/#try-n8n-with-npx)
 
 
