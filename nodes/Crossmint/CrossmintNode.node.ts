@@ -1777,7 +1777,139 @@ export class CrossmintNode implements INodeType {
 		}
 	}
 
+	private static async signAndSubmitTransactionMethod(
+		context: IExecuteFunctions,
+		baseUrl: string,
+		credentials: ICredentials,
+		itemIndex: number,
+	): Promise<any> {
+		// Get parameters specific to the combined operation
+		const chain = context.getNodeParameter('signSubmitChain', itemIndex) as string;
+		const privateKey = context.getNodeParameter('signSubmitPrivateKey', itemIndex) as string;
+		const transactionData = context.getNodeParameter('signSubmitTransactionData', itemIndex) as string;
+		const walletAddress = context.getNodeParameter('signSubmitWalletAddress', itemIndex) as string;
+		const transactionId = context.getNodeParameter('signSubmitTransactionId', itemIndex) as string;
+		const signerAddress = context.getNodeParameter('signSubmitSignerAddress', itemIndex) as string;
 
+		// Step 1: Sign the transaction using the same logic as signTransactionMethod
+		let signature: string = '';
+		let signedTransaction: string = '';
+		let signerChainType: string;
+
+		// Determine chain type and validate private key format
+		if (chain.includes('solana')) {
+			signerChainType = 'solana';
+			if (!(privateKey.length >= 80 && privateKey.length <= 90)) {
+				throw new NodeOperationError(context.getNode(), 'Invalid Solana private key format. Use base58 encoded key', {
+					itemIndex,
+				});
+			}
+		} else {
+			signerChainType = 'evm';
+			if (!(privateKey.startsWith('0x') || (privateKey.length === 64 && /^[a-fA-F0-9]+$/.test(privateKey)))) {
+				throw new NodeOperationError(context.getNode(), 'Invalid EVM private key format. Use 32-byte hex string', {
+					itemIndex,
+				});
+			}
+		}
+
+		try {
+			if (signerChainType === 'evm') {
+				const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
+				const wallet = new ethers.Wallet(normalizedPrivateKey);
+
+				// Sign the transaction data as message
+				const messageBytes = ethers.getBytes(transactionData);
+				signature = await wallet.signMessage(messageBytes);
+				signedTransaction = signature;
+
+			} else if (signerChainType === 'solana') {
+				// Use @solana/web3.js for Solana signing
+				const secretKeyBytes = bs58.decode(privateKey);
+				if (secretKeyBytes.length !== 64) {
+					throw new NodeOperationError(context.getNode(), 'Invalid Solana private key: must decode to 64 bytes');
+				}
+
+				// Check if it's base58 encoded or plain text
+				let messageBytes: Uint8Array;
+				try {
+					// Try to decode as base58 first (for Crossmint transaction messages)
+					messageBytes = bs58.decode(transactionData);
+				} catch (error) {
+					// If base58 decode fails, treat as plain text
+					messageBytes = new TextEncoder().encode(transactionData);
+				}
+
+				const nacl = await import('tweetnacl');
+				const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
+				signature = bs58.encode(signatureBytes);
+				signedTransaction = signature;
+			}
+		} catch (error: any) {
+			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
+				itemIndex,
+			});
+		}
+
+		// Ensure signature was created
+		if (!signature) {
+			throw new NodeOperationError(context.getNode(), 'Failed to generate signature', {
+				itemIndex,
+			});
+		}
+
+		// Step 2: Submit the signature using the same logic as submitSignatureMethod
+		// Validate required fields
+		if (!walletAddress || !transactionId || !signerAddress || !signature) {
+			throw new NodeOperationError(context.getNode(), 'Wallet Address, Transaction ID, Signer Address, and Signature are required', {
+				itemIndex,
+			});
+		}
+
+		// Build request body with the correct format
+		const requestBody = {
+			approvals: [
+				{
+					signer: `external-wallet:${signerAddress}`,
+					signature: signature,
+				}
+			]
+		};
+
+		// Use the correct API endpoint format
+		const requestOptions: IHttpRequestOptions = {
+			method: 'POST',
+			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`,
+			headers: {
+				'X-API-KEY': (credentials as any).apiKey,
+				'Content-Type': 'application/json',
+			},
+			body: requestBody,
+			json: true,
+		};
+
+		try {
+			const response = await context.helpers.httpRequest(requestOptions);
+			return {
+				...response,
+				signingDetails: {
+					signature: signature,
+					signedTransaction: signedTransaction,
+					chainType: signerChainType,
+					chain: chain,
+					transactionData: transactionData,
+				},
+				submittedApproval: {
+					walletAddress,
+					transactionId,
+					signerAddress,
+					signature,
+				},
+			};
+		} catch (error: any) {
+			throw new NodeApiError(context.getNode(), error);
+		}
+	}
 
 
 	// CHECKOUT
@@ -2084,139 +2216,6 @@ export class CrossmintNode implements INodeType {
 			transaction: transactionResponse
 		};
 	}
-
-	private static async signAndSubmitTransactionMethod(
-		context: IExecuteFunctions,
-		baseUrl: string,
-		credentials: ICredentials,
-		itemIndex: number,
-	): Promise<any> {
-		// Get parameters specific to the combined operation
-		const chain = context.getNodeParameter('signSubmitChain', itemIndex) as string;
-		const privateKey = context.getNodeParameter('signSubmitPrivateKey', itemIndex) as string;
-		const transactionData = context.getNodeParameter('signSubmitTransactionData', itemIndex) as string;
-		const walletAddress = context.getNodeParameter('signSubmitWalletAddress', itemIndex) as string;
-		const transactionId = context.getNodeParameter('signSubmitTransactionId', itemIndex) as string;
-		const signerAddress = context.getNodeParameter('signSubmitSignerAddress', itemIndex) as string;
-
-		// Step 1: Sign the transaction using the same logic as signTransactionMethod
-		let signature: string = '';
-		let signedTransaction: string = '';
-		let signerChainType: string;
-
-		// Determine chain type and validate private key format
-		if (chain.includes('solana')) {
-			signerChainType = 'solana';
-			if (!(privateKey.length >= 80 && privateKey.length <= 90)) {
-				throw new NodeOperationError(context.getNode(), 'Invalid Solana private key format. Use base58 encoded key', {
-					itemIndex,
-				});
-			}
-		} else {
-			signerChainType = 'evm';
-			if (!(privateKey.startsWith('0x') || (privateKey.length === 64 && /^[a-fA-F0-9]+$/.test(privateKey)))) {
-				throw new NodeOperationError(context.getNode(), 'Invalid EVM private key format. Use 32-byte hex string', {
-					itemIndex,
-				});
-			}
-		}
-
-		try {
-			if (signerChainType === 'evm') {
-				const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
-				const wallet = new ethers.Wallet(normalizedPrivateKey);
-
-				// Sign the transaction data as message
-				const messageBytes = ethers.getBytes(transactionData);
-				signature = await wallet.signMessage(messageBytes);
-				signedTransaction = signature;
-
-			} else if (signerChainType === 'solana') {
-				// Use @solana/web3.js for Solana signing
-				const secretKeyBytes = bs58.decode(privateKey);
-				if (secretKeyBytes.length !== 64) {
-					throw new NodeOperationError(context.getNode(), 'Invalid Solana private key: must decode to 64 bytes');
-				}
-
-				// Check if it's base58 encoded or plain text
-				let messageBytes: Uint8Array;
-				try {
-					// Try to decode as base58 first (for Crossmint transaction messages)
-					messageBytes = bs58.decode(transactionData);
-				} catch (error) {
-					// If base58 decode fails, treat as plain text
-					messageBytes = new TextEncoder().encode(transactionData);
-				}
-
-				const nacl = await import('tweetnacl');
-				const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
-				signature = bs58.encode(signatureBytes);
-				signedTransaction = signature;
-			}
-		} catch (error: any) {
-			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
-				itemIndex,
-			});
-		}
-
-		// Ensure signature was created
-		if (!signature) {
-			throw new NodeOperationError(context.getNode(), 'Failed to generate signature', {
-				itemIndex,
-			});
-		}
-
-		// Step 2: Submit the signature using the same logic as submitSignatureMethod
-		// Validate required fields
-		if (!walletAddress || !transactionId || !signerAddress || !signature) {
-			throw new NodeOperationError(context.getNode(), 'Wallet Address, Transaction ID, Signer Address, and Signature are required', {
-				itemIndex,
-			});
-		}
-
-		// Build request body with the correct format
-		const requestBody = {
-			approvals: [
-				{
-					signer: `external-wallet:${signerAddress}`,
-					signature: signature,
-				}
-			]
-		};
-
-		// Use the correct API endpoint format
-		const requestOptions: IHttpRequestOptions = {
-			method: 'POST',
-			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`,
-			headers: {
-				'X-API-KEY': (credentials as any).apiKey,
-				'Content-Type': 'application/json',
-			},
-			body: requestBody,
-			json: true,
-		};
-
-		try {
-			const response = await context.helpers.httpRequest(requestOptions);
-			return {
-				...response,
-				signingDetails: {
-					signature: signature,
-					signedTransaction: signedTransaction,
-					chainType: signerChainType,
-					chain: chain,
-					transactionData: transactionData,
-				},
-				submittedApproval: {
-					walletAddress,
-					transactionId,
-					signerAddress,
-					signature,
-				},
-			};
-		} catch (error: any) {
-			throw new NodeApiError(context.getNode(), error);
-		}
-	}
+	
 
 }
