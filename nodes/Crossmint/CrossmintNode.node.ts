@@ -2078,12 +2078,6 @@ export class CrossmintNode implements INodeType {
 					signerAddress,
 					signature,
 				},
-				___debug___: {
-					url: requestOptions.url,
-					method: requestOptions.method,
-					headers: requestOptions.headers,
-					body: requestOptions.body,
-				}
 			};
 		} catch (error: any) {
 			throw new NodeApiError(context.getNode(), error);
