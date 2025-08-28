@@ -5,7 +5,10 @@ This community node for n8n provides a complete integration with Crossmint's **W
 
 ## 🚀 Installation
 
-1.  Go to your n8n instance.
+Note: to run Crossmint nodes, you must be using the self hosted version of n8n. Follow [this guide](https://docs.n8n.io/hosting/installation/npm/#install-globally-with-npm) to set it up.
+
+Then, install the latest Crossmint node from npm:
+1.  Open your local n8n
 2.  From the menu, go to **Settings > Community Nodes**.
 3.  Click on **Install a community node**.
 4.  Enter the npm package name: `n8n-nodes-crossmint`.
@@ -13,7 +16,7 @@ This community node for n8n provides a complete integration with Crossmint's **W
 
 Once installed, the "Crossmint" node will appear in your workflow editor.
 
-## ⚙️ Your First Crossmint Node in n8n
+## ⚙️ Your First Workflow Using Crossmint
 
 Once you've installed the community node, here's how to add and configure your first Crossmint node:
 
@@ -154,9 +157,9 @@ To use these examples:
 3. Update any personal information (email addresses, wallet addresses, etc.)
 4. Execute the workflow
 
-## 🛠️ Development Setup
+## 🛠️ Local Development Setup
 
-For contributing to this project:
+If you wish to run the Crossmint node from source:
 
 1.  **Clone the repository:**
     ```bash
@@ -171,40 +174,12 @@ For contributing to this project:
 3.  **Link your node for testing:**
     ```bash
     npm link
-    cd ~/.n8n/
+    cd ~/.n8n/custom
     npm link n8n-nodes-crossmint
     ```
-4.  Start n8n in a separate terminal (`n8n start`) and your node will appear.
+    See more detailed instructions and troubleshooting [here](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/).
 
-### Quick Setup for Testing Locally (Recommended)
-
-If you want to test the node locally without installing it globally:
-
-1. **Install n8n globally:**
-   ```bash
-   npm install n8n -g
-   ```
-
-2. **Install the Crossmint node:**
-   ```bash
-   npm install n8n-nodes-crossmint
-   ```
-
-3. **Start n8n:**
-   ```bash
-   n8n start
-   ```
-
-4. **Configure the community node:**
-   - Open your browser and go to the n8n interface (usually `http://localhost:5678`)
-   - Click on **Settings** (bottom left corner)
-   - Go to **Community Nodes**
-   - Click **Install a community node**
-   - Enter: `n8n-nodes-crossmint`
-   - Click **Install**
-
-For more information about n8n installation, see: [n8n Installation Guide](https://docs.n8n.io/hosting/installation/npm/#try-n8n-with-npx)
-
+5.  Start n8n in a separate terminal (`n8n start`) and your node will appear.
 
 ## 📄 License
 
