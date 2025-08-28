@@ -33,8 +33,7 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "credentials": [
-      "dist/credentials/CrossmintApi.credentials.js",
-      "dist/credentials/CrossmintPrivateKeyApi.credentials.js"
+      "dist/credentials/CrossmintApi.credentials.js"
     ],
     "nodes": [
       "dist/nodes/Crossmint/CrossmintNode.node.js"

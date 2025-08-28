@@ -15,7 +15,7 @@
 			}
 		]
 	},
-	"alias": ["Crossmint", "Agent", "AI", "Commerce"],
+	"alias": ["Crossmint", "Agent", "Wallets", "Payments", "Stablecoin", "AI", "Commerce"],
 	"subcategories": {
 		"Blockchain": ["AI Agents", "Autonomous Commerce"]
 	}
