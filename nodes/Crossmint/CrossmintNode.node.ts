@@ -759,6 +759,49 @@ export class CrossmintNode implements INodeType {
 				description: 'Agent wallet address for crypto payments - must be a Crossmint managed wallet with USDC funds',
 				required: true,
 			},
+			// Client-side signing fields for purchase
+			{
+				displayName: 'Enable Client-Side Signing',
+				name: 'enableClientSideSigning',
+				type: 'boolean',
+				displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'] } },
+				default: false,
+				description: 'Sign the transaction client-side with a private key before submitting',
+			},
+			{
+				displayName: 'Chain',
+				name: 'purchaseSignChain',
+				type: 'options',
+				displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'], enableClientSideSigning: [true] } },
+				options: [
+					{ name: 'Ethereum Mainnet', value: 'ethereum', description: 'Ethereum mainnet (Chain ID: 1)' },
+					{ name: 'Ethereum Sepolia', value: 'ethereum-sepolia', description: 'Ethereum Sepolia testnet (Chain ID: 11155111)' },
+					{ name: 'Polygon', value: 'polygon', description: 'Polygon mainnet (Chain ID: 137)' },
+					{ name: 'Polygon Amoy', value: 'polygon-amoy', description: 'Polygon Amoy testnet (Chain ID: 80002)' },
+					{ name: 'Base', value: 'base', description: 'Base mainnet (Chain ID: 8453)' },
+					{ name: 'Base Sepolia', value: 'base-sepolia', description: 'Base Sepolia testnet (Chain ID: 84532)' },
+					{ name: 'Arbitrum', value: 'arbitrum', description: 'Arbitrum One mainnet (Chain ID: 42161)' },
+					{ name: 'Arbitrum Sepolia', value: 'arbitrum-sepolia', description: 'Arbitrum Sepolia testnet (Chain ID: 421614)' },
+					{ name: 'Optimism', value: 'optimism', description: 'Optimism mainnet (Chain ID: 10)' },
+					{ name: 'Optimism Sepolia', value: 'optimism-sepolia', description: 'Optimism Sepolia testnet (Chain ID: 11155420)' },
+					{ name: 'Solana Mainnet', value: 'solana' },
+					{ name: 'Solana Devnet', value: 'solana-devnet' },
+				],
+				default: 'ethereum-sepolia',
+				description: 'Blockchain network for transaction signing',
+				required: true,
+			},
+			{
+				displayName: 'Private Key',
+				name: 'purchasePrivateKey',
+				type: 'string',
+				typeOptions: { password: true },
+				displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'], enableClientSideSigning: [true] } },
+				default: '',
+				placeholder: '0x1234... for EVM or base58 for Solana',
+				description: 'Private key to sign with (32-byte hex for EVM, base58 for Solana)',
+				required: true,
+			},
 			{
 				displayName: 'Product Identifier',
 				name: 'productIdentifier',
@@ -1734,7 +1777,139 @@ export class CrossmintNode implements INodeType {
 		}
 	}
 
+	private static async signAndSubmitTransactionMethod(
+		context: IExecuteFunctions,
+		baseUrl: string,
+		credentials: ICredentials,
+		itemIndex: number,
+	): Promise<any> {
+		// Get parameters specific to the combined operation
+		const chain = context.getNodeParameter('signSubmitChain', itemIndex) as string;
+		const privateKey = context.getNodeParameter('signSubmitPrivateKey', itemIndex) as string;
+		const transactionData = context.getNodeParameter('signSubmitTransactionData', itemIndex) as string;
+		const walletAddress = context.getNodeParameter('signSubmitWalletAddress', itemIndex) as string;
+		const transactionId = context.getNodeParameter('signSubmitTransactionId', itemIndex) as string;
+		const signerAddress = context.getNodeParameter('signSubmitSignerAddress', itemIndex) as string;
 
+		// Step 1: Sign the transaction using the same logic as signTransactionMethod
+		let signature: string = '';
+		let signedTransaction: string = '';
+		let signerChainType: string;
+
+		// Determine chain type and validate private key format
+		if (chain.includes('solana')) {
+			signerChainType = 'solana';
+			if (!(privateKey.length >= 80 && privateKey.length <= 90)) {
+				throw new NodeOperationError(context.getNode(), 'Invalid Solana private key format. Use base58 encoded key', {
+					itemIndex,
+				});
+			}
+		} else {
+			signerChainType = 'evm';
+			if (!(privateKey.startsWith('0x') || (privateKey.length === 64 && /^[a-fA-F0-9]+$/.test(privateKey)))) {
+				throw new NodeOperationError(context.getNode(), 'Invalid EVM private key format. Use 32-byte hex string', {
+					itemIndex,
+				});
+			}
+		}
+
+		try {
+			if (signerChainType === 'evm') {
+				const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
+				const wallet = new ethers.Wallet(normalizedPrivateKey);
+
+				// Sign the transaction data as message
+				const messageBytes = ethers.getBytes(transactionData);
+				signature = await wallet.signMessage(messageBytes);
+				signedTransaction = signature;
+
+			} else if (signerChainType === 'solana') {
+				// Use @solana/web3.js for Solana signing
+				const secretKeyBytes = bs58.decode(privateKey);
+				if (secretKeyBytes.length !== 64) {
+					throw new NodeOperationError(context.getNode(), 'Invalid Solana private key: must decode to 64 bytes');
+				}
+
+				// Check if it's base58 encoded or plain text
+				let messageBytes: Uint8Array;
+				try {
+					// Try to decode as base58 first (for Crossmint transaction messages)
+					messageBytes = bs58.decode(transactionData);
+				} catch (error) {
+					// If base58 decode fails, treat as plain text
+					messageBytes = new TextEncoder().encode(transactionData);
+				}
+
+				const nacl = await import('tweetnacl');
+				const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
+				signature = bs58.encode(signatureBytes);
+				signedTransaction = signature;
+			}
+		} catch (error: any) {
+			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
+				itemIndex,
+			});
+		}
+
+		// Ensure signature was created
+		if (!signature) {
+			throw new NodeOperationError(context.getNode(), 'Failed to generate signature', {
+				itemIndex,
+			});
+		}
+
+		// Step 2: Submit the signature using the same logic as submitSignatureMethod
+		// Validate required fields
+		if (!walletAddress || !transactionId || !signerAddress || !signature) {
+			throw new NodeOperationError(context.getNode(), 'Wallet Address, Transaction ID, Signer Address, and Signature are required', {
+				itemIndex,
+			});
+		}
+
+		// Build request body with the correct format
+		const requestBody = {
+			approvals: [
+				{
+					signer: `external-wallet:${signerAddress}`,
+					signature: signature,
+				}
+			]
+		};
+
+		// Use the correct API endpoint format
+		const requestOptions: IHttpRequestOptions = {
+			method: 'POST',
+			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`,
+			headers: {
+				'X-API-KEY': (credentials as any).apiKey,
+				'Content-Type': 'application/json',
+			},
+			body: requestBody,
+			json: true,
+		};
+
+		try {
+			const response = await context.helpers.httpRequest(requestOptions);
+			return {
+				...response,
+				signingDetails: {
+					signature: signature,
+					signedTransaction: signedTransaction,
+					chainType: signerChainType,
+					chain: chain,
+					transactionData: transactionData,
+				},
+				submittedApproval: {
+					walletAddress,
+					transactionId,
+					signerAddress,
+					signature,
+				},
+			};
+		} catch (error: any) {
+			throw new NodeApiError(context.getNode(), error);
+		}
+	}
 
 
 	// CHECKOUT
@@ -1891,16 +2066,16 @@ export class CrossmintNode implements INodeType {
 		credentials: any,
 		itemIndex: number,
 	): Promise<any> {
-		// Step 2: Submit transaction for crypto payments
-		// Get the serialized transaction from Find Product response
+		// Get parameters from UI
 		const serializedTransaction = context.getNodeParameter('serializedTransaction', itemIndex) as string;
-		const paymentMethod = context.getNodeParameter('paymentMethod', itemIndex) as string;
 		const payerAddress = context.getNodeParameter('payerAddress', itemIndex) as string;
+		const chain = context.getNodeParameter('paymentMethod', itemIndex) as string;
+		const enableClientSideSigning = context.getNodeParameter('enableClientSideSigning', itemIndex) as boolean;
 
 		// Validate required fields
 		if (!serializedTransaction || serializedTransaction.trim() === '') {
 			throw new NodeOperationError(context.getNode(), 'Serialized transaction is required', {
-				description: 'Please provide the serialized transaction from Find Product response',
+				description: 'Please provide the serialized transaction from the Create Order response',
 				itemIndex,
 			});
 		}
@@ -1912,147 +2087,37 @@ export class CrossmintNode implements INodeType {
 			});
 		}
 
-		// Step 2: Submit transaction for crypto payments
-		if (serializedTransaction && payerAddress) {
-			const transactionRequestOptions: IHttpRequestOptions = {
-				method: 'POST',
-				url: `${baseUrl}/2022-06-09/wallets/${encodeURIComponent(payerAddress)}/transactions`,
-				headers: {
-					'X-API-KEY': (credentials as any).apiKey,
-					'Content-Type': 'application/json',
-				},
-				body: {
-					params: {
-						calls: [{
-							transaction: serializedTransaction
-						}],
-						chain: paymentMethod
-					}
-				},
-				json: true,
-			};
-
-			try {
-				const transactionResponse = await context.helpers.httpRequest(transactionRequestOptions);
-
-				// Return the final transaction response (the completed purchase)
-				return transactionResponse;
-			} catch (transactionError: any) {
-				// If transaction fails, return error info
-				throw new NodeApiError(context.getNode(), transactionError);
-			}
-		} else {
-			// Missing required data
-			throw new NodeOperationError(context.getNode(), 'Missing required data for transaction', {
-				description: 'Serialized transaction and payer address are required',
+		if (!chain || chain.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Chain is required', {
+				description: 'Please specify the blockchain chain',
 				itemIndex,
 			});
 		}
-	}
-
-	private static async signAndSubmitTransactionMethod(
-		context: IExecuteFunctions,
-		baseUrl: string,
-		credentials: ICredentials,
-		itemIndex: number,
-	): Promise<any> {
-		// Get parameters specific to the combined operation
-		const chain = context.getNodeParameter('signSubmitChain', itemIndex) as string;
-		const privateKey = context.getNodeParameter('signSubmitPrivateKey', itemIndex) as string;
-		const transactionData = context.getNodeParameter('signSubmitTransactionData', itemIndex) as string;
-		const walletAddress = context.getNodeParameter('signSubmitWalletAddress', itemIndex) as string;
-		const transactionId = context.getNodeParameter('signSubmitTransactionId', itemIndex) as string;
-		const signerAddress = context.getNodeParameter('signSubmitSignerAddress', itemIndex) as string;
-
-		// Step 1: Sign the transaction using the same logic as signTransactionMethod
-		let signature: string = '';
-		let signedTransaction: string = '';
-		let signerChainType: string;
-
-		// Determine chain type and validate private key format
+		
+		// Step 1: Create Transaction using 2025-06-09 API format
+		let requestBody: any;
 		if (chain.includes('solana')) {
-			signerChainType = 'solana';
-			if (!(privateKey.length >= 80 && privateKey.length <= 90)) {
-				throw new NodeOperationError(context.getNode(), 'Invalid Solana private key format. Use base58 encoded key', {
-					itemIndex,
-				});
-			}
+			// Solana format: direct transaction
+			requestBody = {
+				params: {
+					transaction: serializedTransaction
+				}
+			};
 		} else {
-			signerChainType = 'evm';
-			if (!(privateKey.startsWith('0x') || (privateKey.length === 64 && /^[a-fA-F0-9]+$/.test(privateKey)))) {
-				throw new NodeOperationError(context.getNode(), 'Invalid EVM private key format. Use 32-byte hex string', {
-					itemIndex,
-				});
-			}
-		}
-
-		try {
-			if (signerChainType === 'evm') {
-				const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
-				const wallet = new ethers.Wallet(normalizedPrivateKey);
-
-				// Sign the transaction data as message
-				const messageBytes = ethers.getBytes(transactionData);
-				signature = await wallet.signMessage(messageBytes);
-				signedTransaction = signature;
-
-			} else if (signerChainType === 'solana') {
-				// Use @solana/web3.js for Solana signing
-				const secretKeyBytes = bs58.decode(privateKey);
-				if (secretKeyBytes.length !== 64) {
-					throw new NodeOperationError(context.getNode(), 'Invalid Solana private key: must decode to 64 bytes');
+			// EVM format: calls array with transaction
+			requestBody = {
+				params: {
+					calls: [{
+						transaction: serializedTransaction
+					}],
+					chain: chain
 				}
-
-				// Check if it's base58 encoded or plain text
-				let messageBytes: Uint8Array;
-				try {
-					// Try to decode as base58 first (for Crossmint transaction messages)
-					messageBytes = bs58.decode(transactionData);
-				} catch (error) {
-					// If base58 decode fails, treat as plain text
-					messageBytes = new TextEncoder().encode(transactionData);
-				}
-
-				const nacl = await import('tweetnacl');
-				const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
-				signature = bs58.encode(signatureBytes);
-				signedTransaction = signature;
-			}
-		} catch (error: any) {
-			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
-				itemIndex,
-			});
+			};
 		}
-
-		// Ensure signature was created
-		if (!signature) {
-			throw new NodeOperationError(context.getNode(), 'Failed to generate signature', {
-				itemIndex,
-			});
-		}
-
-		// Step 2: Submit the signature using the same logic as submitSignatureMethod
-		// Validate required fields
-		if (!walletAddress || !transactionId || !signerAddress || !signature) {
-			throw new NodeOperationError(context.getNode(), 'Wallet Address, Transaction ID, Signer Address, and Signature are required', {
-				itemIndex,
-			});
-		}
-
-		// Build request body with the correct format
-		const requestBody = {
-			approvals: [
-				{
-					signer: `external-wallet:${signerAddress}`,
-					signature: signature,
-				}
-			]
-		};
-
-		// Use the correct API endpoint format
-		const requestOptions: IHttpRequestOptions = {
+		
+		const createTransactionOptions: IHttpRequestOptions = {
 			method: 'POST',
-			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`,
+			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(payerAddress)}/transactions`,
 			headers: {
 				'X-API-KEY': (credentials as any).apiKey,
 				'Content-Type': 'application/json',
@@ -2061,27 +2126,96 @@ export class CrossmintNode implements INodeType {
 			json: true,
 		};
 
-		try {
-			const response = await context.helpers.httpRequest(requestOptions);
-			return {
-				...response,
-				signingDetails: {
-					signature: signature,
-					signedTransaction: signedTransaction,
-					chainType: signerChainType,
-					chain: chain,
-					transactionData: transactionData,
-				},
-				submittedApproval: {
-					walletAddress,
-					transactionId,
-					signerAddress,
+		const transactionResponse = await context.helpers.httpRequest(createTransactionOptions);
+		const transactionId = transactionResponse.id;
+		
+		// Step 2: Sign locally if enabled
+		let signature: string = '';
+		let signingDetails: any = null;
+		
+		if (enableClientSideSigning) {
+			const privateKey = context.getNodeParameter('purchasePrivateKey', itemIndex) as string;
+			
+			if (!privateKey || privateKey.trim() === '') {
+				throw new NodeOperationError(context.getNode(), 'Private key is required for client-side signing', {
+					itemIndex,
+				});
+			}
+
+			// Get the message to sign from transaction response
+			if (!transactionResponse.approvals || !transactionResponse.approvals.pending || !transactionResponse.approvals.pending[0]) {
+				throw new NodeOperationError(context.getNode(), 'No pending approval found in transaction response', {
+					itemIndex,
+				});
+			}
+			
+			const messageToSign = transactionResponse.approvals.pending[0].message;
+			const signerAddress = transactionResponse.approvals.pending[0].signer.address || transactionResponse.approvals.pending[0].signer.locator.split(':')[1];
+			
+			// Sign the message (not the full transaction)
+			try {
+				if (chain.includes('solana')) {
+					// Solana message signing
+					const secretKeyBytes = bs58.decode(privateKey);
+					const messageBytes = bs58.decode(messageToSign);
+					const nacl = await import('tweetnacl');
+					const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
+					signature = bs58.encode(signatureBytes);
+				} else {
+					// EVM message signing
+					const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
+					const wallet = new ethers.Wallet(normalizedPrivateKey);
+					const messageBytes = ethers.getBytes(messageToSign);
+					signature = await wallet.signMessage(messageBytes);
+				}
+				
+				signingDetails = {
 					signature,
-				},
+					messageToSign,
+					signerAddress,
+					chainType: chain.includes('solana') ? 'solana' : 'evm',
+					chain
+				};
+
+			} catch (error: any) {
+				throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
+					itemIndex,
+				});
+			}
+
+			// Step 3: Submit Approval
+			const approvalRequestBody = {
+				approvals: [{
+					signer: `external-wallet:${signerAddress}`,
+					signature: signature,
+				}]
 			};
-		} catch (error: any) {
-			throw new NodeApiError(context.getNode(), error);
+
+			const approvalOptions: IHttpRequestOptions = {
+				method: 'POST',
+				url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(payerAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`,
+				headers: {
+					'X-API-KEY': (credentials as any).apiKey,
+					'Content-Type': 'application/json',
+				},
+				body: approvalRequestBody,
+				json: true,
+			};
+
+			const approvalResponse = await context.helpers.httpRequest(approvalOptions);
+			
+			return {
+				transaction: transactionResponse,
+				approval: approvalResponse,
+				signingDetails
+			};
 		}
+		
+		// If no client-side signing, return transaction info
+		return {
+			transaction: transactionResponse
+		};
 	}
+	
 
 }
