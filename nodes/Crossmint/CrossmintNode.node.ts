@@ -71,9 +71,9 @@ export class CrossmintNode implements INodeType {
 						action: 'Get wallet',
 					},
 					{
-						name: 'Transfer Token',
+						name: 'Create Transfer',
 						value: 'transferToken',
-						description: 'Transfer Token from Crossmint wallet to any address',
+						description: 'Create Transfer from Crossmint wallet to any address',
 						action: 'Transfer token',
 					},
 					{
@@ -172,22 +172,14 @@ export class CrossmintNode implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'Use External Signer',
-				name: 'useExternalSigner',
-				type: 'boolean',
-				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'] } },
-				default: false,
-				description: 'Whether to enable external signer for wallet administration using a private key',
-			},
-			{
-				displayName: 'External Signer Details',
+				displayName: 'Admin Signer',
 				name: 'externalSignerDetails',
 				type: 'string',
 				typeOptions: { password: true },
-				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'], useExternalSigner: [true] } },
+				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'] } },
 				default: '',
 				placeholder: 'Enter private key (32-byte hex for EVM, base58 for Solana)',
-				description: 'Private key for the external signer (e.g., "0x1234..." for EVM or base58 string for Solana)',
+				description: 'Private key that authorizes all transactions from this wallet. Use this link to generate them: https://www.val.town/x/Crossmint/crypto-address-generator',
 				required: true,
 			},
 
@@ -204,7 +196,6 @@ export class CrossmintNode implements INodeType {
 					{ name: 'Phone Number', value: 'phoneNumber', description: 'Use phone number with chain type' },
 					{ name: 'Twitter Handle', value: 'twitter', description: 'Use Twitter handle with chain type' },
 					{ name: 'X Handle', value: 'x', description: 'Use X handle with chain type' },
-					{ name: 'Me', value: 'me', description: 'Use "me" with chain type (client API key)' },
 				],
 				default: 'address',
 				description: 'Type of wallet locator to use',
@@ -272,7 +263,7 @@ export class CrossmintNode implements INodeType {
 				displayName: 'Chain Type',
 				name: 'getWalletChainType',
 				type: 'options',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'], getWalletLocatorType: ['email', 'userId', 'phoneNumber', 'twitter', 'x', 'me'] } },
+				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'], getWalletLocatorType: ['email', 'userId', 'phoneNumber', 'twitter', 'x'] } },
 				options: [
 					{ name: 'EVM', value: 'evm', description: 'Ethereum Virtual Machine' },
 					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
@@ -282,181 +273,177 @@ export class CrossmintNode implements INodeType {
 				required: true,
 			},
 
-			// ---- Transfer Token fields
+			// ---- Create Transfer fields
 			{
-				displayName: 'Origin Locator Type',
-				name: 'originLocatorType',
+				displayName: 'Blockchain Type',
+				name: 'blockchainType',
 				type: 'options',
 				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'] } },
 				options: [
-					{ name: 'Wallet Address', value: 'address', description: 'Use wallet address directly' },
-					{ name: 'Email', value: 'email', description: 'Use email address with chain type' },
-					{ name: 'User ID', value: 'userId', description: 'Use user ID with chain type' },
-					{ name: 'Phone Number', value: 'phoneNumber', description: 'Use phone number with chain type' },
-					{ name: 'Twitter Handle', value: 'twitter', description: 'Use Twitter handle with chain type' },
-					{ name: 'X Handle', value: 'x', description: 'Use X handle with chain type' },
-					{ name: 'Me', value: 'me', description: 'Use "me" with chain type (client API key)' },
-				],
-				default: 'address',
-				description: 'Type of origin wallet locator to use',
-			},
-			{
-				displayName: 'Origin Wallet Address',
-				name: 'originWalletAddress',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], originLocatorType: ['address'] } },
-				default: '',
-				placeholder: '0x1234567890123456789012345678901234567890',
-				required: true,
-			},
-			{
-				displayName: 'Origin Email',
-				name: 'originWalletEmail',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], originLocatorType: ['email'] } },
-				default: '',
-				placeholder: 'user@example.com',
-				description: 'Email address of the origin wallet owner',
-				required: true,
-			},
-			{
-				displayName: 'Origin User ID',
-				name: 'originWalletUserId',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], originLocatorType: ['userId'] } },
-				default: '',
-				placeholder: 'user-123',
-				description: 'User ID of the origin wallet owner',
-				required: true,
-			},
-			{
-				displayName: 'Origin Phone Number',
-				name: 'originWalletPhoneNumber',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], originLocatorType: ['phoneNumber'] } },
-				default: '',
-				placeholder: '+1234567890',
-				description: 'Phone number of the origin wallet owner (with country code)',
-				required: true,
-			},
-			{
-				displayName: 'Origin Twitter Handle',
-				name: 'originWalletTwitterHandle',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], originLocatorType: ['twitter'] } },
-				default: '',
-				placeholder: 'username',
-				description: 'Twitter handle of the origin wallet owner (without @)',
-				required: true,
-			},
-			{
-				displayName: 'Origin X Handle',
-				name: 'originWalletXHandle',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], originLocatorType: ['x'] } },
-				default: '',
-				placeholder: 'username',
-				description: 'X handle of the origin wallet owner (without @)',
-				required: true,
-			},
-			{
-				displayName: 'Origin Wallet Type',
-				name: 'originWalletType',
-				type: 'options',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], originLocatorType: ['email', 'userId', 'phoneNumber', 'twitter', 'x', 'me'] } },
-				options: [
-					{ name: 'EVM', value: 'evm', description: 'Ethereum Virtual Machine' },
+					{ name: 'EVM', value: 'evm', description: 'Ethereum Virtual Machine (Ethereum, Polygon, Base, etc.)' },
 					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
 				],
 				default: 'evm',
-				description: 'Blockchain type for the origin wallet',
+				description: 'Blockchain type for both origin and recipient wallets (must be the same)',
 				required: true,
 			},
 			{
-				displayName: 'Recipient Locator Type',
-				name: 'recipientLocatorType',
-				type: 'options',
+				displayName: 'Origin Wallet',
+				name: 'originWallet',
+				type: 'resourceLocator',
+				default: { mode: 'address', value: '' },
+				description: 'Select the origin wallet for the transfer',
 				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'] } },
-				options: [
-					{ name: 'Wallet Address', value: 'address', description: 'Use wallet address directly' },
-					{ name: 'Email', value: 'email', description: 'Use email address with chain type' },
-					{ name: 'User ID', value: 'userId', description: 'Use user ID with chain type' },
-					{ name: 'Phone Number', value: 'phoneNumber', description: 'Use phone number with chain type' },
-					{ name: 'Twitter Handle', value: 'twitter', description: 'Use Twitter handle with chain type' },
-					{ name: 'X Handle', value: 'x', description: 'Use X handle with chain type' },
-					{ name: 'Me', value: 'me', description: 'Use "me" with chain type (client API key)' },
+				modes: [
+					{
+						displayName: 'Address',
+						name: 'address',
+						type: 'string',
+						hint: 'Enter wallet address',
+						placeholder: '0x1234567890123456789012345678901234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
+									errorMessage: 'Please enter a valid wallet address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						hint: 'Enter email address',
+						placeholder: 'user@example.com',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[^@]+@[^@]+\\.[^@]+$',
+									errorMessage: 'Please enter a valid email address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'User ID',
+						name: 'userId',
+						type: 'string',
+						hint: 'Enter user ID',
+						placeholder: 'user-123',
+					},
+					{
+						displayName: 'Phone',
+						name: 'phoneNumber',
+						type: 'string',
+						hint: 'Enter phone number with country code',
+						placeholder: '+1234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^\\+[1-9]\\d{1,14}$',
+									errorMessage: 'Please enter a valid phone number with country code',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Twitter',
+						name: 'twitter',
+						type: 'string',
+						hint: 'Enter Twitter handle (without @)',
+						placeholder: 'username',
+					},
+					{
+						displayName: 'X',
+						name: 'x',
+						type: 'string',
+						hint: 'Enter X handle (without @)',
+						placeholder: 'username',
+					},
 				],
-				default: 'address',
-				description: 'Type of recipient wallet locator to use',
 			},
 			{
-				displayName: 'Recipient Wallet Address',
-				name: 'recipientWalletAddress',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], recipientLocatorType: ['address'] } },
-				default: '',
-				placeholder: '0x1234567890123456789012345678901234567890',
-				required: true,
-			},
-			{
-				displayName: 'Recipient Email',
-				name: 'recipientWalletEmail',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], recipientLocatorType: ['email'] } },
-				default: '',
-				placeholder: 'user@example.com',
-				description: 'Email address of the recipient wallet owner',
-				required: true,
-			},
-			{
-				displayName: 'Recipient User ID',
-				name: 'recipientWalletUserId',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], recipientLocatorType: ['userId'] } },
-				default: '',
-				placeholder: 'user-123',
-				description: 'User ID of the recipient wallet owner',
-				required: true,
-			},
-			{
-				displayName: 'Recipient Phone Number',
-				name: 'recipientWalletPhoneNumber',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], recipientLocatorType: ['phoneNumber'] } },
-				default: '',
-				placeholder: '+1234567890',
-				description: 'Phone number of the recipient wallet owner (with country code)',
-				required: true,
-			},
-			{
-				displayName: 'Recipient Twitter Handle',
-				name: 'recipientWalletTwitterHandle',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], recipientLocatorType: ['twitter'] } },
-				default: '',
-				placeholder: 'username',
-				description: 'Twitter handle of the recipient wallet owner (without @)',
-				required: true,
-			},
-			{
-				displayName: 'Recipient X Handle',
-				name: 'recipientWalletXHandle',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], recipientLocatorType: ['x'] } },
-				default: '',
-				placeholder: 'username',
-				description: 'X handle of the recipient wallet owner (without @)',
-				required: true,
-			},
-			{
-				displayName: 'Recipient Chain',
-				name: 'recipientWalletChainType',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], recipientLocatorType: ['email', 'userId', 'phoneNumber', 'twitter', 'x', 'me'] } },
-				default: 'ethereum',
-				placeholder: 'ethereum, polygon, base, solana, etc.',
-				description: 'Specific blockchain for the recipient wallet (e.g., ethereum, polygon, base, solana, ethereum-sepolia)',
-				required: true,
+				displayName: 'Recipient Wallet',
+				name: 'recipientWallet',
+				type: 'resourceLocator',
+				default: { mode: 'address', value: '' },
+				description: 'Select the recipient wallet for the transfer',
+				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'] } },
+				modes: [
+					{
+						displayName: 'Address',
+						name: 'address',
+						type: 'string',
+						hint: 'Enter wallet address',
+						placeholder: '0x1234567890123456789012345678901234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
+									errorMessage: 'Please enter a valid wallet address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						hint: 'Enter email address',
+						placeholder: 'user@example.com',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[^@]+@[^@]+\\.[^@]+$',
+									errorMessage: 'Please enter a valid email address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'User ID',
+						name: 'userId',
+						type: 'string',
+						hint: 'Enter user ID',
+						placeholder: 'user-123',
+					},
+					{
+						displayName: 'Phone',
+						name: 'phoneNumber',
+						type: 'string',
+						hint: 'Enter phone number with country code',
+						placeholder: '+1234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^\\+[1-9]\\d{1,14}$',
+									errorMessage: 'Please enter a valid phone number with country code',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Twitter',
+						name: 'twitter',
+						type: 'string',
+						hint: 'Enter Twitter handle (without @)',
+						placeholder: 'username',
+					},
+					{
+						displayName: 'X',
+						name: 'x',
+						type: 'string',
+						hint: 'Enter X handle (without @)',
+						placeholder: 'username',
+					},
+				],
 			},
 			{
 				displayName: 'Token Chain',
@@ -625,34 +612,13 @@ export class CrossmintNode implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'Transaction Data',
-				name: 'signSubmitTransactionData',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['signAndSubmitTransaction'] } },
-				default: '',
-				placeholder: 'Hash or message to sign from Transfer Token response',
-				description: 'Transaction message/hash to sign (from Transfer Token approvals.pending[0].message)',
-				required: true,
-			},
-			{
-				displayName: 'Private Key',
-				name: 'signSubmitPrivateKey',
-				type: 'string',
-				typeOptions: { password: true },
-				displayOptions: { show: { resource: ['wallet'], operation: ['signAndSubmitTransaction'] } },
-				default: '',
-				placeholder: '0x1234... for EVM or base58 for Solana',
-				description: 'Private key to sign with (32-byte hex for EVM, base58 for Solana)',
-				required: true,
-			},
-			{
 				displayName: 'Wallet Address',
 				name: 'signSubmitWalletAddress',
 				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['signAndSubmitTransaction'] } },
 				default: '',
 				placeholder: '0xFfea937EE8DB3c1f25539aE90d6010F264f292B6',
-				description: 'Wallet address for the API endpoint (from Transfer Token response)',
+				description: 'Wallet address for the API endpoint (from Create Transfer response)',
 				required: true,
 			},
 			{
@@ -662,7 +628,17 @@ export class CrossmintNode implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['signAndSubmitTransaction'] } },
 				default: '',
 				placeholder: '782ffd15-4946-4e0d-8e21-023134b3d243',
-				description: 'The transaction ID that needs approval (from Transfer Token response)',
+				description: 'The transaction ID that needs approval (from Create Transfer response)',
+				required: true,
+			},
+			{
+				displayName: 'Transaction Data',
+				name: 'signSubmitTransactionData',
+				type: 'string',
+				displayOptions: { show: { resource: ['wallet'], operation: ['signAndSubmitTransaction'] } },
+				default: '',
+				placeholder: 'Hash or message to sign from Create Transfer response',
+				description: 'Transaction message/hash to sign (from Create Transfer approvals.pending[0].message)',
 				required: true,
 			},
 			{
@@ -672,7 +648,18 @@ export class CrossmintNode implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['signAndSubmitTransaction'] } },
 				default: '',
 				placeholder: '0x8ed30a8892bc3cb25ca6b52d045b51f176f55913',
-				description: 'Address of the external signer (from Transfer Token response)',
+				description: 'Address of the external signer (from Create Transfer response)',
+				required: true,
+			},
+			{
+				displayName: 'Signer Private Key',
+				name: 'signSubmitPrivateKey',
+				type: 'string',
+				typeOptions: { password: true },
+				displayOptions: { show: { resource: ['wallet'], operation: ['signAndSubmitTransaction'] } },
+				default: '',
+				placeholder: '0x1234... for EVM or base58 for Solana',
+				description: 'Private key to sign with (32-byte hex for EVM, base58 for Solana)',
 				required: true,
 			},
 
@@ -759,47 +746,16 @@ export class CrossmintNode implements INodeType {
 				description: 'Agent wallet address for crypto payments - must be a Crossmint managed wallet with USDC funds',
 				required: true,
 			},
-			// Client-side signing fields for purchase
-			{
-				displayName: 'Enable Client-Side Signing',
-				name: 'enableClientSideSigning',
-				type: 'boolean',
-				displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'] } },
-				default: false,
-				description: 'Sign the transaction client-side with a private key before submitting',
-			},
-			{
-				displayName: 'Chain',
-				name: 'purchaseSignChain',
-				type: 'options',
-				displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'], enableClientSideSigning: [true] } },
-				options: [
-					{ name: 'Ethereum Mainnet', value: 'ethereum', description: 'Ethereum mainnet (Chain ID: 1)' },
-					{ name: 'Ethereum Sepolia', value: 'ethereum-sepolia', description: 'Ethereum Sepolia testnet (Chain ID: 11155111)' },
-					{ name: 'Polygon', value: 'polygon', description: 'Polygon mainnet (Chain ID: 137)' },
-					{ name: 'Polygon Amoy', value: 'polygon-amoy', description: 'Polygon Amoy testnet (Chain ID: 80002)' },
-					{ name: 'Base', value: 'base', description: 'Base mainnet (Chain ID: 8453)' },
-					{ name: 'Base Sepolia', value: 'base-sepolia', description: 'Base Sepolia testnet (Chain ID: 84532)' },
-					{ name: 'Arbitrum', value: 'arbitrum', description: 'Arbitrum One mainnet (Chain ID: 42161)' },
-					{ name: 'Arbitrum Sepolia', value: 'arbitrum-sepolia', description: 'Arbitrum Sepolia testnet (Chain ID: 421614)' },
-					{ name: 'Optimism', value: 'optimism', description: 'Optimism mainnet (Chain ID: 10)' },
-					{ name: 'Optimism Sepolia', value: 'optimism-sepolia', description: 'Optimism Sepolia testnet (Chain ID: 11155420)' },
-					{ name: 'Solana Mainnet', value: 'solana' },
-					{ name: 'Solana Devnet', value: 'solana-devnet' },
-				],
-				default: 'ethereum-sepolia',
-				description: 'Blockchain network for transaction signing',
-				required: true,
-			},
+			// External signer is always required for Pay Order
 			{
 				displayName: 'Private Key',
 				name: 'purchasePrivateKey',
 				type: 'string',
 				typeOptions: { password: true },
-				displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'], enableClientSideSigning: [true] } },
+				displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'] } },
 				default: '',
 				placeholder: '0x1234... for EVM or base58 for Solana',
-				description: 'Private key to sign with (32-byte hex for EVM, base58 for Solana)',
+				description: 'Private key to sign with (32-byte hex for EVM, base58 for Solana) - External signer is required',
 				required: true,
 			},
 			{
@@ -1082,15 +1038,21 @@ export class CrossmintNode implements INodeType {
 	): Promise<any> {
 		const chainType = context.getNodeParameter('chainType', itemIndex) as string;
 		const ownerType = context.getNodeParameter('ownerType', itemIndex) as string;
-		const useExternalSigner = context.getNodeParameter('useExternalSigner', itemIndex) as boolean;
+		const externalSignerDetails = context.getNodeParameter('externalSignerDetails', itemIndex) as string;
+
+		// Validate external signer private key is provided (always required)
+		if (!externalSignerDetails || externalSignerDetails.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'External signer private key is required', {
+				description: 'External signer private key is required for Get or Create Wallet operation',
+				itemIndex,
+			});
+		}
 
 		let adminSigner: any;
 		let derivedAddress: string | undefined;
 		let derivedPublicKey: string | undefined;
 
-		// Handle external signer if enabled
-		if (useExternalSigner) {
-			const externalSignerDetails = context.getNodeParameter('externalSignerDetails', itemIndex) as string;
+		// Always handle external signer (required)
 
 			let privateKeyStr: string;
 			let signerChainType: string;
@@ -1177,12 +1139,6 @@ export class CrossmintNode implements INodeType {
 
 			derivedAddress = address;
 			derivedPublicKey = publicKey;
-		} else {
-			// Use API key for admin signer when no external signer
-			adminSigner = {
-				type: 'api-key',
-			};
-		}
 
 		// Build owner string based on type
 		let owner: string | undefined;
@@ -1353,12 +1309,6 @@ export class CrossmintNode implements INodeType {
 				}
 
 				walletLocator = `x:${xHandle}:${chainType}:smart`;
-				break;
-			}
-			case 'me': {
-				const chainType = context.getNodeParameter('getWalletChainType', itemIndex) as string;
-
-				walletLocator = `me:${chainType}:smart`;
 				break;
 			}
 			default:
@@ -1557,199 +1507,71 @@ export class CrossmintNode implements INodeType {
 			});
 		}
 
-		// Build origin wallet locator
-		const originLocatorType = context.getNodeParameter('originLocatorType', itemIndex) as string;
+		// Get blockchain type for both wallets (must be the same)
+		const blockchainType = context.getNodeParameter('blockchainType', itemIndex) as string;
+
+		// Build origin wallet locator from resource locator
+		const originWallet = context.getNodeParameter('originWallet', itemIndex) as any;
 		let fromWalletLocator: string;
 
-		switch (originLocatorType) {
+		const originMode = originWallet.mode;
+		const originValue = originWallet.value;
+
+		if (!originValue || originValue.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Origin wallet value is required', {
+				description: 'Please specify the origin wallet identifier',
+				itemIndex,
+			});
+		}
+
+		switch (originMode) {
 			case 'address': {
-				const address = context.getNodeParameter('originWalletAddress', itemIndex) as string;
-				if (!address || address.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Origin wallet address is required', {
-						description: 'Please specify the origin wallet address',
-						itemIndex,
-					});
-				}
-				fromWalletLocator = address;
+				fromWalletLocator = originValue;
 				break;
 			}
-			case 'email': {
-				const email = context.getNodeParameter('originWalletEmail', itemIndex) as string;
-				const chainType = context.getNodeParameter('originWalletType', itemIndex) as string;
-
-				if (!email || email.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Origin email is required', {
-						description: 'Please specify the origin email address',
-						itemIndex,
-					});
-				}
-
-				fromWalletLocator = `email:${email}:${chainType}:smart`;
-				break;
-			}
-			case 'userId': {
-				const userId = context.getNodeParameter('originWalletUserId', itemIndex) as string;
-				const chainType = context.getNodeParameter('originWalletType', itemIndex) as string;
-
-				if (!userId || userId.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Origin user ID is required', {
-						description: 'Please specify the origin user ID',
-						itemIndex,
-					});
-				}
-
-				fromWalletLocator = `userId:${userId}:${chainType}:smart`;
-				break;
-			}
-			case 'phoneNumber': {
-				const phoneNumber = context.getNodeParameter('originWalletPhoneNumber', itemIndex) as string;
-				const chainType = context.getNodeParameter('originWalletType', itemIndex) as string;
-
-				if (!phoneNumber || phoneNumber.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Origin phone number is required', {
-						description: 'Please specify the origin phone number',
-						itemIndex,
-					});
-				}
-
-				fromWalletLocator = `phoneNumber:${phoneNumber}:${chainType}:smart`;
-				break;
-			}
-			case 'twitter': {
-				const twitterHandle = context.getNodeParameter('originWalletTwitterHandle', itemIndex) as string;
-				const chainType = context.getNodeParameter('originWalletType', itemIndex) as string;
-
-				if (!twitterHandle || twitterHandle.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Origin Twitter handle is required', {
-						description: 'Please specify the origin Twitter handle',
-						itemIndex,
-					});
-				}
-
-				fromWalletLocator = `twitter:${twitterHandle}:${chainType}:smart`;
-				break;
-			}
+			case 'email':
+			case 'userId':
+			case 'phoneNumber':
+			case 'twitter':
 			case 'x': {
-				const xHandle = context.getNodeParameter('originWalletXHandle', itemIndex) as string;
-				const chainType = context.getNodeParameter('originWalletType', itemIndex) as string;
-
-				if (!xHandle || xHandle.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Origin X handle is required', {
-						description: 'Please specify the origin X handle',
-						itemIndex,
-					});
-
-				}
-
-				fromWalletLocator = `x:${xHandle}:${chainType}:smart`;
-				break;
-			}
-			case 'me': {
-				const chainType = context.getNodeParameter('originWalletType', itemIndex) as string;
-
-				fromWalletLocator = `me:${chainType}:smart`;
+				fromWalletLocator = `${originMode}:${originValue}:${blockchainType}:smart`;
 				break;
 			}
 			default:
-				throw new NodeOperationError(context.getNode(), `Unsupported origin locator type: ${originLocatorType}`, {
+				throw new NodeOperationError(context.getNode(), `Unsupported origin wallet mode: ${originMode}`, {
 					itemIndex,
 				});
 		}
 
-		// Build recipient wallet locator
-		const recipientLocatorType = context.getNodeParameter('recipientLocatorType', itemIndex) as string;
+		// Build recipient wallet locator from resource locator
+		const recipientWallet = context.getNodeParameter('recipientWallet', itemIndex) as any;
 		let recipient: string;
 
-		switch (recipientLocatorType) {
+		const recipientMode = recipientWallet.mode;
+		const recipientValue = recipientWallet.value;
+
+		if (!recipientValue || recipientValue.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Recipient wallet value is required', {
+				description: 'Please specify the recipient wallet identifier',
+				itemIndex,
+			});
+		}
+
+		switch (recipientMode) {
 			case 'address': {
-				const address = context.getNodeParameter('recipientWalletAddress', itemIndex) as string;
-				if (!address || address.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Recipient wallet address is required', {
-						description: 'Please specify the recipient wallet address',
-						itemIndex,
-					});
-				}
-				recipient = address;
+				recipient = recipientValue;
 				break;
 			}
-			case 'email': {
-				const email = context.getNodeParameter('recipientWalletEmail', itemIndex) as string;
-				const chainType = context.getNodeParameter('recipientWalletChainType', itemIndex) as string;
-
-				if (!email || email.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Recipient email is required', {
-						description: 'Please specify the recipient email address',
-						itemIndex,
-					});
-				}
-
-				recipient = `email:${email}:${chainType}`;
-				break;
-			}
-			case 'userId': {
-				const userId = context.getNodeParameter('recipientWalletUserId', itemIndex) as string;
-				const chainType = context.getNodeParameter('recipientWalletChainType', itemIndex) as string;
-
-				if (!userId || userId.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Recipient user ID is required', {
-						description: 'Please specify the recipient user ID',
-						itemIndex,
-					});
-				}
-
-				recipient = `userId:${userId}:${chainType}`;
-				break;
-			}
-			case 'phoneNumber': {
-				const phoneNumber = context.getNodeParameter('recipientWalletPhoneNumber', itemIndex) as string;
-				const chainType = context.getNodeParameter('recipientWalletChainType', itemIndex) as string;
-
-				if (!phoneNumber || phoneNumber.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Recipient phone number is required', {
-						description: 'Please specify the recipient phone number',
-						itemIndex,
-					});
-				}
-
-				recipient = `phoneNumber:${phoneNumber}:${chainType}`;
-				break;
-			}
-			case 'twitter': {
-				const twitterHandle = context.getNodeParameter('recipientWalletTwitterHandle', itemIndex) as string;
-				const chainType = context.getNodeParameter('recipientWalletChainType', itemIndex) as string;
-
-				if (!twitterHandle || twitterHandle.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Recipient Twitter handle is required', {
-						description: 'Please specify the recipient Twitter handle',
-						itemIndex,
-					});
-				}
-
-				recipient = `twitter:${twitterHandle}:${chainType}`;
-				break;
-			}
+			case 'email':
+			case 'userId':
+			case 'phoneNumber':
+			case 'twitter':
 			case 'x': {
-				const xHandle = context.getNodeParameter('recipientWalletXHandle', itemIndex) as string;
-				const chainType = context.getNodeParameter('recipientWalletChainType', itemIndex) as string;
-
-				if (!xHandle || xHandle.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Recipient X handle is required', {
-						description: 'Please specify the recipient X handle',
-						itemIndex,
-					});
-				}
-
-				recipient = `x:${xHandle}:${chainType}`;
-				break;
-			}
-			case 'me': {
-				const chainType = context.getNodeParameter('recipientWalletChainType', itemIndex) as string;
-
-				recipient = `me:${chainType}`;
+				recipient = `${recipientMode}:${recipientValue}:${tokenChain}`;
 				break;
 			}
 			default:
-				throw new NodeOperationError(context.getNode(), `Unsupported recipient locator type: ${recipientLocatorType}`, {
+				throw new NodeOperationError(context.getNode(), `Unsupported recipient wallet mode: ${recipientMode}`, {
 					itemIndex,
 				});
 		}
@@ -2066,11 +1888,11 @@ export class CrossmintNode implements INodeType {
 		credentials: any,
 		itemIndex: number,
 	): Promise<any> {
-		// Get parameters from UI
+		// Get parameters from UI - Always require external signer
 		const serializedTransaction = context.getNodeParameter('serializedTransaction', itemIndex) as string;
 		const payerAddress = context.getNodeParameter('payerAddress', itemIndex) as string;
 		const chain = context.getNodeParameter('paymentMethod', itemIndex) as string;
-		const enableClientSideSigning = context.getNodeParameter('enableClientSideSigning', itemIndex) as boolean;
+		const privateKey = context.getNodeParameter('purchasePrivateKey', itemIndex) as string;
 
 		// Validate required fields
 		if (!serializedTransaction || serializedTransaction.trim() === '') {
@@ -2090,6 +1912,13 @@ export class CrossmintNode implements INodeType {
 		if (!chain || chain.trim() === '') {
 			throw new NodeOperationError(context.getNode(), 'Chain is required', {
 				description: 'Please specify the blockchain chain',
+				itemIndex,
+			});
+		}
+
+		if (!privateKey || privateKey.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Private key is required', {
+				description: 'External signer private key is required for Pay Order operation',
 				itemIndex,
 			});
 		}
@@ -2129,91 +1958,73 @@ export class CrossmintNode implements INodeType {
 		const transactionResponse = await context.helpers.httpRequest(createTransactionOptions);
 		const transactionId = transactionResponse.id;
 		
-		// Step 2: Sign locally if enabled
-		let signature: string = '';
-		let signingDetails: any = null;
-		
-		if (enableClientSideSigning) {
-			const privateKey = context.getNodeParameter('purchasePrivateKey', itemIndex) as string;
-			
-			if (!privateKey || privateKey.trim() === '') {
-				throw new NodeOperationError(context.getNode(), 'Private key is required for client-side signing', {
-					itemIndex,
-				});
-			}
-
-			// Get the message to sign from transaction response
-			if (!transactionResponse.approvals || !transactionResponse.approvals.pending || !transactionResponse.approvals.pending[0]) {
-				throw new NodeOperationError(context.getNode(), 'No pending approval found in transaction response', {
-					itemIndex,
-				});
-			}
-			
-			const messageToSign = transactionResponse.approvals.pending[0].message;
-			const signerAddress = transactionResponse.approvals.pending[0].signer.address || transactionResponse.approvals.pending[0].signer.locator.split(':')[1];
-			
-			// Sign the message (not the full transaction)
-			try {
-				if (chain.includes('solana')) {
-					// Solana message signing
-					const secretKeyBytes = bs58.decode(privateKey);
-					const messageBytes = bs58.decode(messageToSign);
-					const nacl = await import('tweetnacl');
-					const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
-					signature = bs58.encode(signatureBytes);
-				} else {
-					// EVM message signing
-					const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
-					const wallet = new ethers.Wallet(normalizedPrivateKey);
-					const messageBytes = ethers.getBytes(messageToSign);
-					signature = await wallet.signMessage(messageBytes);
-				}
-				
-				signingDetails = {
-					signature,
-					messageToSign,
-					signerAddress,
-					chainType: chain.includes('solana') ? 'solana' : 'evm',
-					chain
-				};
-
-			} catch (error: any) {
-				throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
-					itemIndex,
-				});
-			}
-
-			// Step 3: Submit Approval
-			const approvalRequestBody = {
-				approvals: [{
-					signer: `external-wallet:${signerAddress}`,
-					signature: signature,
-				}]
-			};
-
-			const approvalOptions: IHttpRequestOptions = {
-				method: 'POST',
-				url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(payerAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`,
-				headers: {
-					'X-API-KEY': (credentials as any).apiKey,
-					'Content-Type': 'application/json',
-				},
-				body: approvalRequestBody,
-				json: true,
-			};
-
-			const approvalResponse = await context.helpers.httpRequest(approvalOptions);
-			
-			return {
-				transaction: transactionResponse,
-				approval: approvalResponse,
-				signingDetails
-			};
+		// Step 2: Always sign with external wallet (required)
+		// Get the message to sign from transaction response
+		if (!transactionResponse.approvals || !transactionResponse.approvals.pending || !transactionResponse.approvals.pending[0]) {
+			throw new NodeOperationError(context.getNode(), 'No pending approval found in transaction response', {
+				itemIndex,
+			});
 		}
 		
-		// If no client-side signing, return transaction info
+		const messageToSign = transactionResponse.approvals.pending[0].message;
+		const signerAddress = transactionResponse.approvals.pending[0].signer.address || transactionResponse.approvals.pending[0].signer.locator.split(':')[1];
+		
+		// Sign the message (not the full transaction)
+		let signature: string = '';
+		try {
+			if (chain.includes('solana')) {
+				// Solana message signing
+				const secretKeyBytes = bs58.decode(privateKey);
+				const messageBytes = bs58.decode(messageToSign);
+				const nacl = await import('tweetnacl');
+				const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
+				signature = bs58.encode(signatureBytes);
+			} else {
+				// EVM message signing
+				const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
+				const wallet = new ethers.Wallet(normalizedPrivateKey);
+				const messageBytes = ethers.getBytes(messageToSign);
+				signature = await wallet.signMessage(messageBytes);
+			}
+		} catch (error: any) {
+			throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
+				itemIndex,
+			});
+		}
+
+		const signingDetails = {
+			signature,
+			messageToSign,
+			signerAddress,
+			chainType: chain.includes('solana') ? 'solana' : 'evm',
+			chain
+		};
+
+		// Step 3: Submit Approval
+		const approvalRequestBody = {
+			approvals: [{
+				signer: `external-wallet:${signerAddress}`,
+				signature: signature,
+			}]
+		};
+
+		const approvalOptions: IHttpRequestOptions = {
+			method: 'POST',
+			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(payerAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`,
+			headers: {
+				'X-API-KEY': (credentials as any).apiKey,
+				'Content-Type': 'application/json',
+			},
+			body: approvalRequestBody,
+			json: true,
+		};
+
+		const approvalResponse = await context.helpers.httpRequest(approvalOptions);
+		
 		return {
-			transaction: transactionResponse
+			transaction: transactionResponse,
+			approval: approvalResponse,
+			signingDetails
 		};
 	}
 	
