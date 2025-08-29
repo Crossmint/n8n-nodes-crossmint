@@ -1,199 +1,208 @@
 {
-    "name": "My workflow",
-    "nodes": [
-      {
-        "parameters": {},
-        "type": "n8n-nodes-base.manualTrigger",
-        "typeVersion": 1,
-        "position": [
-          0,
-          0
-        ],
-        "id": "6ad177c8-a02c-438a-b7de-aeee00f3bf9e",
-        "name": "When clicking ‘Execute workflow’"
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3c4835b2-bfd9-4042-9f5e-603577e259e4",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "createWallet",
+        "ownerType": "email",
+        "ownerEmail": "jose@gh.io",
+        "externalSignerDetails": "37fac1c7934bdfb28882df0684519625937854b629271dd3e2dec41b306fe331"
       },
-      {
-        "parameters": {
-          "operation": "createWallet",
-          "ownerType": "email",
-          "ownerEmail": "manuel@paella.dev"
-        },
-        "type": "CUSTOM.crossmintNode",
-        "typeVersion": 1,
-        "position": [
-          192,
-          0
-        ],
-        "id": "a0aa1dbb-dbaa-442c-8f94-65950acafe71",
-        "name": "Get or Create Wallet",
-        "credentials": {
-          "crossmintApi": {
-            "id": "pQETd69keNeYGtci",
-            "name": "Crossmint account"
-          }
-        }
-      },
-      {
-        "parameters": {
-          "operation": "getBalance",
-          "balanceLocatorType": "email",
-          "balanceWalletEmail": "manuel@paella.dev"
-        },
-        "type": "CUSTOM.crossmintNode",
-        "typeVersion": 1,
-        "position": [
-          560,
-          0
-        ],
-        "id": "ab14415a-5939-4589-bce3-13d196757f75",
-        "name": "Get balance",
-        "credentials": {
-          "crossmintApi": {
-            "id": "pQETd69keNeYGtci",
-            "name": "Crossmint account"
-          }
-        }
-      },
-      {
-        "parameters": {
-          "operation": "getWallet",
-          "getWalletLocatorType": "email",
-          "getWalletEmail": "manuel@paella.dev"
-        },
-        "type": "CUSTOM.crossmintNode",
-        "typeVersion": 1,
-        "position": [
-          368,
-          0
-        ],
-        "id": "6a3df393-1913-432e-bfea-4befc56e84fc",
-        "name": "Get wallet",
-        "credentials": {
-          "crossmintApi": {
-            "id": "pQETd69keNeYGtci",
-            "name": "Crossmint account"
-          }
-        }
-      },
-      {
-        "parameters": {
-          "resource": "checkout",
-          "productIdentifier": "https://www.amazon.com/Celsius-Sparkling-Berry-Fluid-Ounce/dp/B001PN0HOU",
-          "recipientEmail": "manuel@paella.dev",
-          "recipientName": "Manuel Paella",
-          "addressLine1": "744 SW 10th",
-          "city": "Miami",
-          "state": "FL",
-          "postalCode": "33130",
-          "paymentMethod": "ethereum-sepolia",
-          "payerAddress": "={{ $('Get wallet').item.json.address }}"
-        },
-        "type": "CUSTOM.crossmintNode",
-        "typeVersion": 1,
-        "position": [
-          768,
-          0
-        ],
-        "id": "15c82482-25c6-417d-a605-63d0afa2b2ae",
-        "name": "Find product",
-        "credentials": {
-          "crossmintApi": {
-            "id": "pQETd69keNeYGtci",
-            "name": "Crossmint account"
-          }
-        }
-      },
-      {
-        "parameters": {
-          "resource": "checkout",
-          "operation": "purchaseProduct",
-          "serializedTransaction": "={{ $json.order.payment.preparation.serializedTransaction }}",
-          "paymentMethod": "ethereum-sepolia",
-          "payerAddress": "={{ $('Get wallet').item.json.address }}"
-        },
-        "type": "CUSTOM.crossmintNode",
-        "typeVersion": 1,
-        "position": [
-          976,
-          0
-        ],
-        "id": "c7fed8ee-c58a-49fc-ad72-ae4afd5a5585",
-        "name": "Purchase product",
-        "credentials": {
-          "crossmintApi": {
-            "id": "pQETd69keNeYGtci",
-            "name": "Crossmint account"
-          }
+      "type": "CUSTOM.crossmintNode",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "a87cae15-ada7-40be-93e9-6fa7a8a492fe",
+      "name": "Get or create wallet",
+      "credentials": {
+        "crossmintApi": {
+          "id": "uhSVvBWxoeipwzvz",
+          "name": "Crossmint account"
         }
       }
-    ],
-    "pinData": {},
-    "connections": {
-      "When clicking ‘Execute workflow’": {
-        "main": [
-          [
-            {
-              "node": "Get or Create Wallet",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
+    },
+    {
+      "parameters": {
+        "operation": "getWallet",
+        "getWalletAddress": "={{ $json.address }}"
       },
-      "Get or Create Wallet": {
-        "main": [
-          [
-            {
-              "node": "Get wallet",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Get balance": {
-        "main": [
-          [
-            {
-              "node": "Find product",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Get wallet": {
-        "main": [
-          [
-            {
-              "node": "Get balance",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Find product": {
-        "main": [
-          [
-            {
-              "node": "Purchase product",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
+      "type": "CUSTOM.crossmintNode",
+      "typeVersion": 1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "649523db-7379-43cf-b846-9dee884988e0",
+      "name": "Get wallet",
+      "credentials": {
+        "crossmintApi": {
+          "id": "uhSVvBWxoeipwzvz",
+          "name": "Crossmint account"
+        }
       }
     },
-    "active": false,
-    "settings": {
-      "executionOrder": "v1"
+    {
+      "parameters": {
+        "operation": "getBalance",
+        "balanceWalletAddress": "={{ $json.address }}",
+        "tokens": "usdc"
+      },
+      "type": "CUSTOM.crossmintNode",
+      "typeVersion": 1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "121f9ece-b6f9-4c8e-861a-3cedef9234ff",
+      "name": "Get balance",
+      "credentials": {
+        "crossmintApi": {
+          "id": "uhSVvBWxoeipwzvz",
+          "name": "Crossmint account"
+        }
+      }
     },
-    "versionId": "b938699b-2afa-4db5-87fb-b027a89f1ea3",
-    "meta": {
-      "templateCredsSetupCompleted": true,
-      "instanceId": "41a06fe6b2ed299ea808b59c408ee1da81d2a19e619828c3930d8d1554f4b813"
+    {
+      "parameters": {
+        "operation": "signAndSubmitTransaction",
+        "signSubmitWalletAddress": "={{ $('Get or create wallet').item.json.address }}",
+        "signSubmitTransactionId": "={{ $json[\"simplified-output\"].id }}",
+        "signSubmitTransactionData": "={{ $json[\"simplified-output\"].approvals.pending[0].message }}",
+        "signSubmitSignerAddress": "={{ $('Get or create wallet').item.json.config.adminSigner.address }}",
+        "signSubmitPrivateKey": "37fac1c7934bdfb28882df0684519625937854b629271dd3e2dec41b306fe331"
+      },
+      "type": "CUSTOM.crossmintNode",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "3c335094-a7e4-4dd3-bba7-593e50d858a2",
+      "name": "Sign transaction",
+      "credentials": {
+        "crossmintApi": {
+          "id": "uhSVvBWxoeipwzvz",
+          "name": "Crossmint account"
+        }
+      }
     },
-    "id": "0zq3NFM1AJdqPzwJ",
-    "tags": []
-  }
+    {
+      "parameters": {
+        "originWallet": {
+          "__rl": true,
+          "value": "={{ $('Get or create wallet').item.json.address }}",
+          "mode": "address"
+        },
+        "recipientWallet": {
+          "__rl": true,
+          "value": "0x03E2D9A6Ab552DcAd4E3eBd5Ff950921d06E8340",
+          "mode": "address"
+        },
+        "tokenChain": "ethereum-sepolia",
+        "tokenName": "usdc",
+        "amount": "2"
+      },
+      "type": "CUSTOM.crossmintNode",
+      "typeVersion": 1,
+      "position": [
+        832,
+        0
+      ],
+      "id": "4bd8c73a-a1fd-493b-ab41-260938a44200",
+      "name": "Create Transfer",
+      "credentials": {
+        "crossmintApi": {
+          "id": "uhSVvBWxoeipwzvz",
+          "name": "Crossmint account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get or create wallet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get or create wallet": {
+      "main": [
+        [
+          {
+            "node": "Get wallet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get wallet": {
+      "main": [
+        [
+          {
+            "node": "Get balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get balance": {
+      "main": [
+        [
+          {
+            "node": "Create Transfer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign transaction": {
+      "main": [
+        []
+      ]
+    },
+    "Create Transfer": {
+      "main": [
+        [
+          {
+            "node": "Sign transaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e90fdc4b-1321-40d8-be66-f7d3567f72c7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e734ec590a676c3159f432da40a238829d8a3d03564f7781500b199e5925efc2"
+  },
+  "id": "mX3PWNEk0KjePyVI",
+  "tags": []
+}

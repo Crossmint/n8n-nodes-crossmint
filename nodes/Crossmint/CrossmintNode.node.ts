@@ -74,7 +74,7 @@ export class CrossmintNode implements INodeType {
 						name: 'Create Transfer',
 						value: 'transferToken',
 						description: 'Create Transfer from Crossmint wallet to any address',
-						action: 'Transfer token',
+						action: 'Create Transfer',
 					},
 					{
 						name: 'Get Balance',
@@ -1592,7 +1592,30 @@ export class CrossmintNode implements INodeType {
 		};
 
 		try {
-			return await context.helpers.httpRequest(requestOptions);
+			const rawResponse = await context.helpers.httpRequest(requestOptions);
+			
+			// Build simplified-output with specific fields
+			let chain;
+			if (rawResponse.params && rawResponse.params.calls && rawResponse.params.calls[0]) {
+				chain = rawResponse.params.calls[0].chain;
+			}
+			
+			const simplifiedOutput = {
+				chainType: rawResponse.chainType,
+				walletType: rawResponse.walletType,
+				from: originWallet,
+				to: recipientWallet,
+				chain: chain,
+				id: rawResponse.id,
+				status: rawResponse.status,
+				approvals: rawResponse.approvals || {}
+			};
+			
+			// Return both simplified and raw data
+			return {
+				'simplified-output': simplifiedOutput,
+				raw: rawResponse
+			};
 		} catch (error: any) {
 			// Pass through the original Crossmint API error exactly as received
 			throw new NodeApiError(context.getNode(), error);
@@ -1711,9 +1734,15 @@ export class CrossmintNode implements INodeType {
 		};
 
 		try {
-			const response = await context.helpers.httpRequest(requestOptions);
-			return {
-				...response,
+			const rawResponse = await context.helpers.httpRequest(requestOptions);
+
+			const simplifiedOutput = {
+				chainType: rawResponse.chainType,
+				walletType: rawResponse.walletType,
+				id: rawResponse.id,
+				status: rawResponse.status,
+				createdAt: rawResponse.createdAt,
+				approvals: rawResponse.approvals || {},
 				signingDetails: {
 					signature: signature,
 					signedTransaction: signedTransaction,
@@ -1727,6 +1756,12 @@ export class CrossmintNode implements INodeType {
 					signerAddress,
 					signature,
 				},
+			};
+
+			return {
+				'simplified-output': simplifiedOutput,
+				raw: rawResponse
+					
 			};
 		} catch (error: any) {
 			throw new NodeApiError(context.getNode(), error);
@@ -2027,6 +2062,6 @@ export class CrossmintNode implements INodeType {
 			signingDetails
 		};
 	}
-	
+
 
 }
