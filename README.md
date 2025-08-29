@@ -1,7 +1,21 @@
 # n8n Community Node for Crossmint
 
+[![npm version](https://badge.fury.io/js/n8n-nodes-crossmint.svg)](https://badge.fury.io/js/n8n-nodes-crossmint)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 This community node for n8n provides a complete integration with Crossmint's **Wallet** and **Checkout** APIs. It allows users and AI agents to program digital money inside wallets, and automate the purchase of physical products all within your n8n workflows.
+
+## Table of Contents
+
+- [🚀 Installation](#-installation)
+- [⚙️ Your First Workflow](#️-your-first-workflow-using-crossmint)
+- [💡 Supported Operations](#-supported-operations)
+- [🔑 Understanding Wallet Locators](#-understanding-wallet-locators)
+- [📁 Example Workflows](#-example-workflows)
+- [📖 Documentation](#-documentation)
+- [🛠️ Development](#️-local-development-setup)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
 
 ## 🚀 Installation
 
@@ -91,22 +105,33 @@ Operations to automate the purchase of products using digital money (e.g. tokens
     * **Key Input**: The `serializedTransaction` obtained from the "Create Order" step.
     * **Key Output**: The transaction confirmation once it's submitted to the blockchain, with a `pending` status.
 
-## 📖 API Reference
+## 📖 Documentation
 
-For detailed information about each operation, parameters, and response formats, refer to the official Crossmint API documentation:
+### Comprehensive Guides
 
-### Wallet Operations
+- **[API Reference](API_REFERENCE.md)** - Complete API documentation with examples
+- **[Workflow Examples](WORKFLOW_EXAMPLES.md)** - Detailed workflow examples and use cases
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Development Guide](DEVELOPMENT.md)** - Architecture and development setup
+- **[Testing Guide](TESTING.md)** - Testing strategy and best practices
+- **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute to the project
+
+### Quick Reference
+
+#### Wallet Operations
 - **Get or Create Wallet**: [Crossmint Wallets API](https://docs.crossmint.com/api-reference/wallets/create-wallet)
 - **Get Wallet**: [Crossmint Wallets API - Get Wallet](https://docs.crossmint.com/api-reference/wallets/get-wallet-by-locator)
 - **Transfer Token**: [Crossmint Wallets API - Transfer Tokens](https://docs.crossmint.com/api-reference/wallets/transfer-token)
 - **Get Balance**: [Crossmint Wallets API - Get Balance](https://docs.crossmint.com/api-reference/wallets/get-wallet-balance)
 
-### Checkout Operations
+#### Checkout Operations
 - **Create Order**: [Crossmint Checkout API - Create Order](https://docs.crossmint.com/api-reference/headless/create-order)
 - **Pay Order**: [Crossmint Checkout API - Submit Transaction](https://docs.crossmint.com/api-reference/wallets/create-transaction)
 
-### Additional Resources
+#### Additional Resources
 - [Supported Chains and Tokens](https://docs.crossmint.com/introduction/supported-chains#supported-chains)
+- [Security Best Practices](SECURITY.md)
+- [Changelog](CHANGELOG.md)
 
 ## 🔑 Understanding Wallet Locators
 
@@ -163,7 +188,7 @@ If you wish to run the Crossmint node from source:
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/YourUsername/n8n-nodes-crossmint.git](https://github.com/YourUsername/n8n-nodes-crossmint.git)
+    git clone https://github.com/Crossmint/n8n-nodes-crossmint.git
     cd n8n-nodes-crossmint
     ```
 2.  **Install dependencies and build:**
@@ -177,12 +202,36 @@ If you wish to run the Crossmint node from source:
     cd ~/.n8n/custom
     npm link n8n-nodes-crossmint
     ```
-    See more detailed instructions and troubleshooting [here](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/).
+    See more detailed instructions and troubleshooting in our [Development Guide](DEVELOPMENT.md).
 
-5.  Start n8n in a separate terminal (`n8n start`) and your node will appear.
+4.  **Start n8n in development mode:**
+    ```bash
+    export N8N_LOG_LEVEL=debug
+    n8n start
+    ```
+
+For comprehensive development setup, testing, and contribution guidelines, see our [Contributing Guide](CONTRIBUTING.md).
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
+
+- Development setup and workflow
+- Code style and testing requirements
+- Pull request process
+- Issue reporting guidelines
 
 ## 📄 License
 
-MIT
+MIT - see [LICENSE.md](LICENSE.md) for details.
 
------
+## 🆘 Support
+
+- **Issues**: [GitHub Issues](https://github.com/Crossmint/n8n-nodes-crossmint/issues)
+- **Documentation**: [Comprehensive Guides](#-documentation)
+- **Crossmint Support**: support@crossmint.com
+- **Security Issues**: security@crossmint.com
+
+---
+
+**Built with ❤️ by the Crossmint team**

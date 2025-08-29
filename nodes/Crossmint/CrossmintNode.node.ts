@@ -74,7 +74,7 @@ export class CrossmintNode implements INodeType {
 						name: 'Create Transfer',
 						value: 'transferToken',
 						description: 'Create Transfer from Crossmint wallet to any address',
-						action: 'Create Transfer',
+						action: 'Create transfer',
 					},
 					{
 						name: 'Get Balance',
@@ -179,7 +179,7 @@ export class CrossmintNode implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'] } },
 				default: '',
 				placeholder: 'Enter private key (32-byte hex for EVM, base58 for Solana)',
-				description: 'Private key that authorizes all transactions from this wallet. Use this link to generate them: https://www.val.town/x/Crossmint/crypto-address-generator',
+				description: 'Private key that authorizes all transactions from this wallet. Use this link to generate them: https://www.val.town/x/Crossmint/crypto-address-generator.',
 				required: true,
 			},
 
@@ -1068,7 +1068,9 @@ export class CrossmintNode implements INodeType {
 						signerChainType = 'solana';
 						privateKeyStr = externalSignerDetails;
 					} else {
-						throw new Error('Invalid key length');
+						throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
+							itemIndex,
+						});
 					}
 				} catch (error) {
 					throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
