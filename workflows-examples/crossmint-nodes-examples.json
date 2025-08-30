@@ -1,5 +1,5 @@
 {
-  "name": "My workflow 2",
+  "name": "test-nodes",
   "nodes": [
     {
       "parameters": {},
@@ -198,7 +198,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "e90fdc4b-1321-40d8-be66-f7d3567f72c7",
+  "versionId": "9071cfcb-3855-452e-98fd-da1eb76f367e",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "e734ec590a676c3159f432da40a238829d8a3d03564f7781500b199e5925efc2"
