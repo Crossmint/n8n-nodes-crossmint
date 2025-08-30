@@ -1,5 +1,26 @@
 # n8n Community Node for Crossmint
 
+## Table of Contents
+
+- [Installation](#-installation)
+- [Your First Workflow Using Crossmint](#️-your-first-workflow-using-crossmint)
+  - [Step 1: Add the Crossmint Node to Your Workflow](#step-1-add-the-crossmint-node-to-your-workflow)
+  - [Step 2: Set Up Crossmint Project & Credentials](#step-2-set-up-crossmint-project--credentials)
+  - [Getting Test USDC for Staging](#getting-test-usdc-for-staging)
+- [Supported Operations](#-supported-operations)
+  - [Resource: Wallet](#resource-wallet)
+  - [Resource: Checkout](#resource-checkout)
+- [API Reference](#-api-reference)
+  - [Wallet Operations](#wallet-operations)
+  - [Checkout Operations](#checkout-operations)
+  - [Additional Resources](#additional-resources)
+- [Understanding Wallet Locators](#-understanding-wallet-locators)
+  - [Locator Types](#locator-types)
+  - [Chain Types](#chain-types)
+  - [Best Practices](#best-practices)
+- [Example Workflows](#-example-workflows)
+- [Local Development Setup](#️-local-development-setup)
+- [License](#-license)
 
 This community node for n8n provides a complete integration with Crossmint's **Wallet** and **Checkout** APIs. It allows users and AI agents to program digital money inside wallets, and automate the purchase of physical products all within your n8n workflows.
 
@@ -26,13 +47,19 @@ Once you've installed the community node, here's how to add and configure your f
 2. Search for **"Crossmint"** in the node library
 3. Select the **Crossmint** node from the results
 
-![Crossmint node search](./images/crossmint-search.png)
+<div align="center">
+<img src="./images/crossmint-search.png" alt="Crossmint node search" width="50%">
+</div>
+
 
 4. For this example, we'll use **"Get or Create Wallet"** operation:
    - Set **Resource** to **"Wallet"**
    - Set **Operation** to **"Get or Create Wallet"**
 
-![Crossmint node configuration](./images/crossmint-config.png)
+<div align="center">
+<img src="./images/crossmint-config.png" alt="Crossmint node configuration" width="50%">
+</div>
+
 
 ### Step 2: Set Up Crossmint Project & Credentials
 
@@ -41,7 +68,10 @@ Once you've installed the community node, here's how to add and configure your f
    - Create a new project or select an existing one
    - Copy your **server-side API key** from the project settings
 
-![Crossmint staging console](./images/crossmint-staging-console.png)
+<div align="center">
+<img src="./images/crossmint-staging-console.png" alt="Crossmint staging console" width="75%">
+</div>
+
 
 6. Back in n8n, in your Crossmint node, click on **"Credential for Crossmint API"** dropdown
 7. Select **"Create New"** to add your Crossmint credentials (this will be available for all future Crossmint nodes)
@@ -51,11 +81,17 @@ Once you've installed the community node, here's how to add and configure your f
    - Set **Environment** to **"Staging"** for testing
    - Click **"Save"**
 
-![Crossmint API credential form](./images/credential-form.png)
+<div align="center">
+<img src="./images/credential-form.png" alt="Crossmint API credential form" width="75%">
+</div>
+
 
 9. Complete the wallet configuration (e.g., set Owner Type to "Email" and enter an email address)
 
-![Completed node configuration](./images/completed-config.png)
+<div align="center">
+<img src="./images/completed-config.png" alt="Completed node configuration" width="50%">
+</div>
+
 
 > **⚠️ Important**: Always use **server-side API keys** from Crossmint. Client-side keys will not work. For initial testing, always use **Staging** environment.
 
@@ -73,10 +109,10 @@ The node is organized into two primary resources: **Wallet** and **Checkout**.
 ### Resource: Wallet
 Operations for managing blockchain wallets which can hold and transfer money (in cryptocurrencies like USDC).
 
-* **Get or Create Wallet**: Creates a new Wallet or retrieves an existing one if it's already associated with a user identifier on a specific blockchain. This operation is idempotent.
-* **Get Wallet**: Retrieves the details of an existing wallet using its `walletLocator`.
-* **Transfer Token**: Sends tokens (like USDC) from a Crossmint wallet to any other address or user.
-* **Get Balance**: Checks the balance of native and other tokens (like USDC) for a specific wallet on one or more chains.
+* **Get or Create Wallet**: Creates a non-custodial smart wallet or retrieves an existing one. You maintain full control via a private key that authorizes all transactions. This operation is idempotent.
+* **Get Wallet**: Retrieves wallet details using its `walletLocator`.
+* **Create Transfer**: Sends tokens (like USDC) between wallets. Requires the wallet's private key to digitally sign and authorize the transfer.
+* **Get Balance**: Checks token balances for a wallet across one or more blockchain networks.
 
 ### Resource: Checkout
 Operations to automate the purchase of products using digital money (e.g. tokens like USDC). This is a two-step process.
@@ -88,7 +124,7 @@ Operations to automate the purchase of products using digital money (e.g. tokens
 
 * **2. Pay Order**:
     * **Function**: Executes the payment for a previously created order.
-    * **Key Input**: The `serializedTransaction` obtained from the "Create Order" step.
+    * **Key Input**: The `serializedTransaction` obtained from the "Create Order" step and the private key to authorize the payment. Among other parameters.
     * **Key Output**: The transaction confirmation once it's submitted to the blockchain, with a `pending` status.
 
 ## 📖 API Reference
@@ -98,7 +134,7 @@ For detailed information about each operation, parameters, and response formats,
 ### Wallet Operations
 - **Get or Create Wallet**: [Crossmint Wallets API](https://docs.crossmint.com/api-reference/wallets/create-wallet)
 - **Get Wallet**: [Crossmint Wallets API - Get Wallet](https://docs.crossmint.com/api-reference/wallets/get-wallet-by-locator)
-- **Transfer Token**: [Crossmint Wallets API - Transfer Tokens](https://docs.crossmint.com/api-reference/wallets/transfer-token)
+- **Create Transfer**: [Crossmint Wallets API - Transfer Tokens](https://docs.crossmint.com/api-reference/wallets/transfer-token)
 - **Get Balance**: [Crossmint Wallets API - Get Balance](https://docs.crossmint.com/api-reference/wallets/get-wallet-balance)
 
 ### Checkout Operations
@@ -122,7 +158,7 @@ Wallet locators are a key concept used throughout all Crossmint node operations.
 | **Phone Number** | `phoneNumber:{phone}:{chainType}:smart` | `phoneNumber:+1234567890:evm:smart` | SMS-based identification |
 | **Twitter Handle** | `twitter:{handle}:{chainType}:smart` | `twitter:username:evm:smart` | Social media identification |
 | **X Handle** | `x:{handle}:{chainType}:smart` | `x:username:evm:smart` | X (formerly Twitter) identification |
-| **Me** | `me:{chainType}:smart` | `me:evm:smart` | API key owner's wallet |
+
 
 For more detailed information about wallet locator formats and specifications, see: [Crossmint Wallet Locators Documentation](https://docs.crossmint.com/api-reference/wallets/get-wallet-by-locator)
 
@@ -135,9 +171,8 @@ For more detailed information about wallet locator formats and specifications, s
 
 1. **Email locators** are ideal for user-friendly identification
 2. **Wallet addresses** provide direct blockchain access
-3. **"Me" locators** are perfect for API key owner operations
-4. **User ID locators** work well with existing user management systems
-5. Always specify the correct chain type for non-address locators
+3. **User ID locators** work well with existing user management systems
+4. Always specify the correct chain type for non-address locators
 
 ## 📁 Example Workflows
 
@@ -145,11 +180,15 @@ Ready-to-use workflow examples are available in the `workflows-examples/` folder
 
 - **`crossmint-nodes-examples.json`**: Complete workflow demonstrating all wallet operations (create wallet, get wallet details, check balance) followed by a checkout flow (create order and pay order).
 
-![Crossmint API credential form](./images/crossmint-nodes-examples.png)
+<div align="center">
+<img src="./images/crossmint-nodes-examples.png" alt="Crossmint nodes examples" width="100%">
+</div>
 
 - **`buy-items-from-amazon.json`**: Advanced workflow with AI-powered order processing that accepts free-form messages via Telegram, extracts order details using OpenAI, and automatically purchases Amazon products.
 
-![Crossmint API credential form](./images/buy-items-from-amazon.png)
+<div align="center">
+<img src="./images/buy-items-from-amazon.png" alt="Buy items from Amazon workflow" width="100%">
+</div>
 
 To use these examples:
 1. Import the JSON file into your n8n instance

@@ -1,0 +1,392 @@
+{
+    "name": "order-products",
+    "nodes": [
+        {
+            "parameters": {
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+            "typeVersion": 1.3,
+            "position": [
+                -384,
+                0
+            ],
+            "id": "3be691de-b368-48f8-8059-f462c3d9170d",
+            "name": "When chat message received",
+            "webhookId": "141938c3-b004-468e-ba8f-b472c4ad4a33"
+        },
+        {
+            "parameters": {
+                "url": "https://api.rainforestapi.com/request",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "api_key",
+                            "value": "8F23DB30B9474518917BB9DC7B146498"
+                        },
+                        {
+                            "name": "type",
+                            "value": "search"
+                        },
+                        {
+                            "name": "amazon_domain",
+                            "value": "amazon.com"
+                        },
+                        {
+                            "name": "search_term",
+                            "value": "={{ $json.output.keywords }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "response": {
+                        "response": {
+                            "responseFormat": "json"
+                        }
+                    }
+                }
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                208,
+                0
+            ],
+            "id": "38f16291-f8d8-41c1-ab15-8269215ee8dd",
+            "name": "HTTP Request"
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "={{ $json.products }}",
+                "hasOutputParser": true,
+                "options": {
+                    "systemMessage": "=You are an assistant that selects the best product from a JSON list.\nI will provide you:\n1. A JSON array of products.\n2. A selection criterion (defined by me).\n\nYour task is to parse the JSON, evaluate the products according to the criterion I give you, and return ONLY the best product as valid JSON. And if any field of each product is empty or null, do not select it.\nReturn ONLY valid JSON that matches the schema.\nDo not wrap it inside any other field.\n{\n  \"title\": \"string\",\n  \"price\": \"number\",\n  \"rating\": \"number\",\n  \"reviews\": \"number\",\n  \"url\": \"string\",\n  \"asin\": \"string\"\n}\n\nCriterion:\n{{ $('AI Agent1').item.json.output.criterion }}"
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 2.2,
+            "position": [
+                624,
+                0
+            ],
+            "id": "204af6a3-fe42-4f49-a62c-32f7a1bdef2e",
+            "name": "AI Agent"
+        },
+        {
+            "parameters": {
+                "jsonSchemaExample": "{\n  \"title\": \"string\",\n  \"price\": \"number\",\n  \"rating\": \"number\",\n  \"reviews\": \"number\",\n  \"url\": \"string\",\n  \"asin\": \"string\"\n}"
+            },
+            "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+            "typeVersion": 1.3,
+            "position": [
+                768,
+                208
+            ],
+            "id": "9f3f38ad-a555-4067-85e2-84ba7eed941e",
+            "name": "Structured Output Parser"
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "={{ $json.chatInput }}",
+                "hasOutputParser": true,
+                "options": {
+                    "systemMessage": "=Given a natural language input describing a purchase, extract two things:\n1. The search keywords: a few essential words separated by spaces (no commas).\n2. The purchase criterion: a short string describing the conditions or specifications.\n\nReturn only valid JSON with the fields:\n{\n  \"keywords\": \"string\",\n  \"criterion\": \"string\"\n}"
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 2.2,
+            "position": [
+                -176,
+                0
+            ],
+            "id": "d99aacbe-f04b-441d-ab9d-b09329c86f4d",
+            "name": "AI Agent1"
+        },
+        {
+            "parameters": {
+                "jsonSchemaExample": "{\n  \"keywords\": \"string\",\n  \"criterion\": \"string\"\n}"
+            },
+            "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+            "typeVersion": 1.3,
+            "position": [
+                -16,
+                208
+            ],
+            "id": "eaeeb249-bc27-4bbb-ab22-16772653052d",
+            "name": "Structured Output Parser1"
+        },
+        {
+            "parameters": {
+                "model": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "gpt-4.1-mini"
+                },
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "typeVersion": 1.2,
+            "position": [
+                -176,
+                208
+            ],
+            "id": "50059ea1-237f-4de8-a5d8-85911710b8fc",
+            "name": "OpenAI Chat Model1",
+            "credentials": {
+                "openAiApi": {
+                    "id": "RW8plKCPdqDt2n8E",
+                    "name": "OpenAi account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "createWallet",
+                "ownerType": "email",
+                "ownerEmail": "jose@gh.io",
+                "externalSignerDetails": "37fac1c7934bdfb28882df0684519625937854b629271dd3e2dec41b306fe331"
+            },
+            "type": "CUSTOM.crossmintNode",
+            "typeVersion": 1,
+            "position": [
+                976,
+                0
+            ],
+            "id": "920c487f-56a1-4415-8590-8ad0573d6cb2",
+            "name": "Get or create wallet",
+            "credentials": {
+                "crossmintApi": {
+                    "id": "uhSVvBWxoeipwzvz",
+                    "name": "Crossmint account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "resource": "checkout",
+                "productIdentifier": "={{ $('AI Agent').item.json.output.asin }}",
+                "recipientEmail": "manuel@crossmint.com",
+                "recipientName": "Manuel Paella",
+                "addressLine1": "123 Fake Street",
+                "city": "Miami",
+                "state": "FL",
+                "postalCode": "33130",
+                "paymentMethod": "ethereum-sepolia",
+                "payerAddress": "={{ $json.address }}"
+            },
+            "type": "CUSTOM.crossmintNode",
+            "typeVersion": 1,
+            "position": [
+                1200,
+                0
+            ],
+            "id": "e0d6cbf9-2f9b-43f3-878d-719764e42d26",
+            "name": "Create order",
+            "credentials": {
+                "crossmintApi": {
+                    "id": "uhSVvBWxoeipwzvz",
+                    "name": "Crossmint account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "model": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "gpt-4.1-mini"
+                },
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "typeVersion": 1.2,
+            "position": [
+                560,
+                208
+            ],
+            "id": "3cfe6b0d-3f67-450c-88b7-71f91d1f8bd5",
+            "name": "OpenAI Chat Model",
+            "credentials": {
+                "openAiApi": {
+                    "id": "RW8plKCPdqDt2n8E",
+                    "name": "OpenAi account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "resource": "checkout",
+                "operation": "purchaseProduct",
+                "serializedTransaction": "={{ $json.order.payment.preparation.serializedTransaction }}",
+                "paymentMethod": "ethereum-sepolia",
+                "payerAddress": "={{ $('Get or create wallet').item.json.address }}",
+                "purchasePrivateKey": "37fac1c7934bdfb28882df0684519625937854b629271dd3e2dec41b306fe331"
+            },
+            "type": "CUSTOM.crossmintNode",
+            "typeVersion": 1,
+            "position": [
+                1408,
+                0
+            ],
+            "id": "44800185-7cb9-462e-b789-1c9ae062201d",
+            "name": "Pay order",
+            "credentials": {
+                "crossmintApi": {
+                    "id": "uhSVvBWxoeipwzvz",
+                    "name": "Crossmint account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $json.search_results || [];\n\nconst results = items.map(p => {\n  const url = p.link || \"\";\n\n  const match = url.match(/(?:\\/dp\\/|\\/gp\\/product\\/)([A-Z0-9]{10})/);\n  const asin = match ? match[1] : null;\n\n  return {\n    title: p.title,\n    price: p?.price?.value,\n    rating: p?.rating,\n    reviews: p?.ratings_total,\n    url,\n    asin\n  };\n});\n\nreturn [\n  {\n    json: {\n      products: results\n    }\n  }\n];"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                416,
+                0
+            ],
+            "id": "e2879306-4a86-48d1-bfdc-8f43fd00d99d",
+            "name": "Parse JSON"
+        }
+    ],
+    "pinData": {},
+    "connections": {
+        "When chat message received": {
+            "main": [
+                [
+                    {
+                        "node": "AI Agent1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "HTTP Request": {
+            "main": [
+                [
+                    {
+                        "node": "Parse JSON",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Structured Output Parser": {
+            "ai_outputParser": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_outputParser",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Agent1": {
+            "main": [
+                [
+                    {
+                        "node": "HTTP Request",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Structured Output Parser1": {
+            "ai_outputParser": [
+                [
+                    {
+                        "node": "AI Agent1",
+                        "type": "ai_outputParser",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenAI Chat Model1": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Agent1",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get or create wallet": {
+            "main": [
+                [
+                    {
+                        "node": "Create order",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenAI Chat Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Agent": {
+            "main": [
+                [
+                    {
+                        "node": "Get or create wallet",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create order": {
+            "main": [
+                [
+                    {
+                        "node": "Pay order",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse JSON": {
+            "main": [
+                [
+                    {
+                        "node": "AI Agent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": false,
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "versionId": "0b1647b8-7c63-41bc-88f1-f51119733a4b",
+    "meta": {
+        "templateCredsSetupCompleted": true,
+        "instanceId": "e734ec590a676c3159f432da40a238829d8a3d03564f7781500b199e5925efc2"
+    },
+    "id": "uo2iJwqS4lUYMGzx",
+    "tags": []
+}

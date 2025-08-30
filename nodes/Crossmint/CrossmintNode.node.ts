@@ -74,7 +74,7 @@ export class CrossmintNode implements INodeType {
 						name: 'Create Transfer',
 						value: 'transferToken',
 						description: 'Create Transfer from Crossmint wallet to any address',
-						action: 'Create Transfer',
+						action: 'Create transfer',
 					},
 					{
 						name: 'Get Balance',
@@ -179,7 +179,7 @@ export class CrossmintNode implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'] } },
 				default: '',
 				placeholder: 'Enter private key (32-byte hex for EVM, base58 for Solana)',
-				description: 'Private key that authorizes all transactions from this wallet. Use this link to generate them: https://www.val.town/x/Crossmint/crypto-address-generator',
+				description: 'Private key that authorizes all transactions from this wallet. Use this link to generate them: https://www.val.town/x/Crossmint/crypto-address-generator.',
 				required: true,
 			},
 
@@ -489,7 +489,6 @@ export class CrossmintNode implements INodeType {
 					{ name: 'Phone Number', value: 'phoneNumber', description: 'Use phone number with chain type' },
 					{ name: 'Twitter Handle', value: 'twitter', description: 'Use Twitter handle with chain type' },
 					{ name: 'X Handle', value: 'x', description: 'Use X handle with chain type' },
-					{ name: 'Me', value: 'me', description: 'Use "me" with chain type (client API key)' },
 				],
 				default: 'address',
 				description: 'Type of wallet locator to use',
@@ -557,7 +556,7 @@ export class CrossmintNode implements INodeType {
 				displayName: 'Chain Type',
 				name: 'balanceWalletChainType',
 				type: 'options',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['email', 'userId', 'phoneNumber', 'twitter', 'x', 'me'] } },
+				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['email', 'userId', 'phoneNumber', 'twitter', 'x'] } },
 				options: [
 					{ name: 'EVM', value: 'evm', description: 'Ethereum Virtual Machine' },
 					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
@@ -1068,7 +1067,7 @@ export class CrossmintNode implements INodeType {
 						signerChainType = 'solana';
 						privateKeyStr = externalSignerDetails;
 					} else {
-						throw new Error('Invalid key length');
+						throw new NodeOperationError(context.getNode(), 'Invalid key length');
 					}
 				} catch (error) {
 					throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
@@ -1426,12 +1425,6 @@ export class CrossmintNode implements INodeType {
 				}
 
 				walletLocator = `x:${xHandle}:${chainType}:smart`;
-				break;
-			}
-			case 'me': {
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-
-				walletLocator = `me:${chainType}:smart`;
 				break;
 			}
 			default:
