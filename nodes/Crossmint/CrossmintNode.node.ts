@@ -43,6 +43,7 @@ export class CrossmintNode implements INodeType {
 				options: [
 					{ name: 'Wallet', value: 'wallet' },
 					{ name: 'Checkout', value: 'checkout' },
+					{ name: 'NFT', value: 'nft' },
 				],
 				default: 'wallet',
 				description: 'Select the Crossmint resource',
@@ -946,6 +947,273 @@ export class CrossmintNode implements INodeType {
 				description: 'Agent wallet address for crypto payments - must be a Crossmint managed wallet with USDC funds',
 				required: true,
 			},
+
+			// =========================
+			// NFT ACTIONS
+			// =========================
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['nft'] } },
+				options: [
+					{
+						name: 'Mint NFT',
+						value: 'mintNFT',
+						description: 'Mint a new NFT to a wallet',
+						action: 'Mint NFT',
+					},
+					{
+						name: 'Transfer NFT',
+						value: 'transferNFT',
+						description: 'Transfer an NFT to another wallet',
+						action: 'Transfer NFT',
+					},
+					{
+						name: 'Get NFT',
+						value: 'getNFT',
+						description: 'Get NFT details by token ID',
+						action: 'Get NFT',
+					},
+				],
+				default: 'mintNFT',
+			},
+
+			// ---- Mint NFT fields
+			{
+				displayName: 'Collection ID',
+				name: 'collectionId',
+				type: 'string',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+				default: '',
+				placeholder: 'default-polygon or 9c82ef99-617f-497d-9abb-fd355291681b',
+				description: 'Collection identifier (default collections: default-solana, default-polygon)',
+				required: true,
+			},
+			{
+				displayName: 'Recipient',
+				name: 'nftRecipient',
+				type: 'resourceLocator',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+				default: { mode: 'address', value: '' },
+				description: 'Select the NFT recipient',
+				modes: [
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						placeholder: 'user@example.com',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[^@]+@[^@]+\\.[^@]+$',
+									errorMessage: 'Please enter a valid email address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'User ID',
+						name: 'userId',
+						type: 'string',
+						placeholder: 'user-123',
+					},
+					{
+						displayName: 'Twitter',
+						name: 'twitter',
+						type: 'string',
+						placeholder: 'username',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[a-zA-Z0-9_]{1,15}$',
+									errorMessage: 'Please enter a valid Twitter handle (1-15 alphanumeric characters or underscores)',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'X',
+						name: 'x',
+						type: 'string',
+						placeholder: 'username',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[a-zA-Z0-9_]{1,15}$',
+									errorMessage: 'Please enter a valid X handle (1-15 alphanumeric characters or underscores)',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Address',
+						name: 'address',
+						type: 'string',
+						placeholder: '0x1234567890123456789012345678901234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
+									errorMessage: 'Please enter a valid wallet address',
+								},
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Chain',
+				name: 'nftChain',
+				type: 'options',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+				options: [
+					{ name: 'Polygon', value: 'polygon' },
+					{ name: 'Ethereum', value: 'ethereum' },
+					{ name: 'Base', value: 'base' },
+					{ name: 'Arbitrum', value: 'arbitrum' },
+					{ name: 'Optimism', value: 'optimism' },
+					{ name: 'Solana', value: 'solana' },
+					{ name: 'Avalanche', value: 'avalanche' },
+					{ name: 'BSC', value: 'bsc' },
+				],
+				default: 'polygon',
+				description: 'Blockchain network for the NFT (only used for email, userId, twitter, x recipient types)',
+			},
+			{
+				displayName: 'Metadata Type',
+				name: 'metadataType',
+				type: 'options',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+				options: [
+					{ name: 'Metadata Object', value: 'object', description: 'Define metadata inline' },
+					{ name: 'Metadata URL', value: 'url', description: 'Reference external JSON metadata' },
+					{ name: 'Template ID', value: 'template', description: 'Use existing template' },
+				],
+				default: 'object',
+				description: 'How to provide the NFT metadata',
+				required: true,
+			},
+			{
+				displayName: 'NFT Name',
+				name: 'nftName',
+				type: 'string',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
+				default: '',
+				placeholder: 'My Awesome NFT',
+				description: 'The name of your NFT (Max length: 32)',
+				required: true,
+			},
+			{
+				displayName: 'NFT Image URL',
+				name: 'nftImage',
+				type: 'string',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
+				default: '',
+				placeholder: 'https://example.com/image.png',
+				description: 'Direct link to your NFT image',
+				required: true,
+			},
+			{
+				displayName: 'NFT Description',
+				name: 'nftDescription',
+				type: 'string',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
+				default: '',
+				placeholder: 'A brief description of the NFT',
+				description: 'A brief description of the NFT (Max length: 64)',
+				required: true,
+			},
+			{
+				displayName: 'Animation URL',
+				name: 'nftAnimationUrl',
+				type: 'string',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
+				default: '',
+				placeholder: 'https://example.com/animation.mp4',
+				description: 'Animation URL for the NFT (EVM only)',
+			},
+			{
+				displayName: 'Symbol (Solana)',
+				name: 'nftSymbol',
+				type: 'string',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
+				default: '',
+				placeholder: 'MTK',
+				description: 'A shorthand identifier for the token (Max length: 10, Solana only)',
+			},
+			{
+				displayName: 'Attributes',
+				name: 'nftAttributes',
+				type: 'string',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
+				default: '',
+				placeholder: '[{"trait_type": "Color", "value": "Blue"}, {"trait_type": "Rarity", "value": "Rare"}]',
+				description: 'JSON array of attributes (optional)',
+			},
+			{
+				displayName: 'Metadata URL',
+				name: 'metadataUrl',
+				type: 'string',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['url'] } },
+				default: '',
+				placeholder: 'https://example.com/metadata.json',
+				description: 'URL to a JSON file containing the metadata',
+				required: true,
+			},
+			{
+				displayName: 'Template ID',
+				name: 'templateId',
+				type: 'string',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['template'] } },
+				default: '',
+				placeholder: 'template-12345',
+				description: 'ID of the template to use for minting',
+				required: true,
+			},
+			{
+				displayName: 'Send Notification',
+				name: 'sendNotification',
+				type: 'boolean',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+				default: true,
+				description: 'Notify recipient via email about successful mint',
+			},
+			{
+				displayName: 'Locale',
+				name: 'nftLocale',
+				type: 'options',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+				options: [
+					{ name: 'English (US)', value: 'en-US' },
+					{ name: 'Spanish', value: 'es' },
+					{ name: 'French', value: 'fr' },
+					{ name: 'German', value: 'de' },
+				],
+				default: 'en-US',
+				description: 'Locale for email content',
+			},
+			{
+				displayName: 'Reupload Linked Files',
+				name: 'reuploadLinkedFiles',
+				type: 'boolean',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+				default: true,
+				description: 'URLs in metadata will be resolved and reuploaded to IPFS',
+			},
+			{
+				displayName: 'Compressed (Solana)',
+				name: 'compressed',
+				type: 'boolean',
+				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+				default: true,
+				description: 'Use NFT compression for cheaper mint costs (Solana only)',
+			},
 		],
 	};
 
@@ -989,6 +1257,9 @@ export class CrossmintNode implements INodeType {
 						break;
 					case 'signAndSubmitTransaction':
 						responseData = await CrossmintNode.signTransactionMethod(this, baseUrl, credentials, i);
+						break;
+					case 'mintNFT':
+						responseData = await CrossmintNode.mintNFTMethod(this, baseUrl, credentials, i);
 						break;
 					default:
 						throw new NodeOperationError(this.getNode(), `Unsupported operation: ${operation}`);
@@ -1846,6 +2117,154 @@ export class CrossmintNode implements INodeType {
 		}
 	}
 
+	// NFT METHODS
+
+	private static async mintNFTMethod(
+		context: IExecuteFunctions,
+		baseUrl: string,
+		credentials: any,
+		itemIndex: number,
+	): Promise<any> {
+		const collectionId = context.getNodeParameter('collectionId', itemIndex) as string;
+		const recipientData = context.getNodeParameter('nftRecipient', itemIndex) as any;
+		const metadataType = context.getNodeParameter('metadataType', itemIndex) as string;
+		
+		// Validate required fields
+		if (!collectionId || collectionId.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Collection ID is required', {
+				description: 'Please specify the collection identifier',
+				itemIndex,
+			});
+		}
+
+		// Build recipient string based on resourceLocator mode
+		let recipient: string;
+		if (recipientData.mode === 'address') {
+			// Direct address format: <chain>:<address>
+			// We need to extract chain from the address format or use a default
+			const address = recipientData.value;
+			if (!address || address.trim() === '') {
+				throw new NodeOperationError(context.getNode(), 'Wallet address is required', {
+					itemIndex,
+				});
+			}
+			
+			// For address mode, we need to determine the chain from the address format
+			if (address.startsWith('0x')) {
+				// EVM address - default to polygon for simplicity
+				recipient = `polygon:${address}`;
+			} else {
+				// Solana address
+				recipient = `solana:${address}`;
+			}
+		} else {
+			// Other modes: email, userId, twitter, x
+			const value = recipientData.value;
+			const chain = context.getNodeParameter('nftChain', itemIndex) as string;
+			
+			if (!value || value.trim() === '') {
+				throw new NodeOperationError(context.getNode(), 'Recipient value is required', {
+					itemIndex,
+				});
+			}
+			
+			recipient = `${recipientData.mode}:${value}:${chain}`;
+		}
+
+		// Build request body based on metadata type
+		const requestBody: any = {
+			recipient: recipient,
+			sendNotification: context.getNodeParameter('sendNotification', itemIndex) as boolean,
+			locale: context.getNodeParameter('nftLocale', itemIndex) as string,
+			reuploadLinkedFiles: context.getNodeParameter('reuploadLinkedFiles', itemIndex) as boolean,
+			compressed: context.getNodeParameter('compressed', itemIndex) as boolean,
+		};
+
+		if (metadataType === 'template') {
+			// Template ID mode
+			const templateId = context.getNodeParameter('templateId', itemIndex) as string;
+			if (!templateId || templateId.trim() === '') {
+				throw new NodeOperationError(context.getNode(), 'Template ID is required when using template mode', {
+					itemIndex,
+				});
+			}
+			requestBody.templateId = templateId;
+		} else if (metadataType === 'url') {
+			// Metadata URL mode
+			const metadataUrl = context.getNodeParameter('metadataUrl', itemIndex) as string;
+			if (!metadataUrl || metadataUrl.trim() === '') {
+				throw new NodeOperationError(context.getNode(), 'Metadata URL is required when using URL mode', {
+					itemIndex,
+				});
+			}
+			requestBody.metadata = metadataUrl;
+		} else {
+			// Metadata object mode
+			const name = context.getNodeParameter('nftName', itemIndex) as string;
+			const image = context.getNodeParameter('nftImage', itemIndex) as string;
+			const description = context.getNodeParameter('nftDescription', itemIndex) as string;
+			
+			if (!name || !image || !description) {
+				throw new NodeOperationError(context.getNode(), 'Name, Image, and Description are required for metadata object mode', {
+					itemIndex,
+				});
+			}
+
+			const metadata: any = {
+				name: name,
+				image: image,
+				description: description,
+			};
+
+			// Optional fields
+			const animationUrl = context.getNodeParameter('nftAnimationUrl', itemIndex) as string;
+			const symbol = context.getNodeParameter('nftSymbol', itemIndex) as string;
+			const attributesJson = context.getNodeParameter('nftAttributes', itemIndex) as string;
+
+			if (animationUrl) {
+				metadata.animation_url = animationUrl;
+			}
+
+			if (symbol) {
+				metadata.symbol = symbol;
+			}
+
+			// Parse attributes if provided
+			if (attributesJson && attributesJson.trim() !== '') {
+				try {
+					const attributes = JSON.parse(attributesJson);
+					if (Array.isArray(attributes)) {
+						metadata.attributes = attributes;
+					}
+				} catch (error) {
+					throw new NodeOperationError(context.getNode(), 'Invalid JSON format for attributes', {
+						description: 'Please provide a valid JSON array for attributes',
+						itemIndex,
+					});
+				}
+			}
+
+			requestBody.metadata = metadata;
+		}
+
+		const requestOptions: IHttpRequestOptions = {
+			method: 'POST',
+			url: `${baseUrl}/2022-06-09/collections/${encodeURIComponent(collectionId)}/nfts`,
+			headers: {
+				'X-API-KEY': (credentials as any).apiKey,
+				'Content-Type': 'application/json',
+			},
+			body: requestBody,
+			json: true,
+		};
+
+		try {
+			return await context.helpers.httpRequest(requestOptions);
+		} catch (error: any) {
+			throw new NodeApiError(context.getNode(), error);
+		}
+	}
+
 	// CHECKOUT
 
 	private static async findProductMethod(
@@ -2139,6 +2558,5 @@ export class CrossmintNode implements INodeType {
 			signingDetails
 		};
 	}
-
 
 }
