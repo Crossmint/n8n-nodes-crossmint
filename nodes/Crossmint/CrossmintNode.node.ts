@@ -661,6 +661,14 @@ export class CrossmintNode implements INodeType {
 				description: 'Private key to sign with (32-byte hex for EVM, base58 for Solana)',
 				required: true,
 			},
+			{
+				displayName: 'Wait Until Transaction Is Completed',
+				name: 'waitForCompletion',
+				type: 'boolean',
+				displayOptions: { show: { resource: ['wallet'], operation: ['signAndSubmitTransaction'] } },
+				default: false,
+				description: 'Wait until the transaction reaches final status (success or failed) before completing the node execution',
+			},
 
 			// =========================
 			// CHECKOUT ACTIONS
@@ -980,7 +988,7 @@ export class CrossmintNode implements INodeType {
 						responseData = await CrossmintNode.purchaseProductMethod(this, baseUrl, credentials, i);
 						break;
 					case 'signAndSubmitTransaction':
-						responseData = await CrossmintNode.signAndSubmitTransactionMethod(this, baseUrl, credentials, i);
+						responseData = await CrossmintNode.signTransactionMethod(this, baseUrl, credentials, i);
 						break;
 					default:
 						throw new NodeOperationError(this.getNode(), `Unsupported operation: ${operation}`);
@@ -1615,7 +1623,7 @@ export class CrossmintNode implements INodeType {
 		}
 	}
 
-	private static async signAndSubmitTransactionMethod(
+	private static async signTransactionMethod(
 		context: IExecuteFunctions,
 		baseUrl: string,
 		credentials: ICredentials,
@@ -1628,6 +1636,7 @@ export class CrossmintNode implements INodeType {
 		const walletAddress = context.getNodeParameter('signSubmitWalletAddress', itemIndex) as string;
 		const transactionId = context.getNodeParameter('signSubmitTransactionId', itemIndex) as string;
 		const signerAddress = context.getNodeParameter('signSubmitSignerAddress', itemIndex) as string;
+		const waitForCompletion = context.getNodeParameter('waitForCompletion', itemIndex) as boolean;
 
 		// Step 1: Sign the transaction using the same logic as signTransactionMethod
 		let signature: string = '';
@@ -1751,16 +1760,91 @@ export class CrossmintNode implements INodeType {
 				},
 			};
 
-			return {
+			let finalResponse = {
 				'simplified-output': simplifiedOutput,
 				raw: rawResponse
-					
 			};
+
+			// If waitForCompletion is true, poll for transaction completion
+			if (waitForCompletion) {
+				let currentStatus = rawResponse.status;
+				let attempts = 0;
+				const maxAttempts = 60; // Maximum 5 minutes (5 second intervals)
+				
+				while (currentStatus === 'pending' && attempts < maxAttempts) {
+					await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+					attempts++;
+					
+					try {
+						const statusResponse = await CrossmintNode.getTransactionStatus(
+							context,
+							baseUrl,
+							credentials,
+							walletAddress,
+							transactionId
+						);
+						
+						currentStatus = statusResponse.status;
+						
+						// Update the response with latest status
+						const updatedSimplifiedOutput = {
+							...simplifiedOutput,
+							status: currentStatus,
+						};
+						
+						// Add optional fields if they exist
+						if (statusResponse.completedAt) {
+							(updatedSimplifiedOutput as any).completedAt = statusResponse.completedAt;
+						}
+						if (statusResponse.error) {
+							(updatedSimplifiedOutput as any).error = statusResponse.error;
+						}
+						
+						finalResponse = {
+							'simplified-output': updatedSimplifiedOutput,
+							raw: statusResponse
+						};
+						
+					} catch (error) {
+						// If status check fails, continue with original response
+						break;
+					}
+					
+					// Break if transaction is completed (success or failed)
+					if (currentStatus === 'success' || currentStatus === 'failed') {
+						break;
+					}
+				}
+			}
+
+			return finalResponse;
 		} catch (error: any) {
 			throw new NodeApiError(context.getNode(), error);
 		}
 	}
 
+	private static async getTransactionStatus(
+		context: IExecuteFunctions,
+		baseUrl: string,
+		credentials: any,
+		walletAddress: string,
+		transactionId: string,
+	): Promise<any> {
+		const requestOptions: IHttpRequestOptions = {
+			method: 'GET',
+			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}`,
+			headers: {
+				'X-API-KEY': (credentials as any).apiKey,
+			},
+			json: true,
+		};
+
+		try {
+			return await context.helpers.httpRequest(requestOptions);
+		} catch (error: any) {
+			throw new NodeApiError(context.getNode(), error);
+		}
+	}
 
 	// CHECKOUT
 
