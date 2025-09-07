@@ -89,6 +89,12 @@ export class CrossmintNode implements INodeType {
 						description: 'Sign transaction with private key and submit signature in one step',
 						action: 'Sign transaction',
 					},
+					{
+						name: 'Get NFTs from Wallet',
+						value: 'getNFTsFromWallet',
+						description: 'Fetch the NFTs in a provided wallet',
+						action: 'Get NFTs from wallet',
+					},
 				],
 				default: 'transferToken',
 			},
@@ -473,8 +479,8 @@ export class CrossmintNode implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'] } },
 				default: '',
 				placeholder: '10.50',
-				description: 'Amount of tokens to send (decimal format)',
-				required: true,
+				description: 'Amount of tokens to send (decimal format). Optional for NFTs (defaults to 1)',
+				required: false,
 			},
 
 			// ---- Get balance fields
@@ -669,6 +675,90 @@ export class CrossmintNode implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['signAndSubmitTransaction'] } },
 				default: false,
 				description: 'Wait until the transaction reaches final status (success or failed) before completing the node execution',
+			},
+
+			// ---- Get NFTs from Wallet fields
+			{
+				displayName: 'Wallet Identifier',
+				name: 'walletIdentifier',
+				type: 'resourceLocator',
+				displayOptions: { show: { resource: ['wallet'], operation: ['getNFTsFromWallet'] } },
+				default: { mode: 'email', value: '' },
+				description: 'Select the wallet to get NFTs from',
+				modes: [
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						placeholder: 'user@example.com',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[^@]+@[^@]+\\.[^@]+$',
+									errorMessage: 'Please enter a valid email address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'User ID',
+						name: 'userId',
+						type: 'string',
+						placeholder: 'user-123',
+					},
+					{
+						displayName: 'Address',
+						name: 'address',
+						type: 'string',
+						placeholder: '0x1234567890123456789012345678901234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
+									errorMessage: 'Please enter a valid wallet address',
+								},
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Chain',
+				name: 'nftsWalletChain',
+				type: 'options',
+				displayOptions: { show: { resource: ['wallet'], operation: ['getNFTsFromWallet'] } },
+				options: [
+					{ name: 'Polygon', value: 'polygon' },
+					{ name: 'Ethereum', value: 'ethereum' },
+					{ name: 'Base', value: 'base' },
+					{ name: 'Arbitrum', value: 'arbitrum' },
+					{ name: 'Optimism', value: 'optimism' },
+					{ name: 'Solana', value: 'solana' },
+					{ name: 'Avalanche', value: 'avalanche' },
+					{ name: 'BSC', value: 'bsc' },
+				],
+				default: 'polygon',
+				description: 'Blockchain network (only used for email and userId wallet types)',
+			},
+			{
+				displayName: 'Contract Addresses (Optional)',
+				name: 'contractAddresses',
+				type: 'string',
+				displayOptions: { show: { resource: ['wallet'], operation: ['getNFTsFromWallet'] } },
+				default: '',
+				placeholder: '0x1234...,0x5678... (comma-separated)',
+				description: 'Filter NFTs by contract addresses (comma-separated list, optional)',
+			},
+			{
+				displayName: 'Token ID (Optional)',
+				name: 'nftsTokenId',
+				type: 'string',
+				displayOptions: { show: { resource: ['wallet'], operation: ['getNFTsFromWallet'] } },
+				default: '',
+				placeholder: '123',
+				description: 'Filter NFTs by specific token ID (optional)',
 			},
 
 			// =========================
@@ -1249,6 +1339,9 @@ export class CrossmintNode implements INodeType {
 					case 'getBalance':
 						responseData = await CrossmintNode.getBalanceMethod(this, baseUrl, credentials, i);
 						break;
+					case 'getNFTsFromWallet':
+						responseData = await CrossmintNode.getNFTsFromWalletMethod(this, baseUrl, credentials, i);
+						break;
 					case 'findProduct':
 						responseData = await CrossmintNode.findProductMethod(this, baseUrl, credentials, i);
 						break;
@@ -1744,14 +1837,8 @@ export class CrossmintNode implements INodeType {
 		const tokenChain = context.getNodeParameter('tokenChain', itemIndex) as string;
 		const tokenName = context.getNodeParameter('tokenName', itemIndex) as string;
 
-		// Input validation
-		const amountStr = String(amount).trim();
-		if (!amount || amountStr === '') {
-			throw new NodeOperationError(context.getNode(), 'Amount is required', {
-				description: 'Please specify the amount of tokens to transfer',
-				itemIndex,
-			});
-		}
+		// Input validation - amount is optional for NFTs
+		const amountStr = String(amount || '').trim();
 
 		if (!tokenChain || tokenChain.trim() === '') {
 			throw new NodeOperationError(context.getNode(), 'Token chain is required', {
@@ -1770,13 +1857,15 @@ export class CrossmintNode implements INodeType {
 		// Build token locator from chain and name
 		const tokenLocator = `${tokenChain}:${tokenName}`;
 
-		// Validate amount is a valid number
-		const numericAmount = parseFloat(amountStr);
-		if (isNaN(numericAmount) || numericAmount <= 0) {
-			throw new NodeOperationError(context.getNode(), 'Invalid amount', {
-				description: `The amount '${amountStr}' is not a valid positive number`,
-				itemIndex,
-			});
+		// Validate amount is a valid number (only if provided)
+		if (amountStr && amountStr !== '') {
+			const numericAmount = parseFloat(amountStr);
+			if (isNaN(numericAmount) || numericAmount <= 0) {
+				throw new NodeOperationError(context.getNode(), 'Invalid amount', {
+					description: `The amount '${amountStr}' is not a valid positive number`,
+					itemIndex,
+				});
+			}
 		}
 
 		// Get blockchain type for both wallets (must be the same)
@@ -1849,6 +1938,15 @@ export class CrossmintNode implements INodeType {
 		}
 
 		// Use the new transfer API format
+		const requestBody: any = {
+			recipient: recipient,
+		};
+		
+		// Only include amount if provided (optional for NFTs)
+		if (amountStr && amountStr !== '') {
+			requestBody.amount = amountStr;
+		}
+
 		const requestOptions: IHttpRequestOptions = {
 			method: 'POST',
 			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(fromWalletLocator)}/tokens/${encodeURIComponent(tokenLocator)}/transfers`,
@@ -1856,14 +1954,19 @@ export class CrossmintNode implements INodeType {
 				'X-API-KEY': (credentials as any).apiKey,
 				'Content-Type': 'application/json',
 			},
-			body: {
-				recipient: recipient,
-				amount: amountStr,
-			},
+			body: requestBody,
 			json: true,
 		};
 
 		try {
+			// Log the API request details
+			console.log('=== TRANSFER TOKEN API REQUEST ===');
+			console.log('URL:', requestOptions.url);
+			console.log('Method:', requestOptions.method);
+			console.log('Headers:', JSON.stringify(requestOptions.headers, null, 2));
+			console.log('Body:', JSON.stringify(requestOptions.body, null, 2));
+			console.log('=====================================');
+
 			const rawResponse = await context.helpers.httpRequest(requestOptions);
 			
 			// Build simplified-output with specific fields
@@ -2112,6 +2215,124 @@ export class CrossmintNode implements INodeType {
 
 		try {
 			return await context.helpers.httpRequest(requestOptions);
+		} catch (error: any) {
+			throw new NodeApiError(context.getNode(), error);
+		}
+	}
+
+	private static async getNFTsFromWalletMethod(
+		context: IExecuteFunctions,
+		baseUrl: string,
+		credentials: any,
+		itemIndex: number,
+	): Promise<any> {
+		const walletIdentifierData = context.getNodeParameter('walletIdentifier', itemIndex) as any;
+		const contractAddressesStr = context.getNodeParameter('contractAddresses', itemIndex) as string;
+		const tokenId = context.getNodeParameter('nftsTokenId', itemIndex) as string;
+
+		// Build wallet identifier string based on resourceLocator mode
+		let walletIdentifier: string;
+		if (walletIdentifierData.mode === 'address') {
+			// Direct address format: <chain>:<address>
+			const address = walletIdentifierData.value;
+			if (!address || address.trim() === '') {
+				throw new NodeOperationError(context.getNode(), 'Wallet address is required', {
+					itemIndex,
+				});
+			}
+			
+			// For address mode, determine chain from address format
+			if (address.startsWith('0x')) {
+				// EVM address - default to polygon for simplicity
+				walletIdentifier = `polygon:${address}`;
+			} else {
+				// Solana address
+				walletIdentifier = `solana:${address}`;
+			}
+		} else {
+			// Other modes: email, userId
+			const value = walletIdentifierData.value;
+			const chain = context.getNodeParameter('nftsWalletChain', itemIndex) as string;
+			
+			if (!value || value.trim() === '') {
+				throw new NodeOperationError(context.getNode(), 'Wallet identifier value is required', {
+					itemIndex,
+				});
+			}
+			
+			walletIdentifier = `${walletIdentifierData.mode}:${value}:${chain}`;
+		}
+
+		// Build base query parameters for filters
+		const baseQueryParams: any = {};
+
+		// Add optional filters
+		if (contractAddressesStr && contractAddressesStr.trim() !== '') {
+			// Split comma-separated addresses and clean them
+			const addresses = contractAddressesStr.split(',').map(addr => addr.trim()).filter(addr => addr !== '');
+			if (addresses.length > 0) {
+				baseQueryParams.contractAddress = addresses;
+			}
+		}
+
+		if (tokenId && tokenId.trim() !== '') {
+			baseQueryParams.tokenId = tokenId.trim();
+		}
+
+		// Paginate through all results
+		const allNFTs: any[] = [];
+		let currentPage = 1;
+		const perPage = 50; // Maximum allowed per page
+		
+		try {
+			while (true) {
+				// Build query parameters for current page
+				const queryParams = {
+					...baseQueryParams,
+					page: currentPage.toString(),
+					perPage: perPage.toString(),
+				};
+
+				// Build query string
+				const queryString = new URLSearchParams();
+				Object.keys(queryParams).forEach(key => {
+					const value = queryParams[key];
+					if (Array.isArray(value)) {
+						// For arrays, add multiple parameters with the same key
+						value.forEach(item => queryString.append(key, item));
+					} else {
+						queryString.append(key, value);
+					}
+				});
+
+				const requestOptions: IHttpRequestOptions = {
+					method: 'GET',
+					url: `${baseUrl}/2022-06-09/wallets/${encodeURIComponent(walletIdentifier)}/nfts?${queryString.toString()}`,
+					headers: {
+						'X-API-KEY': (credentials as any).apiKey,
+					},
+					json: true,
+				};
+
+				const pageResponse = await context.helpers.httpRequest(requestOptions);
+				
+				// Add NFTs from current page to results
+				if (Array.isArray(pageResponse) && pageResponse.length > 0) {
+					allNFTs.push(...pageResponse);
+					
+					// If we got fewer NFTs than requested, we've reached the end
+					if (pageResponse.length < perPage) {
+						break;
+					}
+					
+					currentPage++;
+				} else {
+					// No more NFTs
+					break;
+				}
+			}
+
+			return allNFTs;
 		} catch (error: any) {
 			throw new NodeApiError(context.getNode(), error);
 		}
