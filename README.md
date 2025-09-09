@@ -58,6 +58,11 @@ For now you have to run the Crossmint node from source:
 
 Note: to run Crossmint nodes, you must be using the self hosted version of n8n. Follow [this guide](https://docs.n8n.io/hosting/installation/npm/#install-globally-with-npm) to set it up.
 
+You can also launch with:
+```bash
+./deploy.sh
+```
+
 
 ## ⚙️ Your First Workflow Using Crossmint
 
