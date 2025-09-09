@@ -34,7 +34,7 @@ For now you have to run the Crossmint node from source:
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/YourUsername/n8n-nodes-crossmint.git](https://github.com/YourUsername/n8n-nodes-crossmint.git)
+    git clone https://github.com/Crossmint/n8n-nodes-crossmint.git
     cd n8n-nodes-crossmint
     ```
 2.  **Install dependencies and build:**
@@ -45,12 +45,16 @@ For now you have to run the Crossmint node from source:
 3.  **Link your node for testing:**
     ```bash
     npm link
+    mkdir ~/.n8n/custom # Only first time
     cd ~/.n8n/custom
     npm link n8n-nodes-crossmint
     ```
     See more detailed instructions and troubleshooting [here](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/).
 
-5.  Start n8n in a separate terminal (`n8n start`) and your node will appear.
+5.  Start n8n in a separate terminal and your node will appear.
+    ```bash
+    n8n start
+    ```
 
 Note: to run Crossmint nodes, you must be using the self hosted version of n8n. Follow [this guide](https://docs.n8n.io/hosting/installation/npm/#install-globally-with-npm) to set it up.
 
