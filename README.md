@@ -202,7 +202,7 @@ If you wish to run the Crossmint node from source:
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/YourUsername/n8n-nodes-crossmint.git](https://github.com/YourUsername/n8n-nodes-crossmint.git)
+    git clone https://github.com/Crossmint/n8n-nodes-crossmint.git
     cd n8n-nodes-crossmint
     ```
 2.  **Install dependencies and build:**
@@ -213,6 +213,7 @@ If you wish to run the Crossmint node from source:
 3.  **Link your node for testing:**
     ```bash
     npm link
+    mkdir ~/.n8n/custom
     cd ~/.n8n/custom
     npm link n8n-nodes-crossmint
     ```
