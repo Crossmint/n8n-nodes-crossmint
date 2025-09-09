@@ -2,7 +2,7 @@
 
 ## Table of Contents
 
-- [Installation](#-installation)
+- [Installation](#-installation-local-development-setup)
 - [Your First Workflow Using Crossmint](#️-your-first-workflow-using-crossmint)
   - [Step 1: Add the Crossmint Node to Your Workflow](#step-1-add-the-crossmint-node-to-your-workflow)
   - [Step 2: Set Up Crossmint Project & Credentials](#step-2-set-up-crossmint-project--credentials)
@@ -19,23 +19,41 @@
   - [Chain Types](#chain-types)
   - [Best Practices](#best-practices)
 - [Example Workflows](#-example-workflows)
-- [Local Development Setup](#️-local-development-setup)
 - [License](#-license)
 
 This community node for n8n provides a complete integration with Crossmint's **Wallet** and **Checkout** APIs. It allows users and AI agents to program digital money inside wallets, and automate the purchase of physical products all within your n8n workflows.
 
-## 🚀 Installation
+## 🚀 Installation (Local Development Setup)
+
+First install n8n:
+```bash
+npm install n8n -g
+```
+
+For now you have to run the Crossmint node from source:
+
+1.  **Clone the repository:**
+    ```bash
+    git clone [https://github.com/YourUsername/n8n-nodes-crossmint.git](https://github.com/YourUsername/n8n-nodes-crossmint.git)
+    cd n8n-nodes-crossmint
+    ```
+2.  **Install dependencies and build:**
+    ```bash
+    npm install
+    npm run build
+    ```
+3.  **Link your node for testing:**
+    ```bash
+    npm link
+    cd ~/.n8n/custom
+    npm link n8n-nodes-crossmint
+    ```
+    See more detailed instructions and troubleshooting [here](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/).
+
+5.  Start n8n in a separate terminal (`n8n start`) and your node will appear.
 
 Note: to run Crossmint nodes, you must be using the self hosted version of n8n. Follow [this guide](https://docs.n8n.io/hosting/installation/npm/#install-globally-with-npm) to set it up.
 
-Then, install the latest Crossmint node from npm:
-1.  Open your local n8n
-2.  From the menu, go to **Settings > Community Nodes**.
-3.  Click on **Install a community node**.
-4.  Enter the npm package name: `n8n-nodes-crossmint`.
-5.  Click **Install**.
-
-Once installed, the "Crossmint" node will appear in your workflow editor.
 
 ## ⚙️ Your First Workflow Using Crossmint
 
@@ -196,30 +214,6 @@ To use these examples:
 3. Update any personal information (email addresses, wallet addresses, etc.)
 4. Execute the workflow
 
-## 🛠️ Local Development Setup
-
-If you wish to run the Crossmint node from source:
-
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/Crossmint/n8n-nodes-crossmint.git
-    cd n8n-nodes-crossmint
-    ```
-2.  **Install dependencies and build:**
-    ```bash
-    npm install
-    npm run build
-    ```
-3.  **Link your node for testing:**
-    ```bash
-    npm link
-    mkdir ~/.n8n/custom
-    cd ~/.n8n/custom
-    npm link n8n-nodes-crossmint
-    ```
-    See more detailed instructions and troubleshooting [here](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/).
-
-5.  Start n8n in a separate terminal (`n8n start`) and your node will appear.
 
 ## 📄 License
 
