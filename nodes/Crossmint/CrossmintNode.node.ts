@@ -478,92 +478,96 @@ export class CrossmintNode implements INodeType {
 
 			// ---- Get balance fields
 			{
-				displayName: 'Locator Type',
-				name: 'balanceLocatorType',
-				type: 'options',
+				displayName: 'Wallet',
+				name: 'walletLocator',
+				type: 'resourceLocator',
+				default: { mode: 'address', value: '' },
+				description: 'Select the wallet to get balance for',
 				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
-				options: [
-					{ name: 'Wallet Address', value: 'address', description: 'Use wallet address directly' },
-					{ name: 'Email', value: 'email', description: 'Use email address with chain type' },
-					{ name: 'User ID', value: 'userId', description: 'Use user ID with chain type' },
-					{ name: 'Phone Number', value: 'phoneNumber', description: 'Use phone number with chain type' },
-					{ name: 'Twitter Handle', value: 'twitter', description: 'Use Twitter handle with chain type' },
-					{ name: 'X Handle', value: 'x', description: 'Use X handle with chain type' },
+				modes: [
+					{
+						displayName: 'Address',
+						name: 'address',
+						type: 'string',
+						hint: 'Enter wallet address',
+						placeholder: '0x1234567890123456789012345678901234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
+									errorMessage: 'Please enter a valid wallet address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						hint: 'Enter email address',
+						placeholder: 'user@example.com',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[^@]+@[^@]+\\.[^@]+$',
+									errorMessage: 'Please enter a valid email address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'User ID',
+						name: 'userId',
+						type: 'string',
+						hint: 'Enter user ID',
+						placeholder: 'user-123',
+					},
+					{
+						displayName: 'Phone',
+						name: 'phoneNumber',
+						type: 'string',
+						hint: 'Enter phone number with country code',
+						placeholder: '+1234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^\\+[1-9]\\d{1,14}$',
+									errorMessage: 'Please enter a valid phone number with country code',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Twitter',
+						name: 'twitter',
+						type: 'string',
+						hint: 'Enter Twitter handle (without @)',
+						placeholder: 'username',
+					},
+					{
+						displayName: 'X',
+						name: 'x',
+						type: 'string',
+						hint: 'Enter X handle (without @)',
+						placeholder: 'username',
+					},
 				],
-				default: 'address',
-				description: 'Type of wallet locator to use',
-			},
-			{
-				displayName: 'Wallet Address',
-				name: 'balanceWalletAddress',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['address'] } },
-				default: '',
-				placeholder: '0x1234567890123456789012345678901234567890',
-				required: true,
-			},
-			{
-				displayName: 'Email',
-				name: 'balanceWalletEmail',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['email'] } },
-				default: '',
-				placeholder: 'user@example.com',
-				description: 'Email address of the wallet owner',
-				required: true,
-			},
-			{
-				displayName: 'User ID',
-				name: 'balanceWalletUserId',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['userId'] } },
-				default: '',
-				placeholder: 'user-123',
-				description: 'User ID of the wallet owner',
-				required: true,
-			},
-			{
-				displayName: 'Phone Number',
-				name: 'balanceWalletPhoneNumber',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['phoneNumber'] } },
-				default: '',
-				placeholder: '+1234567890',
-				description: 'Phone number of the wallet owner (with country code)',
-				required: true,
-			},
-			{
-				displayName: 'Twitter Handle',
-				name: 'balanceWalletTwitterHandle',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['twitter'] } },
-				default: '',
-				placeholder: 'username',
-				description: 'Twitter handle of the wallet owner (without @)',
-				required: true,
-			},
-			{
-				displayName: 'X Handle',
-				name: 'balanceWalletXHandle',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['x'] } },
-				default: '',
-				placeholder: 'username',
-				description: 'X handle of the wallet owner (without @)',
-				required: true,
 			},
 			{
 				displayName: 'Chain Type',
 				name: 'balanceWalletChainType',
 				type: 'options',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['email', 'userId', 'phoneNumber', 'twitter', 'x'] } },
+				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
 				options: [
 					{ name: 'EVM', value: 'evm', description: 'Ethereum Virtual Machine' },
 					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
 				],
 				default: 'evm',
-				description: 'Blockchain type for the wallet locator',
-				required: true,
+				description: 'Blockchain type for the wallet locator (only needed for email, userId, phoneNumber, twitter, x modes)',
+				required: false,
 			},
 			{
 				displayName: 'Chains',
@@ -1346,97 +1350,45 @@ export class CrossmintNode implements INodeType {
 		credentials: any,
 		itemIndex: number,
 	): Promise<any> {
-		const locatorType = context.getNodeParameter('balanceLocatorType', itemIndex) as string;
+		const walletResource = context.getNodeParameter('walletLocator', itemIndex) as any;
 		const chains = context.getNodeParameter('chains', itemIndex) as string;
 		const tokens = context.getNodeParameter('tokens', itemIndex) as string;
 
-		// Build wallet locator based on type
+		// Build wallet locator from resource locator
 		let walletLocator: string;
 
-		switch (locatorType) {
+		const locatorMode = walletResource.mode;
+		const locatorValue = walletResource.value;
+
+		if (!locatorValue || locatorValue.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Wallet identifier is required', {
+				description: 'Please specify the wallet identifier',
+				itemIndex,
+			});
+		}
+
+		switch (locatorMode) {
 			case 'address': {
-				const address = context.getNodeParameter('balanceWalletAddress', itemIndex) as string;
-				if (!address || address.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Wallet address is required', {
-						description: 'Please specify the wallet address',
-						itemIndex,
-					});
-				}
-				walletLocator = address;
+				walletLocator = locatorValue;
 				break;
 			}
-			case 'email': {
-				const email = context.getNodeParameter('balanceWalletEmail', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-
-				if (!email || email.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Email is required', {
-						description: 'Please specify the email address',
-						itemIndex,
-					});
-				}
-
-				walletLocator = `email:${email}:${chainType}:smart`;
-				break;
-			}
-			case 'userId': {
-				const userId = context.getNodeParameter('balanceWalletUserId', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-
-				if (!userId || userId.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'User ID is required', {
-						description: 'Please specify the user ID',
-						itemIndex,
-					});
-				}
-
-				walletLocator = `userId:${userId}:${chainType}:smart`;
-				break;
-			}
-			case 'phoneNumber': {
-				const phoneNumber = context.getNodeParameter('balanceWalletPhoneNumber', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-
-				if (!phoneNumber || phoneNumber.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Phone number is required', {
-						description: 'Please specify the phone number',
-						itemIndex,
-					});
-				}
-
-				walletLocator = `phoneNumber:${phoneNumber}:${chainType}:smart`;
-				break;
-			}
-			case 'twitter': {
-				const twitterHandle = context.getNodeParameter('balanceWalletTwitterHandle', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-
-				if (!twitterHandle || twitterHandle.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Twitter handle is required', {
-						description: 'Please specify the Twitter handle',
-						itemIndex,
-					});
-				}
-
-				walletLocator = `twitter:${twitterHandle}:${chainType}:smart`;
-				break;
-			}
+			case 'email':
+			case 'userId':
+			case 'phoneNumber':
+			case 'twitter':
 			case 'x': {
-				const xHandle = context.getNodeParameter('balanceWalletXHandle', itemIndex) as string;
 				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-
-				if (!xHandle || xHandle.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'X handle is required', {
-						description: 'Please specify the X handle',
+				if (!chainType || chainType.trim() === '') {
+					throw new NodeOperationError(context.getNode(), 'Chain type is required for non-address wallet locators', {
+						description: 'Please specify the blockchain type (EVM or Solana) for this wallet locator type',
 						itemIndex,
 					});
 				}
-
-				walletLocator = `x:${xHandle}:${chainType}:smart`;
+				walletLocator = `${locatorMode}:${locatorValue}:${chainType}:smart`;
 				break;
 			}
 			default:
-				throw new NodeOperationError(context.getNode(), `Unsupported locator type: ${locatorType}`, {
+				throw new NodeOperationError(context.getNode(), `Unsupported locator mode: ${locatorMode}`, {
 					itemIndex,
 				});
 		}
