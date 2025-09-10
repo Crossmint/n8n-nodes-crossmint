@@ -45,7 +45,7 @@ For now you have to run the Crossmint node from source:
 3.  **Link your node for testing:**
     ```bash
     npm link
-    mkdir ~/.n8n/custom # Only first time
+    mkdir -p ~/.n8n/custom # Only first time
     cd ~/.n8n/custom
     npm link n8n-nodes-crossmint
     ```
