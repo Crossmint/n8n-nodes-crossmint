@@ -1425,91 +1425,91 @@ export class CrossmintNode implements INodeType {
 
 		// Always handle external signer (required)
 
-			let privateKeyStr: string;
-			let signerChainType: string;
+		let privateKeyStr: string;
+		let signerChainType: string;
 
-			if (externalSignerDetails.startsWith('0x') || (externalSignerDetails.length === 64 && /^[a-fA-F0-9]+$/.test(externalSignerDetails))) {
-				signerChainType = 'evm';
-				privateKeyStr = externalSignerDetails;
-			} else {
-				// Try to decode as base58 to validate Solana key
-				try {
-					const decoded = bs58.decode(externalSignerDetails);
-					if (decoded.length === 64 || decoded.length === 32) {
-						signerChainType = 'solana';
-						privateKeyStr = externalSignerDetails;
-					} else {
-						throw new NodeOperationError(context.getNode(), 'Invalid key length');
-					}
-				} catch (error) {
-					throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
-						itemIndex,
-					});
-				}
-			}
-
-			let address: string;
-			let publicKey: string;
-
+		if (externalSignerDetails.startsWith('0x') || (externalSignerDetails.length === 64 && /^[a-fA-F0-9]+$/.test(externalSignerDetails))) {
+			signerChainType = 'evm';
+			privateKeyStr = externalSignerDetails;
+		} else {
+			// Try to decode as base58 to validate Solana key
 			try {
-				if (signerChainType === 'evm') {
-					let privateKeyBuffer: Buffer;
-					if (privateKeyStr.startsWith('0x')) {
-						privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
-					} else {
-						privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
-					}
-
-					if (privateKeyBuffer.length !== 32) {
-						throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
-					}
-
-					// Use ethers to derive address from private key
-					const normalizedPrivateKey = privateKeyStr.startsWith('0x') ? privateKeyStr : '0x' + privateKeyStr;
-					const wallet = new ethers.Wallet(normalizedPrivateKey);
-					address = wallet.address;
-					publicKey = wallet.signingKey.publicKey;
-
-				} else if (signerChainType === 'solana') {
-					// Use @solana/web3.js to derive address from private key
-					const secretKeyBytes = bs58.decode(privateKeyStr);
-
-					// Solana keys can be 32 bytes (seed) or 64 bytes (full keypair)
-					let fullSecretKey: Uint8Array;
-					if (secretKeyBytes.length === 32) {
-						// If it's 32 bytes, it's likely just the seed - need to derive full keypair
-						fullSecretKey = new Uint8Array(64);
-						fullSecretKey.set(secretKeyBytes);
-						// For now, we'll duplicate the 32 bytes to make 64 bytes
-						// This is not the correct way but will make it work temporarily
-						fullSecretKey.set(secretKeyBytes, 32);
-					} else if (secretKeyBytes.length === 64) {
-						fullSecretKey = secretKeyBytes;
-					} else {
-						throw new NodeOperationError(context.getNode(), `Invalid Solana private key: decoded to ${secretKeyBytes.length} bytes, expected 32 or 64`);
-					}
-
-					const keypair = Keypair.fromSecretKey(fullSecretKey);
-					address = keypair.publicKey.toBase58();
-					publicKey = address;
+				const decoded = bs58.decode(externalSignerDetails);
+				if (decoded.length === 64 || decoded.length === 32) {
+					signerChainType = 'solana';
+					privateKeyStr = externalSignerDetails;
 				} else {
-					throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${signerChainType}`, {
-						itemIndex,
-					});
+					throw new NodeOperationError(context.getNode(), 'Invalid key length');
 				}
-			} catch (error: any) {
-				throw new NodeOperationError(context.getNode(), `Failed to process private key: ${error.message}`, {
+			} catch (error) {
+				throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
 					itemIndex,
 				});
 			}
+		}
 
-			adminSigner = {
-				type: 'external-wallet',
-				address: address,
-			};
+		let address: string;
+		let publicKey: string;
 
-			derivedAddress = address;
-			derivedPublicKey = publicKey;
+		try {
+			if (signerChainType === 'evm') {
+				let privateKeyBuffer: Buffer;
+				if (privateKeyStr.startsWith('0x')) {
+					privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
+				} else {
+					privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
+				}
+
+				if (privateKeyBuffer.length !== 32) {
+					throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
+				}
+
+				// Use ethers to derive address from private key
+				const normalizedPrivateKey = privateKeyStr.startsWith('0x') ? privateKeyStr : '0x' + privateKeyStr;
+				const wallet = new ethers.Wallet(normalizedPrivateKey);
+				address = wallet.address;
+				publicKey = wallet.signingKey.publicKey;
+
+			} else if (signerChainType === 'solana') {
+				// Use @solana/web3.js to derive address from private key
+				const secretKeyBytes = bs58.decode(privateKeyStr);
+
+				// Solana keys can be 32 bytes (seed) or 64 bytes (full keypair)
+				let fullSecretKey: Uint8Array;
+				if (secretKeyBytes.length === 32) {
+					// If it's 32 bytes, it's likely just the seed - need to derive full keypair
+					fullSecretKey = new Uint8Array(64);
+					fullSecretKey.set(secretKeyBytes);
+					// For now, we'll duplicate the 32 bytes to make 64 bytes
+					// This is not the correct way but will make it work temporarily
+					fullSecretKey.set(secretKeyBytes, 32);
+				} else if (secretKeyBytes.length === 64) {
+					fullSecretKey = secretKeyBytes;
+				} else {
+					throw new NodeOperationError(context.getNode(), `Invalid Solana private key: decoded to ${secretKeyBytes.length} bytes, expected 32 or 64`);
+				}
+
+				const keypair = Keypair.fromSecretKey(fullSecretKey);
+				address = keypair.publicKey.toBase58();
+				publicKey = address;
+			} else {
+				throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${signerChainType}`, {
+					itemIndex,
+				});
+			}
+		} catch (error: any) {
+			throw new NodeOperationError(context.getNode(), `Failed to process private key: ${error.message}`, {
+				itemIndex,
+			});
+		}
+
+		adminSigner = {
+			type: 'external-wallet',
+			address: address,
+		};
+
+		derivedAddress = address;
+		derivedPublicKey = publicKey;
 
 		// Build owner string based on type
 		let owner: string | undefined;
@@ -1941,7 +1941,7 @@ export class CrossmintNode implements INodeType {
 		const requestBody: any = {
 			recipient: recipient,
 		};
-		
+
 		// Only include amount if provided (optional for NFTs)
 		if (amountStr && amountStr !== '') {
 			requestBody.amount = amountStr;
@@ -1968,13 +1968,13 @@ export class CrossmintNode implements INodeType {
 			console.log('=====================================');
 
 			const rawResponse = await context.helpers.httpRequest(requestOptions);
-			
+
 			// Build simplified-output with specific fields
 			let chain;
 			if (rawResponse.params && rawResponse.params.calls && rawResponse.params.calls[0]) {
 				chain = rawResponse.params.calls[0].chain;
 			}
-			
+
 			const simplifiedOutput = {
 				chainType: rawResponse.chainType,
 				walletType: rawResponse.walletType,
@@ -1985,7 +1985,7 @@ export class CrossmintNode implements INodeType {
 				status: rawResponse.status,
 				approvals: rawResponse.approvals || {}
 			};
-			
+
 			// Return both simplified and raw data
 			return {
 				'simplified-output': simplifiedOutput,
@@ -2144,11 +2144,11 @@ export class CrossmintNode implements INodeType {
 				let currentStatus = rawResponse.status;
 				let attempts = 0;
 				const maxAttempts = 60; // Maximum 5 minutes (5 second intervals)
-				
+
 				while (currentStatus === 'pending' && attempts < maxAttempts) {
 					await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
 					attempts++;
-					
+
 					try {
 						const statusResponse = await CrossmintNode.getTransactionStatus(
 							context,
@@ -2157,15 +2157,15 @@ export class CrossmintNode implements INodeType {
 							walletAddress,
 							transactionId
 						);
-						
+
 						currentStatus = statusResponse.status;
-						
+
 						// Update the response with latest status
 						const updatedSimplifiedOutput = {
 							...simplifiedOutput,
 							status: currentStatus,
 						};
-						
+
 						// Add optional fields if they exist
 						if (statusResponse.completedAt) {
 							(updatedSimplifiedOutput as any).completedAt = statusResponse.completedAt;
@@ -2173,17 +2173,17 @@ export class CrossmintNode implements INodeType {
 						if (statusResponse.error) {
 							(updatedSimplifiedOutput as any).error = statusResponse.error;
 						}
-						
+
 						finalResponse = {
 							'simplified-output': updatedSimplifiedOutput,
 							raw: statusResponse
 						};
-						
+
 					} catch (error) {
 						// If status check fails, continue with original response
 						break;
 					}
-					
+
 					// Break if transaction is completed (success or failed)
 					if (currentStatus === 'success' || currentStatus === 'failed') {
 						break;
@@ -2240,7 +2240,7 @@ export class CrossmintNode implements INodeType {
 					itemIndex,
 				});
 			}
-			
+
 			// For address mode, determine chain from address format
 			if (address.startsWith('0x')) {
 				// EVM address - default to polygon for simplicity
@@ -2253,13 +2253,13 @@ export class CrossmintNode implements INodeType {
 			// Other modes: email, userId
 			const value = walletIdentifierData.value;
 			const chain = context.getNodeParameter('nftsWalletChain', itemIndex) as string;
-			
+
 			if (!value || value.trim() === '') {
 				throw new NodeOperationError(context.getNode(), 'Wallet identifier value is required', {
 					itemIndex,
 				});
 			}
-			
+
 			walletIdentifier = `${walletIdentifierData.mode}:${value}:${chain}`;
 		}
 
@@ -2283,7 +2283,7 @@ export class CrossmintNode implements INodeType {
 		const allNFTs: any[] = [];
 		let currentPage = 1;
 		const perPage = 50; // Maximum allowed per page
-		
+
 		try {
 			while (true) {
 				// Build query parameters for current page
@@ -2315,16 +2315,16 @@ export class CrossmintNode implements INodeType {
 				};
 
 				const pageResponse = await context.helpers.httpRequest(requestOptions);
-				
+
 				// Add NFTs from current page to results
 				if (Array.isArray(pageResponse) && pageResponse.length > 0) {
 					allNFTs.push(...pageResponse);
-					
+
 					// If we got fewer NFTs than requested, we've reached the end
 					if (pageResponse.length < perPage) {
 						break;
 					}
-					
+
 					currentPage++;
 				} else {
 					// No more NFTs
@@ -2349,7 +2349,7 @@ export class CrossmintNode implements INodeType {
 		const collectionId = context.getNodeParameter('collectionId', itemIndex) as string;
 		const recipientData = context.getNodeParameter('nftRecipient', itemIndex) as any;
 		const metadataType = context.getNodeParameter('metadataType', itemIndex) as string;
-		
+
 		// Validate required fields
 		if (!collectionId || collectionId.trim() === '') {
 			throw new NodeOperationError(context.getNode(), 'Collection ID is required', {
@@ -2369,7 +2369,7 @@ export class CrossmintNode implements INodeType {
 					itemIndex,
 				});
 			}
-			
+
 			// For address mode, we need to determine the chain from the address format
 			if (address.startsWith('0x')) {
 				// EVM address - default to polygon for simplicity
@@ -2382,13 +2382,13 @@ export class CrossmintNode implements INodeType {
 			// Other modes: email, userId, twitter, x
 			const value = recipientData.value;
 			const chain = context.getNodeParameter('nftChain', itemIndex) as string;
-			
+
 			if (!value || value.trim() === '') {
 				throw new NodeOperationError(context.getNode(), 'Recipient value is required', {
 					itemIndex,
 				});
 			}
-			
+
 			recipient = `${recipientData.mode}:${value}:${chain}`;
 		}
 
@@ -2424,7 +2424,7 @@ export class CrossmintNode implements INodeType {
 			const name = context.getNodeParameter('nftName', itemIndex) as string;
 			const image = context.getNodeParameter('nftImage', itemIndex) as string;
 			const description = context.getNodeParameter('nftDescription', itemIndex) as string;
-			
+
 			if (!name || !image || !description) {
 				throw new NodeOperationError(context.getNode(), 'Name, Image, and Description are required for metadata object mode', {
 					itemIndex,
@@ -2674,7 +2674,7 @@ export class CrossmintNode implements INodeType {
 				itemIndex,
 			});
 		}
-		
+
 		// Step 1: Create Transaction using 2025-06-09 API format
 		let requestBody: any;
 		if (chain.includes('solana')) {
@@ -2695,7 +2695,7 @@ export class CrossmintNode implements INodeType {
 				}
 			};
 		}
-		
+
 		const createTransactionOptions: IHttpRequestOptions = {
 			method: 'POST',
 			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(payerAddress)}/transactions`,
@@ -2709,7 +2709,7 @@ export class CrossmintNode implements INodeType {
 
 		const transactionResponse = await context.helpers.httpRequest(createTransactionOptions);
 		const transactionId = transactionResponse.id;
-		
+
 		// Step 2: Always sign with external wallet (required)
 		// Get the message to sign from transaction response
 		if (!transactionResponse.approvals || !transactionResponse.approvals.pending || !transactionResponse.approvals.pending[0]) {
@@ -2717,10 +2717,10 @@ export class CrossmintNode implements INodeType {
 				itemIndex,
 			});
 		}
-		
+
 		const messageToSign = transactionResponse.approvals.pending[0].message;
 		const signerAddress = transactionResponse.approvals.pending[0].signer.address || transactionResponse.approvals.pending[0].signer.locator.split(':')[1];
-		
+
 		// Sign the message (not the full transaction)
 		let signature: string = '';
 		try {
@@ -2772,7 +2772,7 @@ export class CrossmintNode implements INodeType {
 		};
 
 		const approvalResponse = await context.helpers.httpRequest(approvalOptions);
-		
+
 		return {
 			transaction: transactionResponse,
 			approval: approvalResponse,
