@@ -1,63 +1,55 @@
 {
-  "name": "n8n-nodes-crossmint",
-  "version": "0.4.0",
-  "description": "n8n node for Crossmint - send USDC from wallets",
-  "keywords": [
-    "n8n-community-node-package"
-  ],
-  "license": "MIT",
-  "homepage": "https://n8n.io",
-  "author": {
-    "name": "Crossmint",
-    "email": "support@crossmint.com"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/crossmint/n8n-nodes-crossmint.git"
-  },
-  "engines": {
-    "node": ">=20.15"
-  },
-  "main": "index.js",
-  "scripts": {
-    "build": "npx rimraf dist && tsc && gulp build:icons",
-    "dev": "tsc --watch",
-    "format": "prettier nodes credentials --write",
-    "lint": "eslint nodes credentials package.json",
-    "lintfix": "eslint nodes credentials package.json --fix",
-    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"
-  },
-  "files": [
-    "dist"
-  ],
-  "n8n": {
-    "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/CrossmintApi.credentials.js"
+    "name": "n8n-nodes-crossmint",
+    "version": "0.4.0",
+    "description": "Crossmint n8n node",
+    "license": "MIT",
+    "homepage": "https://crossmint.com",
+    "keywords": [
+        "n8n-community-node-package"
     ],
-    "nodes": [
-      "dist/nodes/Crossmint/CrossmintNode.node.js"
-    ]
-  },
-  "devDependencies": {
-    "@types/jest": "^30.0.0",
-    "@types/node": "^24.3.0",
-    "@typescript-eslint/parser": "~8.32.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-n8n-nodes-base": "^1.16.3",
-    "gulp": "^5.0.0",
-    "jest": "^30.0.5",
-    "prettier": "^3.5.3",
-    "ts-jest": "^29.4.1",
-    "typescript": "^5.8.2"
-  },
-  "peerDependencies": {
-    "n8n-workflow": "*"
-  },
-  "dependencies": {
-    "@solana/web3.js": "^1.98.4",
-    "@types/bs58": "^4.0.4",
-    "ethers": "^6.15.0",
-    "tweetnacl": "^1.0.3"
-  }
+    "author": {
+        "name": "Crossmint",
+        "email": "support@crossmint.com"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/crossmint/n8n-nodes-crossmint.git"
+    },
+   "scripts": {
+		"build": "n8n-node build",
+		"build:watch": "tsc --watch",
+		"dev": "n8n-node dev",
+		"lint": "n8n-node lint",
+		"lint:fix": "n8n-node lint --fix",
+		"release": "n8n-node release",
+		"prepublishOnly": "n8n-node prerelease"
+	},
+    "files": [
+        "dist"
+    ],
+    "n8n": {
+        "n8nNodesApiVersion": 1,
+        "credentials": [
+        "dist/credentials/CrossmintApi.credentials.js"
+        ],
+        "nodes": [
+            "dist/nodes/Crossmint/Crossmint.node.js"
+        ]
+    },
+    "devDependencies": {
+        "@n8n/node-cli": "*",
+        "eslint": "9.32.0",
+        "prettier": "3.6.2",
+        "release-it": "^19.0.4",
+        "typescript": "5.9.2"
+    },
+    "peerDependencies": {
+        "n8n-workflow": "*"
+    },
+    "dependencies": {
+      "@solana/web3.js": "^1.98.4",
+      "@types/bs58": "^4.0.4",
+      "ethers": "^6.15.0",
+      "tweetnacl": "^1.0.3"
+    }
 }
