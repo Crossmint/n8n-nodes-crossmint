@@ -48,6 +48,113 @@ export class CrossmintNode implements INodeType {
 				default: 'wallet',
 				description: 'Select the Crossmint resource',
 			},
+			// Place NFT Operation right after Resource so it appears under Resource
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: { show: { resource: ['nft'] } },
+				options: [
+					{
+						name: 'Mint NFT',
+						value: 'mintNFT',
+						description: 'Mint a new NFT to a wallet',
+						action: 'Mint NFT',
+					},
+					{
+						name: 'Get NFTs from Wallet',
+						value: 'getNFTsFromWallet',
+						description: 'Fetch the NFTs in a provided wallet',
+						action: 'Get NFTs from wallet',
+					},
+				],
+				default: 'mintNFT',
+			},
+
+			// ---- Get NFTs from Wallet fields
+			{
+				displayName: 'Wallet Identifier',
+				name: 'walletIdentifier',
+				type: 'resourceLocator',
+				displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
+				default: { mode: 'email', value: '' },
+				description: 'Select the wallet to get NFTs from',
+				modes: [
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						placeholder: 'user@example.com',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[^@]+@[^@]+\\.[^@]+$',
+									errorMessage: 'Please enter a valid email address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'User ID',
+						name: 'userId',
+						type: 'string',
+						placeholder: 'user-123',
+					},
+					{
+						displayName: 'Address',
+						name: 'address',
+						type: 'string',
+						placeholder: '0x1234567890123456789012345678901234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
+									errorMessage: 'Please enter a valid wallet address',
+								},
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Chain',
+				name: 'nftsWalletChain',
+				type: 'options',
+				displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
+				options: [
+					{ name: 'Polygon', value: 'polygon' },
+					{ name: 'Ethereum', value: 'ethereum' },
+					{ name: 'Base', value: 'base' },
+					{ name: 'Arbitrum', value: 'arbitrum' },
+					{ name: 'Optimism', value: 'optimism' },
+					{ name: 'Solana', value: 'solana' },
+					{ name: 'Avalanche', value: 'avalanche' },
+					{ name: 'BSC', value: 'bsc' },
+				],
+				default: 'polygon',
+				description: 'Blockchain network (only used for email and userId wallet types)',
+			},
+			{
+				displayName: 'Contract Addresses (Optional)',
+				name: 'contractAddresses',
+				type: 'string',
+				displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
+				default: '',
+				placeholder: '0x1234...,0x5678... (comma-separated)',
+				description: 'Filter NFTs by contract addresses (comma-separated list, optional)',
+			},
+			{
+				displayName: 'Token ID (Optional)',
+				name: 'nftsTokenId',
+				type: 'string',
+				displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
+				default: '',
+				placeholder: '123',
+				description: 'Filter NFTs by specific token ID (optional)',
+			},
 
 			// =========================
 			// WALLET ACTIONS
@@ -88,12 +195,6 @@ export class CrossmintNode implements INodeType {
 						value: 'signAndSubmitTransaction',
 						description: 'Sign transaction with private key and submit signature in one step',
 						action: 'Sign transaction',
-					},
-					{
-						name: 'Get NFTs from Wallet',
-						value: 'getNFTsFromWallet',
-						description: 'Fetch the NFTs in a provided wallet',
-						action: 'Get NFTs from wallet',
 					},
 				],
 				default: 'transferToken',
@@ -463,7 +564,7 @@ export class CrossmintNode implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'Token Name',
+				displayName: 'Token Name (Locator ID)',
 				name: 'tokenName',
 				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'] } },
@@ -473,13 +574,21 @@ export class CrossmintNode implements INodeType {
 				required: true,
 			},
 			{
+				displayName: 'Transfer NFT',
+				name: 'transferNft',
+				type: 'boolean',
+				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'] } },
+				default: false,
+				description: 'Enable when transferring an NFT. Amount will be ignored and hidden.'
+			},
+			{
 				displayName: 'Amount',
 				name: 'amount',
 				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'] } },
+				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], transferNft: [false] } },
 				default: '',
 				placeholder: '10.50',
-				description: 'Amount of tokens to send (decimal format). Optional for NFTs (defaults to 1)',
+				description: 'Amount of tokens to send (decimal format). Hidden for NFTs',
 				required: false,
 			},
 
@@ -675,90 +784,6 @@ export class CrossmintNode implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['signAndSubmitTransaction'] } },
 				default: false,
 				description: 'Wait until the transaction reaches final status (success or failed) before completing the node execution',
-			},
-
-			// ---- Get NFTs from Wallet fields
-			{
-				displayName: 'Wallet Identifier',
-				name: 'walletIdentifier',
-				type: 'resourceLocator',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getNFTsFromWallet'] } },
-				default: { mode: 'email', value: '' },
-				description: 'Select the wallet to get NFTs from',
-				modes: [
-					{
-						displayName: 'Email',
-						name: 'email',
-						type: 'string',
-						placeholder: 'user@example.com',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[^@]+@[^@]+\\.[^@]+$',
-									errorMessage: 'Please enter a valid email address',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'User ID',
-						name: 'userId',
-						type: 'string',
-						placeholder: 'user-123',
-					},
-					{
-						displayName: 'Address',
-						name: 'address',
-						type: 'string',
-						placeholder: '0x1234567890123456789012345678901234567890',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
-									errorMessage: 'Please enter a valid wallet address',
-								},
-							},
-						],
-					},
-				],
-			},
-			{
-				displayName: 'Chain',
-				name: 'nftsWalletChain',
-				type: 'options',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getNFTsFromWallet'] } },
-				options: [
-					{ name: 'Polygon', value: 'polygon' },
-					{ name: 'Ethereum', value: 'ethereum' },
-					{ name: 'Base', value: 'base' },
-					{ name: 'Arbitrum', value: 'arbitrum' },
-					{ name: 'Optimism', value: 'optimism' },
-					{ name: 'Solana', value: 'solana' },
-					{ name: 'Avalanche', value: 'avalanche' },
-					{ name: 'BSC', value: 'bsc' },
-				],
-				default: 'polygon',
-				description: 'Blockchain network (only used for email and userId wallet types)',
-			},
-			{
-				displayName: 'Contract Addresses (Optional)',
-				name: 'contractAddresses',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getNFTsFromWallet'] } },
-				default: '',
-				placeholder: '0x1234...,0x5678... (comma-separated)',
-				description: 'Filter NFTs by contract addresses (comma-separated list, optional)',
-			},
-			{
-				displayName: 'Token ID (Optional)',
-				name: 'nftsTokenId',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getNFTsFromWallet'] } },
-				default: '',
-				placeholder: '123',
-				description: 'Filter NFTs by specific token ID (optional)',
 			},
 
 			// =========================
@@ -1039,36 +1064,8 @@ export class CrossmintNode implements INodeType {
 			},
 
 			// =========================
-			// NFT ACTIONS
+			// NFT ACTIONS (fields)
 			// =========================
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: { show: { resource: ['nft'] } },
-				options: [
-					{
-						name: 'Mint NFT',
-						value: 'mintNFT',
-						description: 'Mint a new NFT to a wallet',
-						action: 'Mint NFT',
-					},
-					{
-						name: 'Transfer NFT',
-						value: 'transferNFT',
-						description: 'Transfer an NFT to another wallet',
-						action: 'Transfer NFT',
-					},
-					{
-						name: 'Get NFT',
-						value: 'getNFT',
-						description: 'Get NFT details by token ID',
-						action: 'Get NFT',
-					},
-				],
-				default: 'mintNFT',
-			},
 
 			// ---- Mint NFT fields
 			{
@@ -1833,12 +1830,17 @@ export class CrossmintNode implements INodeType {
 		credentials: any,
 		itemIndex: number,
 	): Promise<any> {
-		const amount = context.getNodeParameter('amount', itemIndex) as string;
+		// Determine whether this is an NFT transfer first, so we only fetch amount when relevant
+		const transferNft = context.getNodeParameter('transferNft', itemIndex) as boolean;
 		const tokenChain = context.getNodeParameter('tokenChain', itemIndex) as string;
 		const tokenName = context.getNodeParameter('tokenName', itemIndex) as string;
 
-		// Input validation - amount is optional for NFTs
-		const amountStr = String(amount || '').trim();
+		// Input validation - amount is optional/hidden for NFTs
+		let amountStr = '';
+		if (!transferNft) {
+			const amount = context.getNodeParameter('amount', itemIndex) as string;
+			amountStr = String(amount || '').trim();
+		}
 
 		if (!tokenChain || tokenChain.trim() === '') {
 			throw new NodeOperationError(context.getNode(), 'Token chain is required', {
@@ -1857,8 +1859,8 @@ export class CrossmintNode implements INodeType {
 		// Build token locator from chain and name
 		const tokenLocator = `${tokenChain}:${tokenName}`;
 
-		// Validate amount is a valid number (only if provided)
-		if (amountStr && amountStr !== '') {
+		// Validate amount is a valid number (only if provided and not NFT transfer)
+		if (!transferNft && amountStr && amountStr !== '') {
 			const numericAmount = parseFloat(amountStr);
 			if (isNaN(numericAmount) || numericAmount <= 0) {
 				throw new NodeOperationError(context.getNode(), 'Invalid amount', {
@@ -1918,6 +1920,27 @@ export class CrossmintNode implements INodeType {
 			});
 		}
 
+		// Validate chain family consistency between origin, token, and recipient
+		const tokenFamily = tokenChain.includes('solana') ? 'solana' : 'evm';
+		const originFamily = originMode === 'address' ? (originValue.startsWith('0x') ? 'evm' : 'solana') : blockchainType;
+		if (originFamily !== tokenFamily) {
+			throw new NodeOperationError(
+				context.getNode(),
+				`Chain mismatch: Origin wallet is ${originFamily} but token is on ${tokenFamily}`,
+				{ itemIndex },
+			);
+		}
+		if (recipientMode === 'address') {
+			const recipientFamily = recipientValue.startsWith('0x') ? 'evm' : 'solana';
+			if (recipientFamily !== tokenFamily) {
+				throw new NodeOperationError(
+					context.getNode(),
+					`Chain mismatch: Recipient wallet is ${recipientFamily} but token is on ${tokenFamily}`,
+					{ itemIndex },
+				);
+			}
+		}
+
 		switch (recipientMode) {
 			case 'address': {
 				recipient = recipientValue;
@@ -1942,8 +1965,8 @@ export class CrossmintNode implements INodeType {
 			recipient: recipient,
 		};
 
-		// Only include amount if provided (optional for NFTs)
-		if (amountStr && amountStr !== '') {
+		// Only include amount if provided and not NFT transfer
+		if (!transferNft && amountStr && amountStr !== '') {
 			requestBody.amount = amountStr;
 		}
 
@@ -1959,14 +1982,6 @@ export class CrossmintNode implements INodeType {
 		};
 
 		try {
-			// Log the API request details
-			console.log('=== TRANSFER TOKEN API REQUEST ===');
-			console.log('URL:', requestOptions.url);
-			console.log('Method:', requestOptions.method);
-			console.log('Headers:', JSON.stringify(requestOptions.headers, null, 2));
-			console.log('Body:', JSON.stringify(requestOptions.body, null, 2));
-			console.log('=====================================');
-
 			const rawResponse = await context.helpers.httpRequest(requestOptions);
 
 			// Build simplified-output with specific fields
