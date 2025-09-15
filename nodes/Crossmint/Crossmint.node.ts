@@ -14,7 +14,7 @@ import * as bs58 from 'bs58';
 export class Crossmint implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Crossmint',
-		name: 'Crossmint',
+		name: 'crossmint',
 		icon: 'file:crossmint.svg',
 		group: ['blockchain'],
 		version: 1,
@@ -59,18 +59,6 @@ export class Crossmint implements INodeType {
 				displayOptions: { show: { resource: ['wallet'] } },
 				options: [
 					{
-						name: 'Get or Create Wallet',
-						value: 'createWallet',
-						description: 'Get or Create Crossmint wallet for company or user',
-						action: 'Get or create wallet',
-					},
-					{
-						name: 'Get Wallet',
-						value: 'getWallet',
-						description: 'Retrieve a wallet by its locator',
-						action: 'Get wallet',
-					},
-					{
 						name: 'Create Transfer',
 						value: 'transferToken',
 						description: 'Create Transfer from Crossmint wallet to any address',
@@ -81,6 +69,18 @@ export class Crossmint implements INodeType {
 						value: 'getBalance',
 						description: 'Get balance of any wallet',
 						action: 'Get balance',
+					},
+					{
+						name: 'Get or Create Wallet',
+						value: 'createWallet',
+						description: 'Get or Create Crossmint wallet for company or user',
+						action: 'Get or create wallet',
+					},
+					{
+						name: 'Get Wallet',
+						value: 'getWallet',
+						description: 'Retrieve a wallet by its locator',
+						action: 'Get wallet',
 					},
 					{
 						name: 'Sign Transaction',
@@ -111,11 +111,11 @@ export class Crossmint implements INodeType {
 				type: 'options',
 				displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'] } },
 				options: [
-					{ name: 'None', value: 'none', description: 'No owner specified' },
 					{ name: 'Email', value: 'email', description: 'Use email address as owner' },
-					{ name: 'User ID', value: 'userId', description: 'Use user ID as owner' },
+					{ name: 'None', value: 'none', description: 'No owner specified' },
 					{ name: 'Phone Number', value: 'phoneNumber', description: 'Use phone number as owner' },
 					{ name: 'Twitter Handle', value: 'twitter', description: 'Use Twitter handle as owner' },
+					{ name: 'User ID', value: 'userId', description: 'Use user ID as owner' },
 					{ name: 'X Handle', value: 'x', description: 'Use X handle as owner' },
 				],
 				default: 'none',
@@ -274,7 +274,6 @@ export class Crossmint implements INodeType {
 				],
 				default: 'evm',
 				description: 'Blockchain type for the wallet locator (only needed for email, userId, phoneNumber, twitter, x modes)',
-				required: false,
 			},
 
 			// ---- Create Transfer fields
@@ -475,7 +474,7 @@ export class Crossmint implements INodeType {
 				type: 'boolean',
 				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'] } },
 				default: false,
-				description: 'Enable when transferring an NFT. Amount will be ignored and hidden.'
+				description: 'Whether to enable when transferring an NFT. Amount will be ignored and hidden.'
 			},
 			{
 				displayName: 'Amount',
@@ -484,8 +483,8 @@ export class Crossmint implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], transferNft: [false] } },
 				default: '',
 				placeholder: '10.50',
-				description: 'Amount of tokens to send (decimal format). Hidden for NFTs',
-				required: false,
+				description: 'Amount of tokens to send (decimal format). Hidden for NFTs.',
+				
 			},
 
 			// ---- Get balance fields
@@ -579,7 +578,7 @@ export class Crossmint implements INodeType {
 				],
 				default: 'evm',
 				description: 'Blockchain type for the wallet locator (only needed for email, userId, phoneNumber, twitter, x modes)',
-				required: false,
+				
 			},
 			{
 				displayName: 'Chains',
@@ -609,18 +608,18 @@ export class Crossmint implements INodeType {
 				type: 'options',
 				displayOptions: { show: { resource: ['wallet'], operation: ['signAndSubmitTransaction'] } },
 				options: [
-					{ name: 'Ethereum Mainnet', value: 'ethereum', description: 'Ethereum mainnet (Chain ID: 1)' },
-					{ name: 'Ethereum Sepolia', value: 'ethereum-sepolia', description: 'Ethereum Sepolia testnet (Chain ID: 11155111)' },
-					{ name: 'Polygon', value: 'polygon', description: 'Polygon mainnet (Chain ID: 137)' },
-					{ name: 'Polygon Amoy', value: 'polygon-amoy', description: 'Polygon Amoy testnet (Chain ID: 80002)' },
-					{ name: 'Base', value: 'base', description: 'Base mainnet (Chain ID: 8453)' },
-					{ name: 'Base Sepolia', value: 'base-sepolia', description: 'Base Sepolia testnet (Chain ID: 84532)' },
 					{ name: 'Arbitrum', value: 'arbitrum', description: 'Arbitrum One mainnet (Chain ID: 42161)' },
 					{ name: 'Arbitrum Sepolia', value: 'arbitrum-sepolia', description: 'Arbitrum Sepolia testnet (Chain ID: 421614)' },
+					{ name: 'Base', value: 'base', description: 'Base mainnet (Chain ID: 8453)' },
+					{ name: 'Base Sepolia', value: 'base-sepolia', description: 'Base Sepolia testnet (Chain ID: 84532)' },
+					{ name: 'Ethereum Mainnet', value: 'ethereum', description: 'Ethereum mainnet (Chain ID: 1)' },
+					{ name: 'Ethereum Sepolia', value: 'ethereum-sepolia', description: 'Ethereum Sepolia testnet (Chain ID: 11155111)' },
 					{ name: 'Optimism', value: 'optimism', description: 'Optimism mainnet (Chain ID: 10)' },
 					{ name: 'Optimism Sepolia', value: 'optimism-sepolia', description: 'Optimism Sepolia testnet (Chain ID: 11155420)' },
-					{ name: 'Solana Mainnet', value: 'solana' },
+					{ name: 'Polygon', value: 'polygon', description: 'Polygon mainnet (Chain ID: 137)' },
+					{ name: 'Polygon Amoy', value: 'polygon-amoy', description: 'Polygon Amoy testnet (Chain ID: 80002)' },
 					{ name: 'Solana Devnet', value: 'solana-devnet' },
+					{ name: 'Solana Mainnet', value: 'solana' },
 				],
 				default: 'ethereum-sepolia',
 				description: 'Blockchain network for transaction signing',
@@ -683,7 +682,7 @@ export class Crossmint implements INodeType {
 				type: 'boolean',
 				displayOptions: { show: { resource: ['wallet'], operation: ['signAndSubmitTransaction'] } },
 				default: false,
-				description: 'Wait until the transaction reaches final status (success or failed) before completing the node execution',
+				description: 'Whether to wait until the transaction reaches final status (success or failed) before completing the node execution',
 			},
 
 			// =========================
@@ -743,17 +742,17 @@ export class Crossmint implements INodeType {
 				type: 'options',
 				displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'] } },
 				options: [
+					{ name: 'Arbitrum', value: 'arbitrum', description: 'Arbitrum network' },
 					{ name: 'Arbitrum Sepolia', value: 'arbitrum-sepolia', description: 'Arbitrum testnet' },
+					{ name: 'Base', value: 'base', description: 'Base network' },
 					{ name: 'Base Sepolia', value: 'base-sepolia', description: 'Base testnet' },
+					{ name: 'Ethereum', value: 'ethereum', description: 'Ethereum mainnet' },
 					{ name: 'Ethereum Sepolia', value: 'ethereum-sepolia', description: 'Ethereum testnet' },
+					{ name: 'Optimism', value: 'optimism', description: 'Optimism network' },
 					{ name: 'Optimism Sepolia', value: 'optimism-sepolia', description: 'Optimism testnet' },
+					{ name: 'Polygon', value: 'polygon', description: 'Polygon network' },
 					{ name: 'Polygon Amoy', value: 'polygon-amoy', description: 'Polygon testnet' },
 					{ name: 'World Chain Sepolia', value: 'world-chain-sepolia', description: 'World Chain testnet' },
-					{ name: 'Arbitrum', value: 'arbitrum', description: 'Arbitrum network' },
-					{ name: 'Base', value: 'base', description: 'Base network' },
-					{ name: 'Ethereum', value: 'ethereum', description: 'Ethereum mainnet' },
-					{ name: 'Optimism', value: 'optimism', description: 'Optimism network' },
-					{ name: 'Polygon', value: 'polygon', description: 'Polygon network' },
 				],
 				default: 'arbitrum-sepolia',
 				description: 'Payment method for completing the transaction',
@@ -979,10 +978,10 @@ export class Crossmint implements INodeType {
 						action: 'Mint NFT',
 					},
 					{
-						name: 'Get NFTs from Wallet',
+						name: 'Get NFTs From Wallet',
 						value: 'getNFTsFromWallet',
 						description: 'Fetch the NFTs in a provided wallet',
-						action: 'Get NFTs from wallet',
+						action: 'Get NFTs From wallet',
 					},
 				],
 				default: 'mintNFT',
@@ -1041,14 +1040,14 @@ export class Crossmint implements INodeType {
 				type: 'options',
 				displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
 				options: [
-					{ name: 'Polygon', value: 'polygon' },
-					{ name: 'Ethereum', value: 'ethereum' },
-					{ name: 'Base', value: 'base' },
 					{ name: 'Arbitrum', value: 'arbitrum' },
-					{ name: 'Optimism', value: 'optimism' },
-					{ name: 'Solana', value: 'solana' },
 					{ name: 'Avalanche', value: 'avalanche' },
+					{ name: 'Base', value: 'base' },
 					{ name: 'BSC', value: 'bsc' },
+					{ name: 'Ethereum', value: 'ethereum' },
+					{ name: 'Optimism', value: 'optimism' },
+					{ name: 'Polygon', value: 'polygon' },
+					{ name: 'Solana', value: 'solana' },
 				],
 				default: 'polygon',
 				description: 'Blockchain network (only used for email and userId wallet types)',
@@ -1165,14 +1164,14 @@ export class Crossmint implements INodeType {
 				type: 'options',
 				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
 				options: [
-					{ name: 'Polygon', value: 'polygon' },
-					{ name: 'Ethereum', value: 'ethereum' },
-					{ name: 'Base', value: 'base' },
 					{ name: 'Arbitrum', value: 'arbitrum' },
-					{ name: 'Optimism', value: 'optimism' },
-					{ name: 'Solana', value: 'solana' },
 					{ name: 'Avalanche', value: 'avalanche' },
+					{ name: 'Base', value: 'base' },
 					{ name: 'BSC', value: 'bsc' },
+					{ name: 'Ethereum', value: 'ethereum' },
+					{ name: 'Optimism', value: 'optimism' },
+					{ name: 'Polygon', value: 'polygon' },
+					{ name: 'Solana', value: 'solana' },
 				],
 				default: 'polygon',
 				description: 'Blockchain network for the NFT (only used for email, userId, twitter, x recipient types)',
@@ -1274,7 +1273,7 @@ export class Crossmint implements INodeType {
 				type: 'boolean',
 				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
 				default: true,
-				description: 'Notify recipient via email about successful mint',
+				description: 'Whether to notify recipient via email about successful mint',
 			},
 			{
 				displayName: 'Locale',
@@ -1296,7 +1295,7 @@ export class Crossmint implements INodeType {
 				type: 'boolean',
 				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
 				default: true,
-				description: 'URLs in metadata will be resolved and reuploaded to IPFS',
+				description: 'Whether URLs in metadata will be resolved and reuploaded to IPFS',
 			},
 			{
 				displayName: 'Compressed (Solana)',
@@ -1304,7 +1303,7 @@ export class Crossmint implements INodeType {
 				type: 'boolean',
 				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
 				default: true,
-				description: 'Use NFT compression for cheaper mint costs (Solana only)',
+				description: 'Whether to use NFT compression for cheaper mint costs (Solana only)',
 			},
 		],
 	};
@@ -1443,7 +1442,7 @@ export class Crossmint implements INodeType {
 					} else {
 						throw new NodeOperationError(context.getNode(), 'Invalid key length');
 					}
-				} catch (error) {
+				} catch {
 					throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
 						itemIndex,
 					});
@@ -1944,7 +1943,7 @@ export class Crossmint implements INodeType {
 				try {
 					// Try to decode as base58 first (for Crossmint transaction messages)
 					messageBytes = bs58.decode(transactionData);
-				} catch (error) {
+				} catch {
 					// If base58 decode fails, treat as plain text
 					messageBytes = new TextEncoder().encode(transactionData);
 				}
@@ -2067,7 +2066,7 @@ export class Crossmint implements INodeType {
 							raw: statusResponse
 						};
 						
-					} catch (error) {
+					} catch {
 						// If status check fails, continue with original response
 						break;
 					}
@@ -2521,7 +2520,7 @@ export class Crossmint implements INodeType {
 					if (Array.isArray(attributes)) {
 						metadata.attributes = attributes;
 					}
-				} catch (error) {
+				} catch {
 					throw new NodeOperationError(context.getNode(), 'Invalid JSON format for attributes', {
 						description: 'Please provide a valid JSON array for attributes',
 						itemIndex,
