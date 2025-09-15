@@ -7,7 +7,6 @@ import type {
 
 export class CrossmintApi implements ICredentialType {
 	name = 'crossmintApi';
-
 	displayName = 'Crossmint API';
 
 	documentationUrl = 'https://docs.crossmint.com/';

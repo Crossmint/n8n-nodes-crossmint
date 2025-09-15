@@ -11,11 +11,11 @@ import { ethers } from 'ethers';
 import { Keypair } from '@solana/web3.js';
 import * as bs58 from 'bs58';
 
-export class CrossmintNode implements INodeType {
+export class Crossmint implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Crossmint',
-		name: 'crossmintNode',
-		icon: 'file:logo.svg',
+		name: 'Crossmint',
+		icon: 'file:crossmint.svg',
 		group: ['blockchain'],
 		version: 1,
 		description: 'Hybrid integration: transfer money using Crossmint with external wallet support',
@@ -978,25 +978,25 @@ export class CrossmintNode implements INodeType {
 
 				switch (operation) {
 					case 'createWallet':
-						responseData = await CrossmintNode.createWalletMethod(this, baseUrl, credentials, i);
+						responseData = await Crossmint.createWalletMethod(this, baseUrl, credentials, i);
 						break;
 					case 'getWallet':
-						responseData = await CrossmintNode.getWalletMethod(this, baseUrl, credentials, i);
+						responseData = await Crossmint.getWalletMethod(this, baseUrl, credentials, i);
 						break;
 					case 'transferToken':
-						responseData = await CrossmintNode.transferToken(this, baseUrl, credentials, i);
+						responseData = await Crossmint.transferToken(this, baseUrl, credentials, i);
 						break;
 					case 'getBalance':
-						responseData = await CrossmintNode.getBalanceMethod(this, baseUrl, credentials, i);
+						responseData = await Crossmint.getBalanceMethod(this, baseUrl, credentials, i);
 						break;
 					case 'findProduct':
-						responseData = await CrossmintNode.findProductMethod(this, baseUrl, credentials, i);
+						responseData = await Crossmint.findProductMethod(this, baseUrl, credentials, i);
 						break;
 					case 'purchaseProduct':
-						responseData = await CrossmintNode.purchaseProductMethod(this, baseUrl, credentials, i);
+						responseData = await Crossmint.purchaseProductMethod(this, baseUrl, credentials, i);
 						break;
 					case 'signAndSubmitTransaction':
-						responseData = await CrossmintNode.signTransactionMethod(this, baseUrl, credentials, i);
+						responseData = await Crossmint.signTransactionMethod(this, baseUrl, credentials, i);
 						break;
 					default:
 						throw new NodeOperationError(this.getNode(), `Unsupported operation: ${operation}`);
@@ -1680,7 +1680,7 @@ export class CrossmintNode implements INodeType {
 					attempts++;
 					
 					try {
-						const statusResponse = await CrossmintNode.getTransactionStatus(
+						const statusResponse = await Crossmint.getTransactionStatus(
 							context,
 							baseUrl,
 							credentials,
