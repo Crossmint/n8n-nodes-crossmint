@@ -981,7 +981,7 @@ export class Crossmint implements INodeType {
 						name: 'Get NFTs From Wallet',
 						value: 'getNFTsFromWallet',
 						description: 'Fetch the NFTs in a provided wallet',
-						action: 'Get NFTs From wallet',
+						action: 'Get nfts from wallet',
 					},
 				],
 				default: 'mintNFT',
