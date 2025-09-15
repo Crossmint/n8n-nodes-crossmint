@@ -14,7 +14,7 @@ import * as bs58 from 'bs58';
 export class Crossmint implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Crossmint',
-		name: 'crossmint',
+		name: 'Crossmint',
 		icon: 'file:crossmint.svg',
 		group: ['blockchain'],
 		version: 1,
@@ -43,117 +43,9 @@ export class Crossmint implements INodeType {
 				options: [
 					{ name: 'Wallet', value: 'wallet' },
 					{ name: 'Checkout', value: 'checkout' },
-					{ name: 'NFT', value: 'nft' },
 				],
 				default: 'wallet',
 				description: 'Select the Crossmint resource',
-			},
-			// Place NFT Operation right after Resource so it appears under Resource
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: { show: { resource: ['nft'] } },
-				options: [
-					{
-						name: 'Mint NFT',
-						value: 'mintNFT',
-						description: 'Mint a new NFT to a wallet',
-						action: 'Mint NFT',
-					},
-					{
-						name: 'Get NFTs from Wallet',
-						value: 'getNFTsFromWallet',
-						description: 'Fetch the NFTs in a provided wallet',
-						action: 'Get NFTs from wallet',
-					},
-				],
-				default: 'mintNFT',
-			},
-
-			// ---- Get NFTs from Wallet fields
-			{
-				displayName: 'Wallet Identifier',
-				name: 'walletIdentifier',
-				type: 'resourceLocator',
-				displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
-				default: { mode: 'email', value: '' },
-				description: 'Select the wallet to get NFTs from',
-				modes: [
-					{
-						displayName: 'Email',
-						name: 'email',
-						type: 'string',
-						placeholder: 'user@example.com',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[^@]+@[^@]+\\.[^@]+$',
-									errorMessage: 'Please enter a valid email address',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'User ID',
-						name: 'userId',
-						type: 'string',
-						placeholder: 'user-123',
-					},
-					{
-						displayName: 'Address',
-						name: 'address',
-						type: 'string',
-						placeholder: '0x1234567890123456789012345678901234567890',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
-									errorMessage: 'Please enter a valid wallet address',
-								},
-							},
-						],
-					},
-				],
-			},
-			{
-				displayName: 'Chain',
-				name: 'nftsWalletChain',
-				type: 'options',
-				displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
-				options: [
-					{ name: 'Polygon', value: 'polygon' },
-					{ name: 'Ethereum', value: 'ethereum' },
-					{ name: 'Base', value: 'base' },
-					{ name: 'Arbitrum', value: 'arbitrum' },
-					{ name: 'Optimism', value: 'optimism' },
-					{ name: 'Solana', value: 'solana' },
-					{ name: 'Avalanche', value: 'avalanche' },
-					{ name: 'BSC', value: 'bsc' },
-				],
-				default: 'polygon',
-				description: 'Blockchain network (only used for email and userId wallet types)',
-			},
-			{
-				displayName: 'Contract Addresses (Optional)',
-				name: 'contractAddresses',
-				type: 'string',
-				displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
-				default: '',
-				placeholder: '0x1234...,0x5678... (comma-separated)',
-				description: 'Filter NFTs by contract addresses (comma-separated list, optional)',
-			},
-			{
-				displayName: 'Token ID (Optional)',
-				name: 'nftsTokenId',
-				type: 'string',
-				displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
-				default: '',
-				placeholder: '123',
-				description: 'Filter NFTs by specific token ID (optional)',
 			},
 
 			// =========================
@@ -293,92 +185,96 @@ export class Crossmint implements INodeType {
 
 			// ---- Get Wallet fields
 			{
-				displayName: 'Locator Type',
-				name: 'getWalletLocatorType',
-				type: 'options',
+				displayName: 'Wallet',
+				name: 'getWalletLocator',
+				type: 'resourceLocator',
+				default: { mode: 'address', value: '' },
+				description: 'Select the wallet to retrieve',
 				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'] } },
-				options: [
-					{ name: 'Wallet Address', value: 'address', description: 'Use wallet address directly' },
-					{ name: 'Email', value: 'email', description: 'Use email address with chain type' },
-					{ name: 'User ID', value: 'userId', description: 'Use user ID with chain type' },
-					{ name: 'Phone Number', value: 'phoneNumber', description: 'Use phone number with chain type' },
-					{ name: 'Twitter Handle', value: 'twitter', description: 'Use Twitter handle with chain type' },
-					{ name: 'X Handle', value: 'x', description: 'Use X handle with chain type' },
+				modes: [
+					{
+						displayName: 'Address',
+						name: 'address',
+						type: 'string',
+						hint: 'Enter wallet address',
+						placeholder: '0x1234567890123456789012345678901234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
+									errorMessage: 'Please enter a valid wallet address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						hint: 'Enter email address',
+						placeholder: 'user@example.com',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[^@]+@[^@]+\\.[^@]+$',
+									errorMessage: 'Please enter a valid email address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'User ID',
+						name: 'userId',
+						type: 'string',
+						hint: 'Enter user ID',
+						placeholder: 'user-123',
+					},
+					{
+						displayName: 'Phone',
+						name: 'phoneNumber',
+						type: 'string',
+						hint: 'Enter phone number with country code',
+						placeholder: '+1234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^\\+[1-9]\\d{1,14}$',
+									errorMessage: 'Please enter a valid phone number with country code',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Twitter',
+						name: 'twitter',
+						type: 'string',
+						hint: 'Enter Twitter handle (without @)',
+						placeholder: 'username',
+					},
+					{
+						displayName: 'X',
+						name: 'x',
+						type: 'string',
+						hint: 'Enter X handle (without @)',
+						placeholder: 'username',
+					},
 				],
-				default: 'address',
-				description: 'Type of wallet locator to use',
-			},
-			{
-				displayName: 'Wallet Address',
-				name: 'getWalletAddress',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'], getWalletLocatorType: ['address'] } },
-				default: '',
-				placeholder: '0x1234567890123456789012345678901234567890',
-				required: true,
-			},
-			{
-				displayName: 'Email',
-				name: 'getWalletEmail',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'], getWalletLocatorType: ['email'] } },
-				default: '',
-				placeholder: 'user@example.com',
-				description: 'Email address of the wallet owner',
-				required: true,
-			},
-			{
-				displayName: 'User ID',
-				name: 'getWalletUserId',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'], getWalletLocatorType: ['userId'] } },
-				default: '',
-				placeholder: 'user-123',
-				description: 'User ID of the wallet owner',
-				required: true,
-			},
-			{
-				displayName: 'Phone Number',
-				name: 'getWalletPhoneNumber',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'], getWalletLocatorType: ['phoneNumber'] } },
-				default: '',
-				placeholder: '+1234567890',
-				description: 'Phone number of the wallet owner (with country code)',
-				required: true,
-			},
-			{
-				displayName: 'Twitter Handle',
-				name: 'getWalletTwitterHandle',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'], getWalletLocatorType: ['twitter'] } },
-				default: '',
-				placeholder: 'username',
-				description: 'Twitter handle of the wallet owner (without @)',
-				required: true,
-			},
-			{
-				displayName: 'X Handle',
-				name: 'getWalletXHandle',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'], getWalletLocatorType: ['x'] } },
-				default: '',
-				placeholder: 'username',
-				description: 'X handle of the wallet owner (without @)',
-				required: true,
 			},
 			{
 				displayName: 'Chain Type',
 				name: 'getWalletChainType',
 				type: 'options',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'], getWalletLocatorType: ['email', 'userId', 'phoneNumber', 'twitter', 'x'] } },
+				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'] } },
 				options: [
 					{ name: 'EVM', value: 'evm', description: 'Ethereum Virtual Machine' },
 					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
 				],
 				default: 'evm',
-				description: 'Blockchain type for the wallet locator',
-				required: true,
+				description: 'Blockchain type for the wallet locator (only needed for email, userId, phoneNumber, twitter, x modes)',
+				required: false,
 			},
 
 			// ---- Create Transfer fields
@@ -564,7 +460,7 @@ export class Crossmint implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'Token Name (Locator ID)',
+				displayName: 'Token Name',
 				name: 'tokenName',
 				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'] } },
@@ -574,112 +470,108 @@ export class Crossmint implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'Transfer NFT',
-				name: 'transferNft',
-				type: 'boolean',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'] } },
-				default: false,
-				description: 'Enable when transferring an NFT. Amount will be ignored and hidden.'
-			},
-			{
 				displayName: 'Amount',
 				name: 'amount',
 				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'], transferNft: [false] } },
+				displayOptions: { show: { resource: ['wallet'], operation: ['transferToken'] } },
 				default: '',
 				placeholder: '10.50',
-				description: 'Amount of tokens to send (decimal format). Hidden for NFTs',
-				required: false,
+				description: 'Amount of tokens to send (decimal format)',
+				required: true,
 			},
 
 			// ---- Get balance fields
 			{
-				displayName: 'Locator Type',
-				name: 'balanceLocatorType',
-				type: 'options',
+				displayName: 'Wallet',
+				name: 'walletLocator',
+				type: 'resourceLocator',
+				default: { mode: 'address', value: '' },
+				description: 'Select the wallet to get balance for',
 				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
-				options: [
-					{ name: 'Wallet Address', value: 'address', description: 'Use wallet address directly' },
-					{ name: 'Email', value: 'email', description: 'Use email address with chain type' },
-					{ name: 'User ID', value: 'userId', description: 'Use user ID with chain type' },
-					{ name: 'Phone Number', value: 'phoneNumber', description: 'Use phone number with chain type' },
-					{ name: 'Twitter Handle', value: 'twitter', description: 'Use Twitter handle with chain type' },
-					{ name: 'X Handle', value: 'x', description: 'Use X handle with chain type' },
+				modes: [
+					{
+						displayName: 'Address',
+						name: 'address',
+						type: 'string',
+						hint: 'Enter wallet address',
+						placeholder: '0x1234567890123456789012345678901234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
+									errorMessage: 'Please enter a valid wallet address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						hint: 'Enter email address',
+						placeholder: 'user@example.com',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[^@]+@[^@]+\\.[^@]+$',
+									errorMessage: 'Please enter a valid email address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'User ID',
+						name: 'userId',
+						type: 'string',
+						hint: 'Enter user ID',
+						placeholder: 'user-123',
+					},
+					{
+						displayName: 'Phone',
+						name: 'phoneNumber',
+						type: 'string',
+						hint: 'Enter phone number with country code',
+						placeholder: '+1234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^\\+[1-9]\\d{1,14}$',
+									errorMessage: 'Please enter a valid phone number with country code',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Twitter',
+						name: 'twitter',
+						type: 'string',
+						hint: 'Enter Twitter handle (without @)',
+						placeholder: 'username',
+					},
+					{
+						displayName: 'X',
+						name: 'x',
+						type: 'string',
+						hint: 'Enter X handle (without @)',
+						placeholder: 'username',
+					},
 				],
-				default: 'address',
-				description: 'Type of wallet locator to use',
-			},
-			{
-				displayName: 'Wallet Address',
-				name: 'balanceWalletAddress',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['address'] } },
-				default: '',
-				placeholder: '0x1234567890123456789012345678901234567890',
-				required: true,
-			},
-			{
-				displayName: 'Email',
-				name: 'balanceWalletEmail',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['email'] } },
-				default: '',
-				placeholder: 'user@example.com',
-				description: 'Email address of the wallet owner',
-				required: true,
-			},
-			{
-				displayName: 'User ID',
-				name: 'balanceWalletUserId',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['userId'] } },
-				default: '',
-				placeholder: 'user-123',
-				description: 'User ID of the wallet owner',
-				required: true,
-			},
-			{
-				displayName: 'Phone Number',
-				name: 'balanceWalletPhoneNumber',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['phoneNumber'] } },
-				default: '',
-				placeholder: '+1234567890',
-				description: 'Phone number of the wallet owner (with country code)',
-				required: true,
-			},
-			{
-				displayName: 'Twitter Handle',
-				name: 'balanceWalletTwitterHandle',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['twitter'] } },
-				default: '',
-				placeholder: 'username',
-				description: 'Twitter handle of the wallet owner (without @)',
-				required: true,
-			},
-			{
-				displayName: 'X Handle',
-				name: 'balanceWalletXHandle',
-				type: 'string',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['x'] } },
-				default: '',
-				placeholder: 'username',
-				description: 'X handle of the wallet owner (without @)',
-				required: true,
 			},
 			{
 				displayName: 'Chain Type',
 				name: 'balanceWalletChainType',
 				type: 'options',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'], balanceLocatorType: ['email', 'userId', 'phoneNumber', 'twitter', 'x'] } },
+				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
 				options: [
 					{ name: 'EVM', value: 'evm', description: 'Ethereum Virtual Machine' },
 					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
 				],
 				default: 'evm',
-				description: 'Blockchain type for the wallet locator',
-				required: true,
+				description: 'Blockchain type for the wallet locator (only needed for email, userId, phoneNumber, twitter, x modes)',
+				required: false,
 			},
 			{
 				displayName: 'Chains',
@@ -1062,245 +954,6 @@ export class Crossmint implements INodeType {
 				description: 'Agent wallet address for crypto payments - must be a Crossmint managed wallet with USDC funds',
 				required: true,
 			},
-
-			// =========================
-			// NFT ACTIONS (fields)
-			// =========================
-
-			// ---- Mint NFT fields
-			{
-				displayName: 'Collection ID',
-				name: 'collectionId',
-				type: 'string',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
-				default: '',
-				placeholder: 'default-polygon or 9c82ef99-617f-497d-9abb-fd355291681b',
-				description: 'Collection identifier (default collections: default-solana, default-polygon)',
-				required: true,
-			},
-			{
-				displayName: 'Recipient',
-				name: 'nftRecipient',
-				type: 'resourceLocator',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
-				default: { mode: 'address', value: '' },
-				description: 'Select the NFT recipient',
-				modes: [
-					{
-						displayName: 'Email',
-						name: 'email',
-						type: 'string',
-						placeholder: 'user@example.com',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[^@]+@[^@]+\\.[^@]+$',
-									errorMessage: 'Please enter a valid email address',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'User ID',
-						name: 'userId',
-						type: 'string',
-						placeholder: 'user-123',
-					},
-					{
-						displayName: 'Twitter',
-						name: 'twitter',
-						type: 'string',
-						placeholder: 'username',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[a-zA-Z0-9_]{1,15}$',
-									errorMessage: 'Please enter a valid Twitter handle (1-15 alphanumeric characters or underscores)',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'X',
-						name: 'x',
-						type: 'string',
-						placeholder: 'username',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[a-zA-Z0-9_]{1,15}$',
-									errorMessage: 'Please enter a valid X handle (1-15 alphanumeric characters or underscores)',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'Address',
-						name: 'address',
-						type: 'string',
-						placeholder: '0x1234567890123456789012345678901234567890',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
-									errorMessage: 'Please enter a valid wallet address',
-								},
-							},
-						],
-					},
-				],
-			},
-			{
-				displayName: 'Chain',
-				name: 'nftChain',
-				type: 'options',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
-				options: [
-					{ name: 'Polygon', value: 'polygon' },
-					{ name: 'Ethereum', value: 'ethereum' },
-					{ name: 'Base', value: 'base' },
-					{ name: 'Arbitrum', value: 'arbitrum' },
-					{ name: 'Optimism', value: 'optimism' },
-					{ name: 'Solana', value: 'solana' },
-					{ name: 'Avalanche', value: 'avalanche' },
-					{ name: 'BSC', value: 'bsc' },
-				],
-				default: 'polygon',
-				description: 'Blockchain network for the NFT (only used for email, userId, twitter, x recipient types)',
-			},
-			{
-				displayName: 'Metadata Type',
-				name: 'metadataType',
-				type: 'options',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
-				options: [
-					{ name: 'Metadata Object', value: 'object', description: 'Define metadata inline' },
-					{ name: 'Metadata URL', value: 'url', description: 'Reference external JSON metadata' },
-					{ name: 'Template ID', value: 'template', description: 'Use existing template' },
-				],
-				default: 'object',
-				description: 'How to provide the NFT metadata',
-				required: true,
-			},
-			{
-				displayName: 'NFT Name',
-				name: 'nftName',
-				type: 'string',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
-				default: '',
-				placeholder: 'My Awesome NFT',
-				description: 'The name of your NFT (Max length: 32)',
-				required: true,
-			},
-			{
-				displayName: 'NFT Image URL',
-				name: 'nftImage',
-				type: 'string',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
-				default: '',
-				placeholder: 'https://example.com/image.png',
-				description: 'Direct link to your NFT image',
-				required: true,
-			},
-			{
-				displayName: 'NFT Description',
-				name: 'nftDescription',
-				type: 'string',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
-				default: '',
-				placeholder: 'A brief description of the NFT',
-				description: 'A brief description of the NFT (Max length: 64)',
-				required: true,
-			},
-			{
-				displayName: 'Animation URL',
-				name: 'nftAnimationUrl',
-				type: 'string',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
-				default: '',
-				placeholder: 'https://example.com/animation.mp4',
-				description: 'Animation URL for the NFT (EVM only)',
-			},
-			{
-				displayName: 'Symbol (Solana)',
-				name: 'nftSymbol',
-				type: 'string',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
-				default: '',
-				placeholder: 'MTK',
-				description: 'A shorthand identifier for the token (Max length: 10, Solana only)',
-			},
-			{
-				displayName: 'Attributes',
-				name: 'nftAttributes',
-				type: 'string',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
-				default: '',
-				placeholder: '[{"trait_type": "Color", "value": "Blue"}, {"trait_type": "Rarity", "value": "Rare"}]',
-				description: 'JSON array of attributes (optional)',
-			},
-			{
-				displayName: 'Metadata URL',
-				name: 'metadataUrl',
-				type: 'string',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['url'] } },
-				default: '',
-				placeholder: 'https://example.com/metadata.json',
-				description: 'URL to a JSON file containing the metadata',
-				required: true,
-			},
-			{
-				displayName: 'Template ID',
-				name: 'templateId',
-				type: 'string',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['template'] } },
-				default: '',
-				placeholder: 'template-12345',
-				description: 'ID of the template to use for minting',
-				required: true,
-			},
-			{
-				displayName: 'Send Notification',
-				name: 'sendNotification',
-				type: 'boolean',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
-				default: true,
-				description: 'Notify recipient via email about successful mint',
-			},
-			{
-				displayName: 'Locale',
-				name: 'nftLocale',
-				type: 'options',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
-				options: [
-					{ name: 'English (US)', value: 'en-US' },
-					{ name: 'Spanish', value: 'es' },
-					{ name: 'French', value: 'fr' },
-					{ name: 'German', value: 'de' },
-				],
-				default: 'en-US',
-				description: 'Locale for email content',
-			},
-			{
-				displayName: 'Reupload Linked Files',
-				name: 'reuploadLinkedFiles',
-				type: 'boolean',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
-				default: true,
-				description: 'URLs in metadata will be resolved and reuploaded to IPFS',
-			},
-			{
-				displayName: 'Compressed (Solana)',
-				name: 'compressed',
-				type: 'boolean',
-				displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
-				default: true,
-				description: 'Use NFT compression for cheaper mint costs (Solana only)',
-			},
 		],
 	};
 
@@ -1336,9 +989,6 @@ export class Crossmint implements INodeType {
 					case 'getBalance':
 						responseData = await Crossmint.getBalanceMethod(this, baseUrl, credentials, i);
 						break;
-					case 'getNFTsFromWallet':
-						responseData = await Crossmint.getNFTsFromWalletMethod(this, baseUrl, credentials, i);
-						break;
 					case 'findProduct':
 						responseData = await Crossmint.findProductMethod(this, baseUrl, credentials, i);
 						break;
@@ -1347,9 +997,6 @@ export class Crossmint implements INodeType {
 						break;
 					case 'signAndSubmitTransaction':
 						responseData = await Crossmint.signTransactionMethod(this, baseUrl, credentials, i);
-						break;
-					case 'mintNFT':
-						responseData = await Crossmint.mintNFTMethod(this, baseUrl, credentials, i);
 						break;
 					default:
 						throw new NodeOperationError(this.getNode(), `Unsupported operation: ${operation}`);
@@ -1422,91 +1069,91 @@ export class Crossmint implements INodeType {
 
 		// Always handle external signer (required)
 
-		let privateKeyStr: string;
-		let signerChainType: string;
+			let privateKeyStr: string;
+			let signerChainType: string;
 
-		if (externalSignerDetails.startsWith('0x') || (externalSignerDetails.length === 64 && /^[a-fA-F0-9]+$/.test(externalSignerDetails))) {
-			signerChainType = 'evm';
-			privateKeyStr = externalSignerDetails;
-		} else {
-			// Try to decode as base58 to validate Solana key
-			try {
-				const decoded = bs58.decode(externalSignerDetails);
-				if (decoded.length === 64 || decoded.length === 32) {
-					signerChainType = 'solana';
-					privateKeyStr = externalSignerDetails;
-				} else {
-					throw new NodeOperationError(context.getNode(), 'Invalid key length');
-				}
-			} catch (error) {
-				throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
-					itemIndex,
-				});
-			}
-		}
-
-		let address: string;
-		let publicKey: string;
-
-		try {
-			if (signerChainType === 'evm') {
-				let privateKeyBuffer: Buffer;
-				if (privateKeyStr.startsWith('0x')) {
-					privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
-				} else {
-					privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
-				}
-
-				if (privateKeyBuffer.length !== 32) {
-					throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
-				}
-
-				// Use ethers to derive address from private key
-				const normalizedPrivateKey = privateKeyStr.startsWith('0x') ? privateKeyStr : '0x' + privateKeyStr;
-				const wallet = new ethers.Wallet(normalizedPrivateKey);
-				address = wallet.address;
-				publicKey = wallet.signingKey.publicKey;
-
-			} else if (signerChainType === 'solana') {
-				// Use @solana/web3.js to derive address from private key
-				const secretKeyBytes = bs58.decode(privateKeyStr);
-
-				// Solana keys can be 32 bytes (seed) or 64 bytes (full keypair)
-				let fullSecretKey: Uint8Array;
-				if (secretKeyBytes.length === 32) {
-					// If it's 32 bytes, it's likely just the seed - need to derive full keypair
-					fullSecretKey = new Uint8Array(64);
-					fullSecretKey.set(secretKeyBytes);
-					// For now, we'll duplicate the 32 bytes to make 64 bytes
-					// This is not the correct way but will make it work temporarily
-					fullSecretKey.set(secretKeyBytes, 32);
-				} else if (secretKeyBytes.length === 64) {
-					fullSecretKey = secretKeyBytes;
-				} else {
-					throw new NodeOperationError(context.getNode(), `Invalid Solana private key: decoded to ${secretKeyBytes.length} bytes, expected 32 or 64`);
-				}
-
-				const keypair = Keypair.fromSecretKey(fullSecretKey);
-				address = keypair.publicKey.toBase58();
-				publicKey = address;
+			if (externalSignerDetails.startsWith('0x') || (externalSignerDetails.length === 64 && /^[a-fA-F0-9]+$/.test(externalSignerDetails))) {
+				signerChainType = 'evm';
+				privateKeyStr = externalSignerDetails;
 			} else {
-				throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${signerChainType}`, {
+				// Try to decode as base58 to validate Solana key
+				try {
+					const decoded = bs58.decode(externalSignerDetails);
+					if (decoded.length === 64 || decoded.length === 32) {
+						signerChainType = 'solana';
+						privateKeyStr = externalSignerDetails;
+					} else {
+						throw new NodeOperationError(context.getNode(), 'Invalid key length');
+					}
+				} catch (error) {
+					throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
+						itemIndex,
+					});
+				}
+			}
+
+			let address: string;
+			let publicKey: string;
+
+			try {
+				if (signerChainType === 'evm') {
+					let privateKeyBuffer: Buffer;
+					if (privateKeyStr.startsWith('0x')) {
+						privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
+					} else {
+						privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
+					}
+
+					if (privateKeyBuffer.length !== 32) {
+						throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
+					}
+
+					// Use ethers to derive address from private key
+					const normalizedPrivateKey = privateKeyStr.startsWith('0x') ? privateKeyStr : '0x' + privateKeyStr;
+					const wallet = new ethers.Wallet(normalizedPrivateKey);
+					address = wallet.address;
+					publicKey = wallet.signingKey.publicKey;
+
+				} else if (signerChainType === 'solana') {
+					// Use @solana/web3.js to derive address from private key
+					const secretKeyBytes = bs58.decode(privateKeyStr);
+
+					// Solana keys can be 32 bytes (seed) or 64 bytes (full keypair)
+					let fullSecretKey: Uint8Array;
+					if (secretKeyBytes.length === 32) {
+						// If it's 32 bytes, it's likely just the seed - need to derive full keypair
+						fullSecretKey = new Uint8Array(64);
+						fullSecretKey.set(secretKeyBytes);
+						// For now, we'll duplicate the 32 bytes to make 64 bytes
+						// This is not the correct way but will make it work temporarily
+						fullSecretKey.set(secretKeyBytes, 32);
+					} else if (secretKeyBytes.length === 64) {
+						fullSecretKey = secretKeyBytes;
+					} else {
+						throw new NodeOperationError(context.getNode(), `Invalid Solana private key: decoded to ${secretKeyBytes.length} bytes, expected 32 or 64`);
+					}
+
+					const keypair = Keypair.fromSecretKey(fullSecretKey);
+					address = keypair.publicKey.toBase58();
+					publicKey = address;
+				} else {
+					throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${signerChainType}`, {
+						itemIndex,
+					});
+				}
+			} catch (error: any) {
+				throw new NodeOperationError(context.getNode(), `Failed to process private key: ${error.message}`, {
 					itemIndex,
 				});
 			}
-		} catch (error: any) {
-			throw new NodeOperationError(context.getNode(), `Failed to process private key: ${error.message}`, {
-				itemIndex,
-			});
-		}
 
-		adminSigner = {
-			type: 'external-wallet',
-			address: address,
-		};
+			adminSigner = {
+				type: 'external-wallet',
+				address: address,
+			};
 
-		derivedAddress = address;
-		derivedPublicKey = publicKey;
+			derivedAddress = address;
+			derivedPublicKey = publicKey;
 
 		// Build owner string based on type
 		let owner: string | undefined;
@@ -1592,95 +1239,43 @@ export class Crossmint implements INodeType {
 		credentials: any,
 		itemIndex: number,
 	): Promise<any> {
-		const locatorType = context.getNodeParameter('getWalletLocatorType', itemIndex) as string;
+		const walletResource = context.getNodeParameter('getWalletLocator', itemIndex) as any;
 
-		// Build wallet locator based on type
+		// Build wallet locator from resource locator
 		let walletLocator: string;
 
-		switch (locatorType) {
+		const locatorMode = walletResource.mode;
+		const locatorValue = walletResource.value;
+
+		if (!locatorValue || locatorValue.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Wallet identifier is required', {
+				description: 'Please specify the wallet identifier',
+				itemIndex,
+			});
+		}
+
+		switch (locatorMode) {
 			case 'address': {
-				const address = context.getNodeParameter('getWalletAddress', itemIndex) as string;
-				if (!address || address.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Wallet address is required', {
-						description: 'Please specify the wallet address',
-						itemIndex,
-					});
-				}
-				walletLocator = address;
+				walletLocator = locatorValue;
 				break;
 			}
-			case 'email': {
-				const email = context.getNodeParameter('getWalletEmail', itemIndex) as string;
-				const chainType = context.getNodeParameter('getWalletChainType', itemIndex) as string;
-
-				if (!email || email.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Email is required', {
-						description: 'Please specify the email address',
-						itemIndex,
-					});
-				}
-
-				walletLocator = `email:${email}:${chainType}:smart`;
-				break;
-			}
-			case 'userId': {
-				const userId = context.getNodeParameter('getWalletUserId', itemIndex) as string;
-				const chainType = context.getNodeParameter('getWalletChainType', itemIndex) as string;
-
-				if (!userId || userId.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'User ID is required', {
-						description: 'Please specify the user ID',
-						itemIndex,
-					});
-				}
-
-				walletLocator = `userId:${userId}:${chainType}:smart`;
-				break;
-			}
-			case 'phoneNumber': {
-				const phoneNumber = context.getNodeParameter('getWalletPhoneNumber', itemIndex) as string;
-				const chainType = context.getNodeParameter('getWalletChainType', itemIndex) as string;
-
-				if (!phoneNumber || phoneNumber.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Phone number is required', {
-						description: 'Please specify the phone number',
-						itemIndex,
-					});
-				}
-
-				walletLocator = `phoneNumber:${phoneNumber}:${chainType}:smart`;
-				break;
-			}
-			case 'twitter': {
-				const twitterHandle = context.getNodeParameter('getWalletTwitterHandle', itemIndex) as string;
-				const chainType = context.getNodeParameter('getWalletChainType', itemIndex) as string;
-
-				if (!twitterHandle || twitterHandle.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Twitter handle is required', {
-						description: 'Please specify the Twitter handle',
-						itemIndex,
-					});
-				}
-
-				walletLocator = `twitter:${twitterHandle}:${chainType}:smart`;
-				break;
-			}
+			case 'email':
+			case 'userId':
+			case 'phoneNumber':
+			case 'twitter':
 			case 'x': {
-				const xHandle = context.getNodeParameter('getWalletXHandle', itemIndex) as string;
 				const chainType = context.getNodeParameter('getWalletChainType', itemIndex) as string;
-
-				if (!xHandle || xHandle.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'X handle is required', {
-						description: 'Please specify the X handle',
+				if (!chainType || chainType.trim() === '') {
+					throw new NodeOperationError(context.getNode(), 'Chain type is required for non-address wallet locators', {
+						description: 'Please specify the blockchain type (EVM or Solana) for this wallet locator type',
 						itemIndex,
 					});
 				}
-
-				walletLocator = `x:${xHandle}:${chainType}:smart`;
+				walletLocator = `${locatorMode}:${locatorValue}:${chainType}:smart`;
 				break;
 			}
 			default:
-				throw new NodeOperationError(context.getNode(), `Unsupported locator type: ${locatorType}`, {
+				throw new NodeOperationError(context.getNode(), `Unsupported locator mode: ${locatorMode}`, {
 					itemIndex,
 				});
 		}
@@ -1707,97 +1302,45 @@ export class Crossmint implements INodeType {
 		credentials: any,
 		itemIndex: number,
 	): Promise<any> {
-		const locatorType = context.getNodeParameter('balanceLocatorType', itemIndex) as string;
+		const walletResource = context.getNodeParameter('walletLocator', itemIndex) as any;
 		const chains = context.getNodeParameter('chains', itemIndex) as string;
 		const tokens = context.getNodeParameter('tokens', itemIndex) as string;
 
-		// Build wallet locator based on type
+		// Build wallet locator from resource locator
 		let walletLocator: string;
 
-		switch (locatorType) {
+		const locatorMode = walletResource.mode;
+		const locatorValue = walletResource.value;
+
+		if (!locatorValue || locatorValue.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Wallet identifier is required', {
+				description: 'Please specify the wallet identifier',
+				itemIndex,
+			});
+		}
+
+		switch (locatorMode) {
 			case 'address': {
-				const address = context.getNodeParameter('balanceWalletAddress', itemIndex) as string;
-				if (!address || address.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Wallet address is required', {
-						description: 'Please specify the wallet address',
-						itemIndex,
-					});
-				}
-				walletLocator = address;
+				walletLocator = locatorValue;
 				break;
 			}
-			case 'email': {
-				const email = context.getNodeParameter('balanceWalletEmail', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-
-				if (!email || email.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Email is required', {
-						description: 'Please specify the email address',
-						itemIndex,
-					});
-				}
-
-				walletLocator = `email:${email}:${chainType}:smart`;
-				break;
-			}
-			case 'userId': {
-				const userId = context.getNodeParameter('balanceWalletUserId', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-
-				if (!userId || userId.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'User ID is required', {
-						description: 'Please specify the user ID',
-						itemIndex,
-					});
-				}
-
-				walletLocator = `userId:${userId}:${chainType}:smart`;
-				break;
-			}
-			case 'phoneNumber': {
-				const phoneNumber = context.getNodeParameter('balanceWalletPhoneNumber', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-
-				if (!phoneNumber || phoneNumber.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Phone number is required', {
-						description: 'Please specify the phone number',
-						itemIndex,
-					});
-				}
-
-				walletLocator = `phoneNumber:${phoneNumber}:${chainType}:smart`;
-				break;
-			}
-			case 'twitter': {
-				const twitterHandle = context.getNodeParameter('balanceWalletTwitterHandle', itemIndex) as string;
-				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-
-				if (!twitterHandle || twitterHandle.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'Twitter handle is required', {
-						description: 'Please specify the Twitter handle',
-						itemIndex,
-					});
-				}
-
-				walletLocator = `twitter:${twitterHandle}:${chainType}:smart`;
-				break;
-			}
+			case 'email':
+			case 'userId':
+			case 'phoneNumber':
+			case 'twitter':
 			case 'x': {
-				const xHandle = context.getNodeParameter('balanceWalletXHandle', itemIndex) as string;
 				const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
-
-				if (!xHandle || xHandle.trim() === '') {
-					throw new NodeOperationError(context.getNode(), 'X handle is required', {
-						description: 'Please specify the X handle',
+				if (!chainType || chainType.trim() === '') {
+					throw new NodeOperationError(context.getNode(), 'Chain type is required for non-address wallet locators', {
+						description: 'Please specify the blockchain type (EVM or Solana) for this wallet locator type',
 						itemIndex,
 					});
 				}
-
-				walletLocator = `x:${xHandle}:${chainType}:smart`;
+				walletLocator = `${locatorMode}:${locatorValue}:${chainType}:smart`;
 				break;
 			}
 			default:
-				throw new NodeOperationError(context.getNode(), `Unsupported locator type: ${locatorType}`, {
+				throw new NodeOperationError(context.getNode(), `Unsupported locator mode: ${locatorMode}`, {
 					itemIndex,
 				});
 		}
@@ -1830,16 +1373,17 @@ export class Crossmint implements INodeType {
 		credentials: any,
 		itemIndex: number,
 	): Promise<any> {
-		// Determine whether this is an NFT transfer first, so we only fetch amount when relevant
-		const transferNft = context.getNodeParameter('transferNft', itemIndex) as boolean;
+		const amount = context.getNodeParameter('amount', itemIndex) as string;
 		const tokenChain = context.getNodeParameter('tokenChain', itemIndex) as string;
 		const tokenName = context.getNodeParameter('tokenName', itemIndex) as string;
 
-		// Input validation - amount is optional/hidden for NFTs
-		let amountStr = '';
-		if (!transferNft) {
-			const amount = context.getNodeParameter('amount', itemIndex) as string;
-			amountStr = String(amount || '').trim();
+		// Input validation
+		const amountStr = String(amount).trim();
+		if (!amount || amountStr === '') {
+			throw new NodeOperationError(context.getNode(), 'Amount is required', {
+				description: 'Please specify the amount of tokens to transfer',
+				itemIndex,
+			});
 		}
 
 		if (!tokenChain || tokenChain.trim() === '') {
@@ -1859,15 +1403,13 @@ export class Crossmint implements INodeType {
 		// Build token locator from chain and name
 		const tokenLocator = `${tokenChain}:${tokenName}`;
 
-		// Validate amount is a valid number (only if provided and not NFT transfer)
-		if (!transferNft && amountStr && amountStr !== '') {
-			const numericAmount = parseFloat(amountStr);
-			if (isNaN(numericAmount) || numericAmount <= 0) {
-				throw new NodeOperationError(context.getNode(), 'Invalid amount', {
-					description: `The amount '${amountStr}' is not a valid positive number`,
-					itemIndex,
-				});
-			}
+		// Validate amount is a valid number
+		const numericAmount = parseFloat(amountStr);
+		if (isNaN(numericAmount) || numericAmount <= 0) {
+			throw new NodeOperationError(context.getNode(), 'Invalid amount', {
+				description: `The amount '${amountStr}' is not a valid positive number`,
+				itemIndex,
+			});
 		}
 
 		// Get blockchain type for both wallets (must be the same)
@@ -1920,27 +1462,6 @@ export class Crossmint implements INodeType {
 			});
 		}
 
-		// Validate chain family consistency between origin, token, and recipient
-		const tokenFamily = tokenChain.includes('solana') ? 'solana' : 'evm';
-		const originFamily = originMode === 'address' ? (originValue.startsWith('0x') ? 'evm' : 'solana') : blockchainType;
-		if (originFamily !== tokenFamily) {
-			throw new NodeOperationError(
-				context.getNode(),
-				`Chain mismatch: Origin wallet is ${originFamily} but token is on ${tokenFamily}`,
-				{ itemIndex },
-			);
-		}
-		if (recipientMode === 'address') {
-			const recipientFamily = recipientValue.startsWith('0x') ? 'evm' : 'solana';
-			if (recipientFamily !== tokenFamily) {
-				throw new NodeOperationError(
-					context.getNode(),
-					`Chain mismatch: Recipient wallet is ${recipientFamily} but token is on ${tokenFamily}`,
-					{ itemIndex },
-				);
-			}
-		}
-
 		switch (recipientMode) {
 			case 'address': {
 				recipient = recipientValue;
@@ -1961,15 +1482,6 @@ export class Crossmint implements INodeType {
 		}
 
 		// Use the new transfer API format
-		const requestBody: any = {
-			recipient: recipient,
-		};
-
-		// Only include amount if provided and not NFT transfer
-		if (!transferNft && amountStr && amountStr !== '') {
-			requestBody.amount = amountStr;
-		}
-
 		const requestOptions: IHttpRequestOptions = {
 			method: 'POST',
 			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(fromWalletLocator)}/tokens/${encodeURIComponent(tokenLocator)}/transfers`,
@@ -1977,19 +1489,22 @@ export class Crossmint implements INodeType {
 				'X-API-KEY': (credentials as any).apiKey,
 				'Content-Type': 'application/json',
 			},
-			body: requestBody,
+			body: {
+				recipient: recipient,
+				amount: amountStr,
+			},
 			json: true,
 		};
 
 		try {
 			const rawResponse = await context.helpers.httpRequest(requestOptions);
-
+			
 			// Build simplified-output with specific fields
 			let chain;
 			if (rawResponse.params && rawResponse.params.calls && rawResponse.params.calls[0]) {
 				chain = rawResponse.params.calls[0].chain;
 			}
-
+			
 			const simplifiedOutput = {
 				chainType: rawResponse.chainType,
 				walletType: rawResponse.walletType,
@@ -2000,7 +1515,7 @@ export class Crossmint implements INodeType {
 				status: rawResponse.status,
 				approvals: rawResponse.approvals || {}
 			};
-
+			
 			// Return both simplified and raw data
 			return {
 				'simplified-output': simplifiedOutput,
@@ -2159,11 +1674,11 @@ export class Crossmint implements INodeType {
 				let currentStatus = rawResponse.status;
 				let attempts = 0;
 				const maxAttempts = 60; // Maximum 5 minutes (5 second intervals)
-
+				
 				while (currentStatus === 'pending' && attempts < maxAttempts) {
 					await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
 					attempts++;
-
+					
 					try {
 						const statusResponse = await Crossmint.getTransactionStatus(
 							context,
@@ -2172,15 +1687,15 @@ export class Crossmint implements INodeType {
 							walletAddress,
 							transactionId
 						);
-
+						
 						currentStatus = statusResponse.status;
-
+						
 						// Update the response with latest status
 						const updatedSimplifiedOutput = {
 							...simplifiedOutput,
 							status: currentStatus,
 						};
-
+						
 						// Add optional fields if they exist
 						if (statusResponse.completedAt) {
 							(updatedSimplifiedOutput as any).completedAt = statusResponse.completedAt;
@@ -2188,17 +1703,17 @@ export class Crossmint implements INodeType {
 						if (statusResponse.error) {
 							(updatedSimplifiedOutput as any).error = statusResponse.error;
 						}
-
+						
 						finalResponse = {
 							'simplified-output': updatedSimplifiedOutput,
 							raw: statusResponse
 						};
-
+						
 					} catch (error) {
 						// If status check fails, continue with original response
 						break;
 					}
-
+					
 					// Break if transaction is completed (success or failed)
 					if (currentStatus === 'success' || currentStatus === 'failed') {
 						break;
@@ -2225,272 +1740,6 @@ export class Crossmint implements INodeType {
 			headers: {
 				'X-API-KEY': (credentials as any).apiKey,
 			},
-			json: true,
-		};
-
-		try {
-			return await context.helpers.httpRequest(requestOptions);
-		} catch (error: any) {
-			throw new NodeApiError(context.getNode(), error);
-		}
-	}
-
-	private static async getNFTsFromWalletMethod(
-		context: IExecuteFunctions,
-		baseUrl: string,
-		credentials: any,
-		itemIndex: number,
-	): Promise<any> {
-		const walletIdentifierData = context.getNodeParameter('walletIdentifier', itemIndex) as any;
-		const contractAddressesStr = context.getNodeParameter('contractAddresses', itemIndex) as string;
-		const tokenId = context.getNodeParameter('nftsTokenId', itemIndex) as string;
-
-		// Build wallet identifier string based on resourceLocator mode
-		let walletIdentifier: string;
-		if (walletIdentifierData.mode === 'address') {
-			// Direct address format: <chain>:<address>
-			const address = walletIdentifierData.value;
-			if (!address || address.trim() === '') {
-				throw new NodeOperationError(context.getNode(), 'Wallet address is required', {
-					itemIndex,
-				});
-			}
-
-			// For address mode, determine chain from address format
-			if (address.startsWith('0x')) {
-				// EVM address - default to polygon for simplicity
-				walletIdentifier = `polygon:${address}`;
-			} else {
-				// Solana address
-				walletIdentifier = `solana:${address}`;
-			}
-		} else {
-			// Other modes: email, userId
-			const value = walletIdentifierData.value;
-			const chain = context.getNodeParameter('nftsWalletChain', itemIndex) as string;
-
-			if (!value || value.trim() === '') {
-				throw new NodeOperationError(context.getNode(), 'Wallet identifier value is required', {
-					itemIndex,
-				});
-			}
-
-			walletIdentifier = `${walletIdentifierData.mode}:${value}:${chain}`;
-		}
-
-		// Build base query parameters for filters
-		const baseQueryParams: any = {};
-
-		// Add optional filters
-		if (contractAddressesStr && contractAddressesStr.trim() !== '') {
-			// Split comma-separated addresses and clean them
-			const addresses = contractAddressesStr.split(',').map(addr => addr.trim()).filter(addr => addr !== '');
-			if (addresses.length > 0) {
-				baseQueryParams.contractAddress = addresses;
-			}
-		}
-
-		if (tokenId && tokenId.trim() !== '') {
-			baseQueryParams.tokenId = tokenId.trim();
-		}
-
-		// Paginate through all results
-		const allNFTs: any[] = [];
-		let currentPage = 1;
-		const perPage = 50; // Maximum allowed per page
-
-		try {
-			while (true) {
-				// Build query parameters for current page
-				const queryParams = {
-					...baseQueryParams,
-					page: currentPage.toString(),
-					perPage: perPage.toString(),
-				};
-
-				// Build query string
-				const queryString = new URLSearchParams();
-				Object.keys(queryParams).forEach(key => {
-					const value = queryParams[key];
-					if (Array.isArray(value)) {
-						// For arrays, add multiple parameters with the same key
-						value.forEach(item => queryString.append(key, item));
-					} else {
-						queryString.append(key, value);
-					}
-				});
-
-				const requestOptions: IHttpRequestOptions = {
-					method: 'GET',
-					url: `${baseUrl}/2022-06-09/wallets/${encodeURIComponent(walletIdentifier)}/nfts?${queryString.toString()}`,
-					headers: {
-						'X-API-KEY': (credentials as any).apiKey,
-					},
-					json: true,
-				};
-
-				const pageResponse = await context.helpers.httpRequest(requestOptions);
-
-				// Add NFTs from current page to results
-				if (Array.isArray(pageResponse) && pageResponse.length > 0) {
-					allNFTs.push(...pageResponse);
-
-					// If we got fewer NFTs than requested, we've reached the end
-					if (pageResponse.length < perPage) {
-						break;
-					}
-
-					currentPage++;
-				} else {
-					// No more NFTs
-					break;
-				}
-			}
-
-			return allNFTs;
-		} catch (error: any) {
-			throw new NodeApiError(context.getNode(), error);
-		}
-	}
-
-	// NFT METHODS
-
-	private static async mintNFTMethod(
-		context: IExecuteFunctions,
-		baseUrl: string,
-		credentials: any,
-		itemIndex: number,
-	): Promise<any> {
-		const collectionId = context.getNodeParameter('collectionId', itemIndex) as string;
-		const recipientData = context.getNodeParameter('nftRecipient', itemIndex) as any;
-		const metadataType = context.getNodeParameter('metadataType', itemIndex) as string;
-
-		// Validate required fields
-		if (!collectionId || collectionId.trim() === '') {
-			throw new NodeOperationError(context.getNode(), 'Collection ID is required', {
-				description: 'Please specify the collection identifier',
-				itemIndex,
-			});
-		}
-
-		// Build recipient string based on resourceLocator mode
-		let recipient: string;
-		if (recipientData.mode === 'address') {
-			// Direct address format: <chain>:<address>
-			// We need to extract chain from the address format or use a default
-			const address = recipientData.value;
-			if (!address || address.trim() === '') {
-				throw new NodeOperationError(context.getNode(), 'Wallet address is required', {
-					itemIndex,
-				});
-			}
-
-			// For address mode, we need to determine the chain from the address format
-			if (address.startsWith('0x')) {
-				// EVM address - default to polygon for simplicity
-				recipient = `polygon:${address}`;
-			} else {
-				// Solana address
-				recipient = `solana:${address}`;
-			}
-		} else {
-			// Other modes: email, userId, twitter, x
-			const value = recipientData.value;
-			const chain = context.getNodeParameter('nftChain', itemIndex) as string;
-
-			if (!value || value.trim() === '') {
-				throw new NodeOperationError(context.getNode(), 'Recipient value is required', {
-					itemIndex,
-				});
-			}
-
-			recipient = `${recipientData.mode}:${value}:${chain}`;
-		}
-
-		// Build request body based on metadata type
-		const requestBody: any = {
-			recipient: recipient,
-			sendNotification: context.getNodeParameter('sendNotification', itemIndex) as boolean,
-			locale: context.getNodeParameter('nftLocale', itemIndex) as string,
-			reuploadLinkedFiles: context.getNodeParameter('reuploadLinkedFiles', itemIndex) as boolean,
-			compressed: context.getNodeParameter('compressed', itemIndex) as boolean,
-		};
-
-		if (metadataType === 'template') {
-			// Template ID mode
-			const templateId = context.getNodeParameter('templateId', itemIndex) as string;
-			if (!templateId || templateId.trim() === '') {
-				throw new NodeOperationError(context.getNode(), 'Template ID is required when using template mode', {
-					itemIndex,
-				});
-			}
-			requestBody.templateId = templateId;
-		} else if (metadataType === 'url') {
-			// Metadata URL mode
-			const metadataUrl = context.getNodeParameter('metadataUrl', itemIndex) as string;
-			if (!metadataUrl || metadataUrl.trim() === '') {
-				throw new NodeOperationError(context.getNode(), 'Metadata URL is required when using URL mode', {
-					itemIndex,
-				});
-			}
-			requestBody.metadata = metadataUrl;
-		} else {
-			// Metadata object mode
-			const name = context.getNodeParameter('nftName', itemIndex) as string;
-			const image = context.getNodeParameter('nftImage', itemIndex) as string;
-			const description = context.getNodeParameter('nftDescription', itemIndex) as string;
-
-			if (!name || !image || !description) {
-				throw new NodeOperationError(context.getNode(), 'Name, Image, and Description are required for metadata object mode', {
-					itemIndex,
-				});
-			}
-
-			const metadata: any = {
-				name: name,
-				image: image,
-				description: description,
-			};
-
-			// Optional fields
-			const animationUrl = context.getNodeParameter('nftAnimationUrl', itemIndex) as string;
-			const symbol = context.getNodeParameter('nftSymbol', itemIndex) as string;
-			const attributesJson = context.getNodeParameter('nftAttributes', itemIndex) as string;
-
-			if (animationUrl) {
-				metadata.animation_url = animationUrl;
-			}
-
-			if (symbol) {
-				metadata.symbol = symbol;
-			}
-
-			// Parse attributes if provided
-			if (attributesJson && attributesJson.trim() !== '') {
-				try {
-					const attributes = JSON.parse(attributesJson);
-					if (Array.isArray(attributes)) {
-						metadata.attributes = attributes;
-					}
-				} catch (error) {
-					throw new NodeOperationError(context.getNode(), 'Invalid JSON format for attributes', {
-						description: 'Please provide a valid JSON array for attributes',
-						itemIndex,
-					});
-				}
-			}
-
-			requestBody.metadata = metadata;
-		}
-
-		const requestOptions: IHttpRequestOptions = {
-			method: 'POST',
-			url: `${baseUrl}/2022-06-09/collections/${encodeURIComponent(collectionId)}/nfts`,
-			headers: {
-				'X-API-KEY': (credentials as any).apiKey,
-				'Content-Type': 'application/json',
-			},
-			body: requestBody,
 			json: true,
 		};
 
@@ -2689,7 +1938,7 @@ export class Crossmint implements INodeType {
 				itemIndex,
 			});
 		}
-
+		
 		// Step 1: Create Transaction using 2025-06-09 API format
 		let requestBody: any;
 		if (chain.includes('solana')) {
@@ -2710,7 +1959,7 @@ export class Crossmint implements INodeType {
 				}
 			};
 		}
-
+		
 		const createTransactionOptions: IHttpRequestOptions = {
 			method: 'POST',
 			url: `${baseUrl}/2025-06-09/wallets/${encodeURIComponent(payerAddress)}/transactions`,
@@ -2724,7 +1973,7 @@ export class Crossmint implements INodeType {
 
 		const transactionResponse = await context.helpers.httpRequest(createTransactionOptions);
 		const transactionId = transactionResponse.id;
-
+		
 		// Step 2: Always sign with external wallet (required)
 		// Get the message to sign from transaction response
 		if (!transactionResponse.approvals || !transactionResponse.approvals.pending || !transactionResponse.approvals.pending[0]) {
@@ -2732,10 +1981,10 @@ export class Crossmint implements INodeType {
 				itemIndex,
 			});
 		}
-
+		
 		const messageToSign = transactionResponse.approvals.pending[0].message;
 		const signerAddress = transactionResponse.approvals.pending[0].signer.address || transactionResponse.approvals.pending[0].signer.locator.split(':')[1];
-
+		
 		// Sign the message (not the full transaction)
 		let signature: string = '';
 		try {
@@ -2787,12 +2036,13 @@ export class Crossmint implements INodeType {
 		};
 
 		const approvalResponse = await context.helpers.httpRequest(approvalOptions);
-
+		
 		return {
 			transaction: transactionResponse,
 			approval: approvalResponse,
 			signingDetails
 		};
 	}
+
 
 }
