@@ -79,9 +79,8 @@ Once you've installed the community node, here's how to add and configure your f
 </div>
 
 
-4. For this example, we'll use **"Get or Create Wallet"** operation:
-   - Set **Resource** to **"Wallet"**
-   - Set **Operation** to **"Get or Create Wallet"**
+4. For this example, we'll use **"Get or create wallet"** operation:
+
 
 <div align="center">
 <img src="./images/crossmint-config.png" alt="Crossmint node configuration" width="50%">
