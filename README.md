@@ -121,6 +121,8 @@ Once you've installed the community node, here's how to add and configure your f
 
 > **⚠️ Important**: Always use **server-side API keys** from Crossmint. Client-side keys will not work. For initial testing, always use **Staging** environment.
 
+10. TODO: Add instructions for adding the private key here
+
 ### Getting Test USDC for Staging
 
 To test transactions in staging, you'll need test USDC tokens. You can get them from:
