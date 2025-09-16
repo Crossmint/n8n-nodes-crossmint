@@ -18,7 +18,7 @@ export const VALIDATION_PATTERNS = {
 	EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
 	EVM_ADDRESS: /^0x[a-fA-F0-9]{40}$/,
 	EVM_PRIVATE_KEY: /^(0x)?[a-fA-F0-9]{64}$/,
-	PHONE: /^\+?[\d\s\-\(\)]+$/,
+	PHONE: /^\+?[\d\s\-()]+$/,
 } as const;
 
 export const PAGINATION = {

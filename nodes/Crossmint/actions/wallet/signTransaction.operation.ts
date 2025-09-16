@@ -11,11 +11,7 @@ async function getTransactionStatus(
 	transactionId: string,
 ): Promise<any> {
 	const endpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}`;
-	try {
-		return await api.get(endpoint, API_VERSIONS.WALLETS);
-	} catch (error: any) {
-		throw error; // Re-throw to be handled by caller
-	}
+	return await api.get(endpoint, API_VERSIONS.WALLETS);
 }
 
 async function handleWaitForCompletion(
@@ -57,7 +53,7 @@ async function handleWaitForCompletion(
 				raw: statusResponse
 			};
 
-		} catch (error: any) {
+		} catch {
 			// If we can't get status updates, return the last known state
 			// This prevents the operation from failing due to temporary API issues during polling
 			break;

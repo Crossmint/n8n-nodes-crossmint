@@ -4,8 +4,8 @@ import {
 	INodeTypeDescription,
 	INodeExecutionData,
 	NodeOperationError,
+	NodeConnectionType,
 } from 'n8n-workflow';
-import { NodeConnectionType } from 'n8n-workflow';
 import { CrossmintApi } from './transport/CrossmintApi';
 import { CrossmintCredentials } from './transport/types';
 import { 
@@ -34,6 +34,7 @@ export class Crossmint implements INodeType {
 		icon: 'file:crossmint.svg',
 		group: ['transform'],
 		version: 1,
+		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Interact with Crossmint API for wallet management, NFT operations, and e-commerce',
 		defaults: {
 			name: 'Crossmint',
