@@ -1,4 +1,4 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, NodeApiError } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { buildWalletLocator } from '../../utils/locators';
@@ -17,5 +17,10 @@ export async function getBalance(
 
 	const endpoint = `wallets/${encodeURIComponent(walletLocator)}/balances?chains=${encodeURIComponent(chains)}&tokens=${encodeURIComponent(tokens)}`;
 
-	return await api.get(endpoint, API_VERSIONS.WALLETS);
+	try {
+		return await api.get(endpoint, API_VERSIONS.WALLETS);
+	} catch (error: any) {
+		// Pass through the original Crossmint API error exactly as received
+		throw new NodeApiError(context.getNode(), error);
+	}
 }

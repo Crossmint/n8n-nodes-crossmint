@@ -1,4 +1,4 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, NodeApiError } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { validateAmount, validateRequiredField } from '../../utils/validation';
@@ -33,7 +33,14 @@ export async function transferToken(
 	};
 
 	const endpoint = `wallets/${encodeURIComponent(fromWalletLocator)}/tokens/${encodeURIComponent(tokenLocator)}/transfers`;
-	const rawResponse = await api.post(endpoint, requestBody, API_VERSIONS.WALLETS);
+
+	let rawResponse;
+	try {
+		rawResponse = await api.post(endpoint, requestBody, API_VERSIONS.WALLETS);
+	} catch (error: any) {
+		// Pass through the original Crossmint API error exactly as received
+		throw new NodeApiError(context.getNode(), error);
+	}
 
 	let chain;
 	if (rawResponse.params && rawResponse.params.calls && rawResponse.params.calls[0]) {

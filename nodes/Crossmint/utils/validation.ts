@@ -1,5 +1,4 @@
 import { NodeOperationError } from 'n8n-workflow';
-import { VALIDATION_PATTERNS } from './constants';
 
 export function validateEmail(email: string, context: any, itemIndex: number): void {
 	if (!email || email.trim() === '') {

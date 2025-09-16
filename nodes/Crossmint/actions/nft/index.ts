@@ -9,62 +9,59 @@ export const nftFields: INodeProperties[] = [
 		name: 'operation',
 		type: 'options',
 		noDataExpression: true,
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-			},
-		},
+		displayOptions: { show: { resource: ['nft'] } },
 		options: [
 			{
 				name: 'Mint NFT',
 				value: 'mintNFT',
-				description: 'Mint a new NFT',
-				action: 'Mint an NFT',
+				description: 'Mint a new NFT to a wallet',
+				action: 'Mint NFT',
 			},
 			{
-				name: 'Get NFTs from Wallet',
+				name: 'Get NFTs From Wallet',
 				value: 'getNFTsFromWallet',
-				description: 'Get NFTs owned by a wallet',
-				action: 'Get NFTs from wallet',
+				description: 'Fetch the NFTs in a provided wallet',
+				action: 'Get nfts from wallet',
 			},
 		],
 		default: 'mintNFT',
 	},
 
+	// ---- Get NFTs from Wallet fields
 	{
-		displayName: 'Collection ID',
-		name: 'collectionId',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-			},
-		},
-		default: '',
-		placeholder: 'collection-id-123',
-		description: 'The collection identifier to mint the NFT in',
-	},
-
-	{
-		displayName: 'NFT Recipient',
-		name: 'nftRecipient',
+		displayName: 'Wallet Identifier',
+		name: 'walletIdentifier',
 		type: 'resourceLocator',
-		default: { mode: 'address', value: '' },
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-			},
-		},
+		displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
+		default: { mode: 'email', value: '' },
+		description: 'Select the wallet to get NFTs from',
 		modes: [
+			{
+				displayName: 'Email',
+				name: 'email',
+				type: 'string',
+				placeholder: 'user@example.com',
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: '^[^@]+@[^@]+\\.[^@]+$',
+							errorMessage: 'Please enter a valid email address',
+						},
+					},
+				],
+			},
+			{
+				displayName: 'User ID',
+				name: 'userId',
+				type: 'string',
+				placeholder: 'user-123',
+			},
 			{
 				displayName: 'Address',
 				name: 'address',
 				type: 'string',
-				placeholder: '0x1234... or base58 address',
+				placeholder: '0x1234567890123456789012345678901234567890',
 				validation: [
 					{
 						type: 'regex',
@@ -75,6 +72,64 @@ export const nftFields: INodeProperties[] = [
 					},
 				],
 			},
+		],
+	},
+	{
+		displayName: 'Chain',
+		name: 'nftsWalletChain',
+		type: 'options',
+		displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
+		options: [
+			{ name: 'Arbitrum', value: 'arbitrum' },
+			{ name: 'Avalanche', value: 'avalanche' },
+			{ name: 'Base', value: 'base' },
+			{ name: 'BSC', value: 'bsc' },
+			{ name: 'Ethereum', value: 'ethereum' },
+			{ name: 'Optimism', value: 'optimism' },
+			{ name: 'Polygon', value: 'polygon' },
+			{ name: 'Solana', value: 'solana' },
+		],
+		default: 'polygon',
+		description: 'Blockchain network (only used for email and userId wallet types)',
+	},
+	{
+		displayName: 'Contract Addresses (Optional)',
+		name: 'contractAddresses',
+		type: 'string',
+		displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
+		default: '',
+		placeholder: '0x1234...,0x5678... (comma-separated)',
+		description: 'Filter NFTs by contract addresses (comma-separated list, optional)',
+	},
+	{
+		displayName: 'Token ID (Optional)',
+		name: 'nftsTokenId',
+		type: 'string',
+		displayOptions: { show: { resource: ['nft'], operation: ['getNFTsFromWallet'] } },
+		default: '',
+		placeholder: '123',
+		description: 'Filter NFTs by specific token ID (optional)',
+	},
+
+	// ---- Mint NFT fields
+	{
+		displayName: 'Collection ID',
+		name: 'collectionId',
+		type: 'string',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+		default: '',
+		placeholder: 'default-polygon or 9c82ef99-617f-497d-9abb-fd355291681b',
+		description: 'Collection identifier (default collections: default-solana, default-polygon)',
+		required: true,
+	},
+	{
+		displayName: 'Recipient',
+		name: 'nftRecipient',
+		type: 'resourceLocator',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+		default: { mode: 'address', value: '' },
+		description: 'Select the NFT recipient',
+		modes: [
 			{
 				displayName: 'Email',
 				name: 'email',
@@ -84,7 +139,7 @@ export const nftFields: INodeProperties[] = [
 					{
 						type: 'regex',
 						properties: {
-							regex: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
+							regex: '^[^@]+@[^@]+\\.[^@]+$',
 							errorMessage: 'Please enter a valid email address',
 						},
 					},
@@ -94,292 +149,43 @@ export const nftFields: INodeProperties[] = [
 				displayName: 'User ID',
 				name: 'userId',
 				type: 'string',
-				placeholder: 'user123',
+				placeholder: 'user-123',
 			},
 			{
 				displayName: 'Twitter',
 				name: 'twitter',
 				type: 'string',
 				placeholder: 'username',
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: '^[a-zA-Z0-9_]{1,15}$',
+							errorMessage: 'Please enter a valid Twitter handle (1-15 alphanumeric characters or underscores)',
+						},
+					},
+				],
 			},
 			{
-				displayName: 'X (Twitter)',
+				displayName: 'X',
 				name: 'x',
 				type: 'string',
 				placeholder: 'username',
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: '^[a-zA-Z0-9_]{1,15}$',
+							errorMessage: 'Please enter a valid X handle (1-15 alphanumeric characters or underscores)',
+						},
+					},
+				],
 			},
-		],
-		description: 'Who should receive the NFT',
-	},
-
-	{
-		displayName: 'Chain',
-		name: 'nftChain',
-		type: 'options',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-				'/nftRecipient.mode': ['email', 'userId', 'twitter', 'x'],
-			},
-		},
-		options: [
-			{
-				name: 'Polygon',
-				value: 'polygon',
-				description: 'Polygon blockchain',
-			},
-			{
-				name: 'Solana',
-				value: 'solana',
-				description: 'Solana blockchain',
-			},
-		],
-		default: 'polygon',
-		description: 'The blockchain for the NFT (required for non-address recipients)',
-	},
-
-	{
-		displayName: 'Metadata Type',
-		name: 'metadataType',
-		type: 'options',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-			},
-		},
-		options: [
-			{
-				name: 'Template',
-				value: 'template',
-				description: 'Use a predefined template',
-			},
-			{
-				name: 'URL',
-				value: 'url',
-				description: 'Provide metadata URL',
-			},
-			{
-				name: 'Object',
-				value: 'object',
-				description: 'Define metadata object',
-			},
-		],
-		default: 'object',
-		description: 'How to specify the NFT metadata',
-	},
-
-	{
-		displayName: 'Template ID',
-		name: 'templateId',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-				metadataType: ['template'],
-			},
-		},
-		default: '',
-		placeholder: 'template-id-123',
-		description: 'The template ID to use for the NFT',
-	},
-
-	{
-		displayName: 'Metadata URL',
-		name: 'metadataUrl',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-				metadataType: ['url'],
-			},
-		},
-		default: '',
-		placeholder: 'https://example.com/metadata.json',
-		description: 'URL pointing to the NFT metadata JSON',
-	},
-
-	{
-		displayName: 'NFT Name',
-		name: 'nftName',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-				metadataType: ['object'],
-			},
-		},
-		default: '',
-		placeholder: 'My Awesome NFT',
-		description: 'Name of the NFT',
-	},
-
-	{
-		displayName: 'NFT Image',
-		name: 'nftImage',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-				metadataType: ['object'],
-			},
-		},
-		default: '',
-		placeholder: 'https://example.com/image.png',
-		description: 'URL of the NFT image',
-	},
-
-	{
-		displayName: 'NFT Description',
-		name: 'nftDescription',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-				metadataType: ['object'],
-			},
-		},
-		default: '',
-		placeholder: 'This is an awesome NFT',
-		description: 'Description of the NFT',
-	},
-
-	{
-		displayName: 'Animation URL',
-		name: 'nftAnimationUrl',
-		type: 'string',
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-				metadataType: ['object'],
-			},
-		},
-		default: '',
-		placeholder: 'https://example.com/animation.mp4',
-		description: 'URL of the NFT animation (optional)',
-	},
-
-	{
-		displayName: 'Symbol',
-		name: 'nftSymbol',
-		type: 'string',
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-				metadataType: ['object'],
-			},
-		},
-		default: '',
-		placeholder: 'MYNFT',
-		description: 'Symbol for the NFT (optional)',
-	},
-
-	{
-		displayName: 'Attributes',
-		name: 'nftAttributes',
-		type: 'string',
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-				metadataType: ['object'],
-			},
-		},
-		default: '',
-		placeholder: '[{"trait_type": "Color", "value": "Blue"}]',
-		description: 'JSON array of NFT attributes (optional)',
-	},
-
-	{
-		displayName: 'Send Notification',
-		name: 'sendNotification',
-		type: 'boolean',
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-			},
-		},
-		default: true,
-		description: 'Whether to send a notification to the recipient',
-	},
-
-	{
-		displayName: 'Locale',
-		name: 'nftLocale',
-		type: 'string',
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-			},
-		},
-		default: 'en-US',
-		placeholder: 'en-US',
-		description: 'Locale for notifications',
-	},
-
-	{
-		displayName: 'Reupload Linked Files',
-		name: 'reuploadLinkedFiles',
-		type: 'boolean',
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-			},
-		},
-		default: false,
-		description: 'Whether to reupload linked files to IPFS',
-	},
-
-	{
-		displayName: 'Compressed',
-		name: 'compressed',
-		type: 'boolean',
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['mintNFT'],
-			},
-		},
-		default: false,
-		description: 'Whether to use compressed NFTs (Solana only)',
-	},
-
-	{
-		displayName: 'Wallet Identifier',
-		name: 'walletIdentifier',
-		type: 'resourceLocator',
-		default: { mode: 'address', value: '' },
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['getNFTsFromWallet'],
-			},
-		},
-		modes: [
 			{
 				displayName: 'Address',
 				name: 'address',
 				type: 'string',
-				placeholder: '0x1234... or base58 address',
+				placeholder: '0x1234567890123456789012345678901234567890',
 				validation: [
 					{
 						type: 'regex',
@@ -390,86 +196,153 @@ export const nftFields: INodeProperties[] = [
 					},
 				],
 			},
-			{
-				displayName: 'Email',
-				name: 'email',
-				type: 'string',
-				placeholder: 'user@example.com',
-				validation: [
-					{
-						type: 'regex',
-						properties: {
-							regex: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
-							errorMessage: 'Please enter a valid email address',
-						},
-					},
-				],
-			},
-			{
-				displayName: 'User ID',
-				name: 'userId',
-				type: 'string',
-				placeholder: 'user123',
-			},
 		],
-		description: 'How to identify the wallet',
 	},
-
 	{
 		displayName: 'Chain',
-		name: 'nftsWalletChain',
+		name: 'nftChain',
 		type: 'options',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['getNFTsFromWallet'],
-				'/walletIdentifier.mode': ['email', 'userId'],
-			},
-		},
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
 		options: [
-			{
-				name: 'Polygon',
-				value: 'polygon',
-				description: 'Polygon blockchain',
-			},
-			{
-				name: 'Solana',
-				value: 'solana',
-				description: 'Solana blockchain',
-			},
+			{ name: 'Arbitrum', value: 'arbitrum' },
+			{ name: 'Avalanche', value: 'avalanche' },
+			{ name: 'Base', value: 'base' },
+			{ name: 'BSC', value: 'bsc' },
+			{ name: 'Ethereum', value: 'ethereum' },
+			{ name: 'Optimism', value: 'optimism' },
+			{ name: 'Polygon', value: 'polygon' },
+			{ name: 'Solana', value: 'solana' },
 		],
 		default: 'polygon',
-		description: 'The blockchain to search for NFTs (required for non-address identifiers)',
+		description: 'Blockchain network for the NFT (only used for email, userId, twitter, x recipient types)',
 	},
-
 	{
-		displayName: 'Contract Addresses',
-		name: 'contractAddresses',
-		type: 'string',
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['getNFTsFromWallet'],
-			},
-		},
-		default: '',
-		placeholder: '0x1234...,0x5678...',
-		description: 'Comma-separated list of contract addresses to filter by (optional)',
+		displayName: 'Metadata Type',
+		name: 'metadataType',
+		type: 'options',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+		options: [
+			{ name: 'Metadata Object', value: 'object', description: 'Define metadata inline' },
+			{ name: 'Metadata URL', value: 'url', description: 'Reference external JSON metadata' },
+			{ name: 'Template ID', value: 'template', description: 'Use existing template' },
+		],
+		default: 'object',
+		description: 'How to provide the NFT metadata',
+		required: true,
 	},
-
 	{
-		displayName: 'Token ID',
-		name: 'nftsTokenId',
+		displayName: 'NFT Name',
+		name: 'nftName',
 		type: 'string',
-		displayOptions: {
-			show: {
-				resource: ['nft'],
-				operation: ['getNFTsFromWallet'],
-			},
-		},
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
 		default: '',
-		placeholder: '123',
-		description: 'Specific token ID to filter by (optional)',
+		placeholder: 'My Awesome NFT',
+		description: 'The name of your NFT (Max length: 32)',
+		required: true,
+	},
+	{
+		displayName: 'NFT Image URL',
+		name: 'nftImage',
+		type: 'string',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
+		default: '',
+		placeholder: 'https://example.com/image.png',
+		description: 'Direct link to your NFT image',
+		required: true,
+	},
+	{
+		displayName: 'NFT Description',
+		name: 'nftDescription',
+		type: 'string',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
+		default: '',
+		placeholder: 'A brief description of the NFT',
+		description: 'A brief description of the NFT (Max length: 64)',
+		required: true,
+	},
+	{
+		displayName: 'Animation URL',
+		name: 'nftAnimationUrl',
+		type: 'string',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
+		default: '',
+		placeholder: 'https://example.com/animation.mp4',
+		description: 'Animation URL for the NFT (EVM only)',
+	},
+	{
+		displayName: 'Symbol (Solana)',
+		name: 'nftSymbol',
+		type: 'string',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
+		default: '',
+		placeholder: 'MTK',
+		description: 'A shorthand identifier for the token (Max length: 10, Solana only)',
+	},
+	{
+		displayName: 'Attributes',
+		name: 'nftAttributes',
+		type: 'string',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['object'] } },
+		default: '',
+		placeholder: '[{"trait_type": "Color", "value": "Blue"}, {"trait_type": "Rarity", "value": "Rare"}]',
+		description: 'JSON array of attributes (optional)',
+	},
+	{
+		displayName: 'Metadata URL',
+		name: 'metadataUrl',
+		type: 'string',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['url'] } },
+		default: '',
+		placeholder: 'https://example.com/metadata.json',
+		description: 'URL to a JSON file containing the metadata',
+		required: true,
+	},
+	{
+		displayName: 'Template ID',
+		name: 'templateId',
+		type: 'string',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'], metadataType: ['template'] } },
+		default: '',
+		placeholder: 'template-12345',
+		description: 'ID of the template to use for minting',
+		required: true,
+	},
+	{
+		displayName: 'Send Notification',
+		name: 'sendNotification',
+		type: 'boolean',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+		default: true,
+		description: 'Whether to notify recipient via email about successful mint',
+	},
+	{
+		displayName: 'Locale',
+		name: 'nftLocale',
+		type: 'options',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+		options: [
+			{ name: 'English (US)', value: 'en-US' },
+			{ name: 'Spanish', value: 'es' },
+			{ name: 'French', value: 'fr' },
+			{ name: 'German', value: 'de' },
+		],
+		default: 'en-US',
+		description: 'Locale for email content',
+	},
+	{
+		displayName: 'Reupload Linked Files',
+		name: 'reuploadLinkedFiles',
+		type: 'boolean',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+		default: true,
+		description: 'Whether URLs in metadata will be resolved and reuploaded to IPFS',
+	},
+	{
+		displayName: 'Compressed (Solana)',
+		name: 'compressed',
+		type: 'boolean',
+		displayOptions: { show: { resource: ['nft'], operation: ['mintNFT'] } },
+		default: true,
+		description: 'Whether to use NFT compression for cheaper mint costs (Solana only)',
 	},
 ];

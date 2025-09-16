@@ -1,4 +1,4 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, NodeApiError } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { validateEmail, validateRequiredField, validateAddressFields } from '../../utils/validation';
@@ -75,5 +75,10 @@ export async function findProduct(
 		}],
 	};
 
-	return await api.post('orders', requestBody, API_VERSIONS.ORDERS);
+	try {
+		return await api.post('orders', requestBody, API_VERSIONS.ORDERS);
+	} catch (error: any) {
+		// Pass through the original Crossmint API error exactly as received
+		throw new NodeApiError(context.getNode(), error);
+	}
 }

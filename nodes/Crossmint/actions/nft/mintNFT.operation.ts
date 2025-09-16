@@ -1,4 +1,4 @@
-import { IExecuteFunctions, NodeOperationError } from 'n8n-workflow';
+import { IExecuteFunctions, NodeOperationError, NodeApiError } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { validateRequiredField } from '../../utils/validation';
@@ -82,5 +82,11 @@ export async function mintNFT(
 	}
 
 	const endpoint = `collections/${encodeURIComponent(collectionId)}/nfts`;
-	return await api.post(endpoint, requestBody, API_VERSIONS.COLLECTIONS);
+
+	try {
+		return await api.post(endpoint, requestBody, API_VERSIONS.COLLECTIONS);
+	} catch (error: any) {
+		// Pass through the original Crossmint API error exactly as received
+		throw new NodeApiError(context.getNode(), error);
+	}
 }

@@ -5,7 +5,7 @@ export interface CrossmintCredentials {
 	environment: 'Production' | 'Staging';
 }
 
-export interface ApiRequestOptions extends Omit<IHttpRequestOptions, 'headers'> {
+export interface ApiRequestOptions extends Omit<IHttpRequestOptions, 'headers' | 'url'> {
 	endpoint: string;
 	version?: string;
 	headers?: Record<string, string>;

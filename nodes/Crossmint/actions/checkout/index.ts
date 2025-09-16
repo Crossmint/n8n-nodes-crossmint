@@ -9,316 +9,272 @@ export const checkoutFields: INodeProperties[] = [
 		name: 'operation',
 		type: 'options',
 		noDataExpression: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-			},
-		},
+		displayOptions: { show: { resource: ['checkout'] } },
 		options: [
 			{
-				name: 'Find Product',
+				name: 'Create Order',
 				value: 'findProduct',
-				description: 'Find and create order for a product',
-				action: 'Find a product',
+				description: 'Search and find products on Amazon and Shopify',
+				action: 'Create order',
 			},
 			{
-				name: 'Purchase Product',
+				name: 'Pay Order',
 				value: 'purchaseProduct',
-				description: 'Complete purchase of a product',
-				action: 'Purchase a product',
+				description: 'Purchase a product with automated checkout',
+				action: 'Pay order',
 			},
 		],
 		default: 'findProduct',
 	},
-
 	{
 		displayName: 'Platform',
 		name: 'platform',
 		type: 'options',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
 		options: [
-			{
-				name: 'Amazon',
-				value: 'amazon',
-				description: 'Amazon marketplace',
-			},
-			{
-				name: 'Shopify',
-				value: 'shopify',
-				description: 'Shopify store',
-			},
+			{ name: 'Amazon', value: 'amazon', description: 'Amazon marketplace' },
+			{ name: 'Shopify', value: 'shopify', description: 'Shopify store' },
 		],
 		default: 'amazon',
-		description: 'The e-commerce platform',
-	},
-
-	{
-		displayName: 'Product Identifier',
-		name: 'productIdentifier',
-		type: 'string',
+		description: 'E-commerce platform for the purchase',
 		required: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
-		default: '',
-		placeholder: 'ASIN for Amazon or product handle for Shopify',
-		description: 'Product identifier (ASIN for Amazon, product handle for Shopify)',
 	},
+	// ---- Find Product fields (all fields needed for POST /orders)
 
-	{
-		displayName: 'Recipient Email',
-		name: 'recipientEmail',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
-		default: '',
-		placeholder: 'recipient@example.com',
-		description: 'Email address of the product recipient',
-		validation: [
-			{
-				type: 'regex',
-				properties: {
-					regex: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$',
-					errorMessage: 'Please enter a valid email address',
-				},
-			},
-		],
-	},
-
-	{
-		displayName: 'Recipient Name',
-		name: 'recipientName',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
-		default: '',
-		placeholder: 'John Doe',
-		description: 'Full name of the person receiving the product',
-	},
-
-	{
-		displayName: 'Address Line 1',
-		name: 'addressLine1',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
-		default: '',
-		placeholder: '123 Main Street',
-		description: 'Street address, P.O. box, or company name',
-	},
-
-	{
-		displayName: 'Address Line 2',
-		name: 'addressLine2',
-		type: 'string',
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
-		default: '',
-		placeholder: 'Apartment, suite, unit, building, floor, etc.',
-		description: 'Additional address information (optional)',
-	},
-
-	{
-		displayName: 'City',
-		name: 'city',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
-		default: '',
-		placeholder: 'New York',
-		description: 'City, district, suburb, town, or village',
-	},
-
-	{
-		displayName: 'State',
-		name: 'state',
-		type: 'string',
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
-		default: '',
-		placeholder: 'NY',
-		description: 'State, province, or region (optional)',
-	},
-
-	{
-		displayName: 'Postal Code',
-		name: 'postalCode',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
-		default: '',
-		placeholder: '10001',
-		description: 'ZIP or postal code',
-	},
-
-	{
-		displayName: 'Country',
-		name: 'country',
-		type: 'string',
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
-		default: 'US',
-		placeholder: 'US',
-		description: 'Country code',
-	},
-
-	{
-		displayName: 'Payment Method',
-		name: 'paymentMethod',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
-		default: 'ethereum-sepolia',
-		placeholder: 'ethereum-sepolia',
-		description: 'Payment method/chain identifier',
-	},
-
-	{
-		displayName: 'Payment Currency',
-		name: 'paymentCurrency',
-		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
-		default: 'usdc',
-		placeholder: 'usdc',
-		description: 'Currency for payment',
-	},
-
-	{
-		displayName: 'Payer Address',
-		name: 'payerAddress',
-		type: 'string',
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['findProduct'],
-			},
-		},
-		default: '',
-		placeholder: '0x1234... or base58 address',
-		description: 'Wallet address of the payer (optional)',
-	},
-
+	// ---- Purchase Product fields (Step 2: Submit Transaction)
 	{
 		displayName: 'Serialized Transaction',
 		name: 'serializedTransaction',
 		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['purchaseProduct'],
-			},
-		},
+		displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'] } },
 		default: '',
-		placeholder: 'Serialized transaction from Create Order response',
-		description: 'The serialized transaction data from the order creation',
+		placeholder: 'Copy from Find Product response: order.payment.preparation.serializedTransaction',
+		description: 'Serialized transaction from Find Product response',
+		required: true,
 	},
-
 	{
-		displayName: 'Payer Address',
+		displayName: 'Payment Chain',
+		name: 'paymentMethod',
+		type: 'options',
+		displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'] } },
+		options: [
+			{ name: 'Arbitrum', value: 'arbitrum', description: 'Arbitrum network' },
+			{ name: 'Arbitrum Sepolia', value: 'arbitrum-sepolia', description: 'Arbitrum testnet' },
+			{ name: 'Base', value: 'base', description: 'Base network' },
+			{ name: 'Base Sepolia', value: 'base-sepolia', description: 'Base testnet' },
+			{ name: 'Ethereum', value: 'ethereum', description: 'Ethereum mainnet' },
+			{ name: 'Ethereum Sepolia', value: 'ethereum-sepolia', description: 'Ethereum testnet' },
+			{ name: 'Optimism', value: 'optimism', description: 'Optimism network' },
+			{ name: 'Optimism Sepolia', value: 'optimism-sepolia', description: 'Optimism testnet' },
+			{ name: 'Polygon', value: 'polygon', description: 'Polygon network' },
+			{ name: 'Polygon Amoy', value: 'polygon-amoy', description: 'Polygon testnet' },
+			{ name: 'World Chain Sepolia', value: 'world-chain-sepolia', description: 'World Chain testnet' },
+		],
+		default: 'arbitrum-sepolia',
+		description: 'Payment method for completing the transaction',
+		required: true,
+	},
+	{
+		displayName: 'Payer Wallet Address',
 		name: 'payerAddress',
 		type: 'string',
-		required: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['purchaseProduct'],
-			},
-		},
+		displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'] } },
 		default: '',
-		placeholder: '0x1234... or base58 address',
-		description: 'Wallet address of the payer',
-	},
-
-	{
-		displayName: 'Payment Method',
-		name: 'paymentMethod',
-		type: 'string',
+		placeholder: '0x1234567890123456789012345678901234567890',
+		description: 'Agent wallet address for crypto payments - must be a Crossmint managed wallet with USDC funds',
 		required: true,
-		displayOptions: {
-			show: {
-				resource: ['checkout'],
-				operation: ['purchaseProduct'],
-			},
-		},
-		default: 'ethereum-sepolia',
-		placeholder: 'ethereum-sepolia',
-		description: 'Payment method/chain identifier',
 	},
-
+	// External signer is always required for Pay Order
 	{
 		displayName: 'Private Key',
 		name: 'purchasePrivateKey',
 		type: 'string',
-		typeOptions: {
-			password: true,
-		},
+		typeOptions: { password: true },
+		displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'] } },
+		default: '',
+		placeholder: '0x1234... for EVM or base58 for Solana',
+		description: 'Private key to sign with (32-byte hex for EVM, base58 for Solana) - External signer is required',
 		required: true,
+	},
+	{
+		displayName: 'Product Identifier',
+		name: 'productIdentifier',
+		type: 'string',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], platform: ['amazon'] } },
+		default: '',
+		placeholder: 'B01DFKC2SO or https://www.amazon.com/dp/B01DFKC2SO',
+		description: 'Amazon ASIN (e.g. B01DFKC2SO) or full Amazon product URL',
+		required: true,
+	},
+	{
+		displayName: 'Product Identifier',
+		name: 'productIdentifier',
+		type: 'string',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], platform: ['shopify'] } },
+		default: '',
+		placeholder: 'https://store.shopify.com/products/product-handle',
+		description: 'Full Shopify product URL (will use default variant)',
+		required: true,
+	},
+	{
+		displayName: 'Recipient Email',
+		name: 'recipientEmail',
+		type: 'string',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+		default: '',
+		placeholder: 'recipient@example.com',
+		description: 'Email address of the person receiving the product',
+		required: true,
+	},
+	{
+		displayName: 'Recipient Name',
+		name: 'recipientName',
+		type: 'string',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+		default: '',
+		placeholder: 'Manuel Paella',
+		description: 'Full name of the recipient',
+		required: true,
+	},
+	{
+		displayName: 'Address Line 1',
+		name: 'addressLine1',
+		type: 'string',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+		default: '',
+		placeholder: '123 Fake Street',
+		description: 'Street address, P.O. box, company name, c/o.',
+		required: true,
+	},
+	{
+		displayName: 'Address Line 2 (Optional)',
+		name: 'addressLine2',
+		type: 'string',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+		default: '',
+		placeholder: 'Apartment 4B',
+		description: 'Apartment, suite, unit, building, floor, etc',
+	},
+	{
+		displayName: 'City',
+		name: 'city',
+		type: 'string',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+		default: '',
+		placeholder: 'Valencia',
+		description: 'City, district, suburb, town, or village',
+		required: true,
+	},
+	{
+		displayName: 'State',
+		name: 'state',
+		type: 'string',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+		default: '',
+		placeholder: 'FL',
+		description: 'US State (required)',
+		required: true,
+	},
+	{
+		displayName: 'ZIP Code',
+		name: 'postalCode',
+		type: 'string',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+		default: '',
+		placeholder: '33130',
+		description: 'US ZIP code',
+		required: true,
+	},
+	{
+		displayName: 'Country',
+		name: 'country',
+		type: 'options',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+		options: [
+			{ name: 'United States', value: 'US' },
+		],
+		default: 'US',
+		description: 'Two-letter country code (ISO 3166-1 alpha-2)',
+		required: true,
+	},
+	{
+		displayName: 'Environment',
+		name: 'environment',
+		type: 'options',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+		options: [
+			{ name: 'Staging (Testnet)', value: 'staging', description: 'Use testnet chains for testing' },
+			{ name: 'Production (Mainnet)', value: 'production', description: 'Use mainnet chains for real transactions' },
+		],
+		default: 'staging',
+		description: 'Environment to use for payment methods',
+		required: true,
+	},
+	{
+		displayName: 'Payment Chain',
+		name: 'paymentMethod',
+		type: 'options',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], environment: ['staging'] } },
+		options: [
+			{ name: 'Arbitrum Sepolia', value: 'arbitrum-sepolia', description: 'Arbitrum testnet' },
+			{ name: 'Base Sepolia', value: 'base-sepolia', description: 'Base testnet' },
+			{ name: 'Ethereum Sepolia', value: 'ethereum-sepolia', description: 'Ethereum testnet' },
+			{ name: 'Optimism Sepolia', value: 'optimism-sepolia', description: 'Optimism testnet' },
+			{ name: 'Polygon Amoy', value: 'polygon-amoy', description: 'Polygon testnet' },
+			{ name: 'World Chain Sepolia', value: 'world-chain-sepolia', description: 'World Chain testnet' },
+		],
+		default: 'arbitrum-sepolia',
+		description: 'Payment method for the purchase (Staging/Testnet)',
+		required: true,
+	},
+	{
+		displayName: 'Payment Chain',
+		name: 'paymentMethod',
+		type: 'options',
+		displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], environment: ['production'] } },
+		options: [
+			{ name: 'Arbitrum', value: 'arbitrum', description: 'Arbitrum network' },
+			{ name: 'Base', value: 'base', description: 'Base network' },
+			{ name: 'Ethereum', value: 'ethereum', description: 'Ethereum mainnet' },
+			{ name: 'Optimism', value: 'optimism', description: 'Optimism network' },
+			{ name: 'Polygon', value: 'polygon', description: 'Polygon network' },
+		],
+		default: 'ethereum',
+		description: 'Payment method for the purchase (Production/Mainnet)',
+		required: true,
+	},
+	{
+		displayName: 'Payment Currency',
+		name: 'paymentCurrency',
+		type: 'options',
 		displayOptions: {
 			show: {
 				resource: ['checkout'],
-				operation: ['purchaseProduct'],
+				operation: ['findProduct'],
+				paymentMethod: ['ethereum-sepolia', 'polygon-amoy', 'base-sepolia', 'arbitrum-sepolia', 'optimism-sepolia', 'world-chain-sepolia', 'ethereum', 'polygon', 'base', 'arbitrum', 'optimism'],
+			},
+		},
+		options: [
+			{ name: 'USDC', value: 'usdc', description: 'USD Coin (Only supported currency)' },
+		],
+		default: 'usdc',
+		description: 'Cryptocurrency to pay with (USDC only)',
+		required: true,
+	},
+	{
+		displayName: 'Payer Wallet Address',
+		name: 'payerAddress',
+		type: 'string',
+		displayOptions: {
+			show: {
+				resource: ['checkout'],
+				operation: ['findProduct'],
+				paymentMethod: ['ethereum-sepolia', 'polygon-amoy', 'base-sepolia', 'arbitrum-sepolia', 'optimism-sepolia', 'world-chain-sepolia', 'ethereum', 'polygon', 'base', 'arbitrum', 'optimism'],
 			},
 		},
 		default: '',
-		placeholder: '0x1234... or base58 encoded key',
-		description: 'Private key for signing the purchase transaction',
+		placeholder: '0x1234567890123456789012345678901234567890',
+		description: 'Agent wallet address for crypto payments - must be a Crossmint managed wallet with USDC funds',
+		required: true,
 	},
 ];

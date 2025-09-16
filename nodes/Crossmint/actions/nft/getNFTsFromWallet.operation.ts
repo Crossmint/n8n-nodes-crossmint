@@ -1,4 +1,4 @@
-import { IExecuteFunctions } from 'n8n-workflow';
+import { IExecuteFunctions, NodeApiError } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS, PAGINATION } from '../../utils/constants';
 import { buildNFTWalletIdentifier } from '../../utils/locators';
@@ -68,6 +68,7 @@ export async function getNFTsFromWallet(
 
 		return allNFTs;
 	} catch (error: any) {
-		throw error;
+		// Pass through the original Crossmint API error exactly as received
+		throw new NodeApiError(context.getNode(), error);
 	}
 }

@@ -1,4 +1,4 @@
-import { IExecuteFunctions, NodeOperationError } from 'n8n-workflow';
+import { IExecuteFunctions, NodeApiError } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { validateRequiredField } from '../../utils/validation';
@@ -66,11 +66,20 @@ export async function createWallet(
 		requestBody.owner = owner;
 	}
 
-	const response = await api.post('wallets', requestBody, API_VERSIONS.WALLETS);
+	try {
+		const response = await api.post('wallets', requestBody, API_VERSIONS.WALLETS);
 
-	return {
-		...response,
-		derivedAddress: keyPair.address,
-		derivedPublicKey: keyPair.publicKey,
-	};
+		if(keyPair.address && keyPair.publicKey) {
+			return {
+				...response,
+				derivedAddress: keyPair.address,
+				derivedPublicKey: keyPair.publicKey,
+			};
+		}
+
+		return response;
+	} catch (error: any) {
+		// Pass through the original Crossmint API error exactly as received
+		throw new NodeApiError(context.getNode(), error);
+	}
 }

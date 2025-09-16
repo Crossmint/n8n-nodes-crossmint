@@ -1,4 +1,4 @@
-import { IExecuteFunctions, NodeOperationError } from 'n8n-workflow';
+import { IExecuteFunctions, NodeOperationError, NodeApiError } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { validateRequiredField } from '../../utils/validation';
@@ -39,8 +39,16 @@ export async function purchaseProduct(
 	}
 	
 	const endpoint = `wallets/${encodeURIComponent(payerAddress)}/transactions`;
-	const transactionResponse = await api.post(endpoint, requestBody, API_VERSIONS.WALLETS);
-	const transactionId = transactionResponse.id;
+
+	let transactionResponse;
+	try {
+		transactionResponse = await api.post(endpoint, requestBody, API_VERSIONS.WALLETS);
+	} catch (error: any) {
+		// Pass through the original Crossmint API error exactly as received
+		throw new NodeApiError(context.getNode(), error);
+	}
+
+	const transactionId = transactionResponse.id; 
 	
 	if (!transactionResponse.approvals || !transactionResponse.approvals.pending || !transactionResponse.approvals.pending[0]) {
 		throw new NodeOperationError(context.getNode(), 'No pending approval found in transaction response', {
@@ -70,7 +78,14 @@ export async function purchaseProduct(
 	};
 
 	const approvalEndpoint = `wallets/${encodeURIComponent(payerAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`;
-	const approvalResponse = await api.post(approvalEndpoint, approvalRequestBody, API_VERSIONS.WALLETS);
+
+	let approvalResponse;
+	try {
+		approvalResponse = await api.post(approvalEndpoint, approvalRequestBody, API_VERSIONS.WALLETS);
+	} catch (error: any) {
+		// Pass through the original Crossmint API error exactly as received
+		throw new NodeApiError(context.getNode(), error);
+	}
 	
 	return {
 		transaction: transactionResponse,

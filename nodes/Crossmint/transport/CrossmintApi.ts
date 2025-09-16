@@ -1,5 +1,5 @@
 import { IExecuteFunctions, IHttpRequestOptions, NodeApiError } from 'n8n-workflow';
-import { API_ENDPOINTS, API_VERSIONS } from '../utils/constants';
+import { API_ENDPOINTS } from '../utils/constants';
 import { CrossmintCredentials, ApiRequestOptions } from './types';
 
 export class CrossmintApi {

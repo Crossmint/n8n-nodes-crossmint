@@ -1,4 +1,4 @@
-import { IExecuteFunctions, ICredentials, NodeOperationError } from 'n8n-workflow';
+import { IExecuteFunctions, NodeOperationError, NodeApiError } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS, PAGINATION } from '../../utils/constants';
 import { validatePrivateKey, validateRequiredField } from '../../utils/validation';
@@ -11,7 +11,64 @@ async function getTransactionStatus(
 	transactionId: string,
 ): Promise<any> {
 	const endpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}`;
-	return await api.get(endpoint, API_VERSIONS.WALLETS);
+	try {
+		return await api.get(endpoint, API_VERSIONS.WALLETS);
+	} catch (error: any) {
+		throw error; // Re-throw to be handled by caller
+	}
+}
+
+async function handleWaitForCompletion(
+	api: CrossmintApi,
+	walletAddress: string,
+	transactionId: string,
+	initialResponse: any,
+	simplifiedOutput: any,
+): Promise<any> {
+	let currentStatus = initialResponse.status;
+	let attempts = 0;
+	let finalResponse = {
+		'simplified-output': simplifiedOutput,
+		raw: initialResponse
+	};
+
+	while (currentStatus === 'pending' && attempts < PAGINATION.MAX_ATTEMPTS) {
+		await new Promise(resolve => setTimeout(resolve, PAGINATION.POLL_INTERVAL));
+		attempts++;
+
+		try {
+			const statusResponse = await getTransactionStatus(api, walletAddress, transactionId);
+			currentStatus = statusResponse.status;
+
+			const updatedSimplifiedOutput = {
+				...simplifiedOutput,
+				status: currentStatus,
+			};
+
+			if (statusResponse.completedAt) {
+				(updatedSimplifiedOutput as any).completedAt = statusResponse.completedAt;
+			}
+			if (statusResponse.error) {
+				(updatedSimplifiedOutput as any).error = statusResponse.error;
+			}
+
+			finalResponse = {
+				'simplified-output': updatedSimplifiedOutput,
+				raw: statusResponse
+			};
+
+		} catch (error: any) {
+			// If we can't get status updates, return the last known state
+			// This prevents the operation from failing due to temporary API issues during polling
+			break;
+		}
+
+		if (currentStatus === 'success' || currentStatus === 'failed') {
+			break;
+		}
+	}
+
+	return finalResponse;
 }
 
 export async function signTransaction(
@@ -58,7 +115,14 @@ export async function signTransaction(
 	};
 
 	const endpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`;
-	const rawResponse = await api.post(endpoint, requestBody, API_VERSIONS.WALLETS);
+
+	let rawResponse;
+	try {
+		rawResponse = await api.post(endpoint, requestBody, API_VERSIONS.WALLETS);
+	} catch (error: any) {
+		// Pass through the original Crossmint API error exactly as received
+		throw new NodeApiError(context.getNode(), error);
+	}
 
 	const simplifiedOutput = {
 		chainType: rawResponse.chainType,
@@ -82,49 +146,12 @@ export async function signTransaction(
 		},
 	};
 
-	let finalResponse = {
+	if (waitForCompletion) {
+		return await handleWaitForCompletion(api, walletAddress, transactionId, rawResponse, simplifiedOutput);
+	}
+
+	return {
 		'simplified-output': simplifiedOutput,
 		raw: rawResponse
 	};
-
-	if (waitForCompletion) {
-		let currentStatus = rawResponse.status;
-		let attempts = 0;
-		
-		while (currentStatus === 'pending' && attempts < PAGINATION.MAX_ATTEMPTS) {
-			await new Promise(resolve => setTimeout(resolve, PAGINATION.POLL_INTERVAL));
-			attempts++;
-			
-			try {
-				const statusResponse = await getTransactionStatus(api, walletAddress, transactionId);
-				currentStatus = statusResponse.status;
-				
-				const updatedSimplifiedOutput = {
-					...simplifiedOutput,
-					status: currentStatus,
-				};
-				
-				if (statusResponse.completedAt) {
-					(updatedSimplifiedOutput as any).completedAt = statusResponse.completedAt;
-				}
-				if (statusResponse.error) {
-					(updatedSimplifiedOutput as any).error = statusResponse.error;
-				}
-				
-				finalResponse = {
-					'simplified-output': updatedSimplifiedOutput,
-					raw: statusResponse
-				};
-				
-			} catch {
-				break;
-			}
-			
-			if (currentStatus === 'success' || currentStatus === 'failed') {
-				break;
-			}
-		}
-	}
-
-	return finalResponse;
 }
