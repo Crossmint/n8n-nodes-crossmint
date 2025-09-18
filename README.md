@@ -35,7 +35,7 @@ This community node for n8n provides a complete integration with Crossmint's **W
 
 For now you have to run the Crossmint node from source:
 
-1.  **Clone the repository:**
+1.  **Clone the repository:** (anywhere in your disk - doesn't need to be inside the n8n folder)
     ```bash
     git clone https://github.com/Crossmint/n8n-nodes-crossmint.git
     cd n8n-nodes-crossmint
