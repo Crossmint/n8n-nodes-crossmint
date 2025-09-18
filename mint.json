@@ -1,7 +1,7 @@
 {
     "$schema": "https://mintlify.com/docs.json",
     "theme": "quill",
-    "name": "n8n Community Node for Crossmint",
+    "name": "Crossmint n8n Node",
     "colors": {
         "primary": "#36b37e",
         "light": "#87ff8f",

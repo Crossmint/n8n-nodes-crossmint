@@ -1,9 +1,7 @@
 ---
-title: n8n Community Node for Crossmint
+title: Crossmint n8n Node
 description: Full-featured n8n integration for Crossmint Wallet, Checkout, and NFT APIs—install, configure, and build your first workflow.
 ---
-
-# n8n Community Node for Crossmint
 
 This community node for n8n provides a complete integration with Crossmint's **Wallet**, **Checkout**, and **NFT** APIs. It lets users and AI agents program digital money inside wallets and automate the purchase of physical products—all inside your n8n workflows.
 
@@ -17,7 +15,7 @@ This community node for n8n provides a complete integration with Crossmint's **W
 </ul>
 </Callout>
 
-## 🚀 Installation (Local Development Setup)
+## Installation (Local Development Setup)
 
 For now you have to run the Crossmint node from source:
 
@@ -47,7 +45,7 @@ For now you have to run the Crossmint node from source:
 You must use the <b>self-hosted</b> version of n8n to run Crossmint nodes. See the official guide: <a href="https://docs.n8n.io/integrations/creating-nodes/build/n8n-node/">Build and run n8n nodes</a>.
 </Callout>
 
-## ⚙️ Your First Workflow Using Crossmint
+## Your First Workflow Using Crossmint
 
 Once the community node is installed, add and configure your first Crossmint node:
 
@@ -92,12 +90,11 @@ Once the community node is installed, add and configure your first Crossmint nod
   <Step title="(Optional) Get test USDC for Staging">
     <ul>
       <li><b>Circle Faucet</b>: <a href="https://faucet.circle.com/">https://faucet.circle.com/</a></li>
-      <li><b>Crossmint Telegram</b>: <a href="https://t.me/crossmintdevs">https://t.me/crossmintdevs</a></li>
     </ul>
   </Step>
 </Steps>
 
-## 💡 Supported Operations
+## Supported Operations
 
 The node is organized into three primary resources: **Wallet**, **Checkout**, and **NFT**.
 
@@ -109,7 +106,7 @@ Operations for managing blockchain wallets that can hold and transfer money (e.g
   - **Chain Type** — Blockchain type (`evm` for Ethereum-compatible, `solana` for Solana)
   - **Owner Type** — Optional owner identifier type (`email`, `userId`, `phone`, `twitter`, `x`, `none`)
   - **Owner Details** — Specific owner information based on the selected type
-  - **Admin Signer** — Private key that authorizes all transactions from this wallet (see **Admin Signer Private Key** below)
+  - **Admin Signer** — Private key that authorizes all transactions from this wallet (see [**Admin Signer Private Key**](#admin-signer-private-key) below)
 
 - **Get Wallet** — Retrieves wallet details using its locator (address, email, user ID, etc.).
   - **Wallet** — Wallet identifier (`address`, `email`, `userId`, `phone`, `twitter`, `x`)
@@ -192,29 +189,7 @@ Operations to automate purchasing products using digital money (e.g., USDC). Two
   - **Contract Addresses** — Comma-separated (optional)
   - **Token ID** — Specific token (optional)
 
-## 📖 API Reference
-
-For detailed request/response schemas and parameters, see the official Crossmint API docs:
-
-### Wallet Operations
-- **Get or Create Wallet** — <a href="https://docs.crossmint.com/api-reference/wallets/create-wallet">Crossmint Wallets API</a>
-- **Get Wallet** — <a href="https://docs.crossmint.com/api-reference/wallets/get-wallet-by-locator">Get Wallet by Locator</a>
-- **Create Transfer** — <a href="https://docs.crossmint.com/api-reference/wallets/transfer-token">Transfer Tokens</a>
-- **Get Balance** — <a href="https://docs.crossmint.com/api-reference/wallets/get-wallet-balance">Get Balance</a>
-- **Sign Transaction** — <a href="https://docs.crossmint.com/api-reference/wallets/submit-transaction-approvals">Submit Approvals</a>
-
-### Checkout Operations
-- **Create Order** — <a href="https://docs.crossmint.com/api-reference/headless/create-order">Create Order</a>
-- **Pay Order** — <a href="https://docs.crossmint.com/api-reference/wallets/create-transaction">Submit Transaction</a>
-
-### NFT Operations
-- **Mint NFT** — <a href="https://docs.crossmint.com/api-reference/minting/mint-nft">Mint NFT</a>
-- **Get NFTs From Wallet** — <a href="https://docs.crossmint.com/api-reference/collections/get-nfts">Get NFTs</a>
-
-### Additional Resources
-- <a href="https://docs.crossmint.com/introduction/supported-chains#supported-chains">Supported Chains and Tokens</a>
-
-## 🔑 Understanding Wallet Locators
+## Understanding Wallet Locators
 
 Wallet locators are used throughout Crossmint operations. They provide a flexible way to identify wallets with different identifiers.
 
@@ -243,7 +218,7 @@ For more details, see <a href="https://docs.crossmint.com/api-reference/wallets/
 3. **User ID locators** fit existing user systems
 4. Always specify the correct **chain type** for non-address locators
 
-## 🔐 Admin Signer Private Key
+## Admin Signer Private Key
 
 The **Admin Signer Private Key** is a critical security component that gives you full control over your Crossmint wallet.
 
@@ -315,7 +290,7 @@ cat ~/my-wallet.json
 2. **Transaction Flow** — Create transaction → Crossmint generates approval → Sign with private key → Submit signature
 3. **Non-Custodial** — You control the key and the wallet
 
-## 📁 Example Workflows
+## Example Workflows
 
 Ready-to-use examples live in the `workflows-examples/` folder:
 
@@ -332,7 +307,3 @@ Ready-to-use examples live in the `workflows-examples/` folder:
 2. Configure Crossmint API credentials
 3. Update personal data (emails, wallet addresses, etc.)
 4. Execute the workflow
-
-## 📄 License
-
-MIT
