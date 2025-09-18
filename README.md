@@ -297,10 +297,43 @@ The Admin Signer is the private key that acts as the "master key" for your smart
 ### Generating Private Keys
 
 You can generate secure private keys using:
-- **Crossmint Generator**: [https://www.val.town/x/Crossmint/crypto-address-generator](https://www.val.town/x/Crossmint/crypto-address-generator)
+
+**Online Tools:**
+- **Crossmint Generator**: [https://crypto-address-generator.val.run/](https://crypto-address-generator.val.run/)
 - **MetaMask**: Export private key from an existing wallet
-- **Solana CLI**: Generate Solana keypairs
-- **Hardware wallets**: Export or derive keys securely
+
+**Local/Terminal Generation (Recommended for Production):**
+
+**For EVM Chains (Ethereum, Polygon, Base, etc.):**
+
+Run one of these commands in terminal depending on your system:
+```bash
+# Using Node.js (requires Node.js installed)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Using OpenSSL
+openssl rand -hex 32
+
+# Using Python
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
+**For Solana:**
+
+**Install Solana CLI:**
+Follow [this guide](https://solana.com/docs/intro/installation)
+
+**Generate Solana keypair:**
+```bash
+# Generate new keypair
+solana-keygen new --outfile ~/my-wallet.json --no-bip39-passphrase
+
+# View the private key array
+cat ~/my-wallet.json
+```
+
+**Hardware Wallets:**
+- Export or derive keys securely from Ledger, Trezor, etc.
 
 ### Security Best Practices
 

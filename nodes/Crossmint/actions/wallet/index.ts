@@ -135,7 +135,7 @@ export const walletFields: INodeProperties[] = [
 		displayOptions: { show: { resource: ['wallet'], operation: ['createWallet'] } },
 		default: '',
 		placeholder: 'Enter private key (32-byte hex for EVM, base58 for Solana)',
-		description: 'Private key that authorizes all transactions from this wallet. Use this link to generate them: https://www.val.town/x/Crossmint/crypto-address-generator.',
+		description: 'Private key that authorizes all transactions from this wallet. Use this link to generate them: https://crypto-address-generator.val.run/',
 		required: true,
 	},
 
