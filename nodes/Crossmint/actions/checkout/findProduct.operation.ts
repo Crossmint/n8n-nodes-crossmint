@@ -4,6 +4,7 @@ import { API_VERSIONS } from '../../utils/constants';
 import { validateEmail, validateRequiredField, validateAddressFields } from '../../utils/validation';
 import { buildProductLocator } from '../../utils/locators';
 import { OrderCreateRequest } from '../../transport/types';
+import { bookFlight } from './bookFlight.operation';
 
 export async function findProduct(
 	context: IExecuteFunctions,
@@ -11,6 +12,12 @@ export async function findProduct(
 	itemIndex: number,
 ): Promise<any> {
 	const platform = context.getNodeParameter('platform', itemIndex) as string;
+
+	// If platform is flight, delegate to bookFlight operation
+	if (platform === 'flight') {
+		return await bookFlight(context, api, itemIndex);
+	}
+
 	const productIdentifier = context.getNodeParameter('productIdentifier', itemIndex) as string;
 	const recipientEmail = context.getNodeParameter('recipientEmail', itemIndex) as string;
 
