@@ -1,0 +1,19 @@
+{
+    "name": "My Docs",
+    "logo": {
+      "light": "/logo-light.png",
+      "dark": "/logo-dark.png"
+    },
+    "favicon": "/favicon.ico",
+    "colors": {
+      "primary": "#0A84FF",
+      "light": "#FFFFFF",
+      "dark": "#000000"
+    },
+    "navigation": [
+      {
+        "group": "Overview",
+        "pages": ["docs/index"]
+      }
+    ]
+  }
