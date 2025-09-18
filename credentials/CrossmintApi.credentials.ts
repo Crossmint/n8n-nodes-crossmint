@@ -13,7 +13,7 @@ export class CrossmintApi implements ICredentialType {
 
 	properties: INodeProperties[] = [
 		{
-			displayName: 'API Key',
+			displayName: 'API Key (Server-side)',
 			name: 'apiKey',
 			type: 'string',
 			typeOptions: { password: true },
