@@ -1,19 +1,51 @@
 {
-    "name": "My Docs",
-    "logo": {
-      "light": "/logo-light.png",
-      "dark": "/logo-dark.png"
-    },
-    "favicon": "/favicon.ico",
+    "$schema": "https://mintlify.com/docs.json",
+    "theme": "quill",
+    "name": "n8n Community Node for Crossmint",
     "colors": {
-      "primary": "#0A84FF",
-      "light": "#FFFFFF",
-      "dark": "#000000"
+        "primary": "#36b37e",
+        "light": "#87ff8f",
+        "dark": "#001d01"
+    },
+    "favicon": "/favicon.png",
+    "logo": {
+        "light": "/logo/crossmint-light.png",
+        "dark": "/logo/crossmint-dark.png"
+    },
+    "background": {
+        "color": {
+            "dark": "#090b0c"
+        }
+    },
+    "navbar": {
+        "links": [
+            {
+                "label": "Support",
+                "href": "https://www.crossmint.com/contact"
+            },
+            {
+                "label": "GitHub",
+                "href": "https://github.com/Crossmint/n8n-nodes-crossmint"
+            }
+        ],
+        "primary": {
+            "type": "button",
+            "label": "Console",
+            "href": "https://www.crossmint.com/console"
+        }
+    },
+    "footer": {
+        "socials": {
+            "website": "https://www.crossmint.com",
+            "twitter": "https://twitter.com/crossmint",
+            "github": "https://github.com/crossmint",
+            "discord": "https://discord.gg/crossmint"
+        }
     },
     "navigation": [
-      {
-        "group": "Overview",
-        "pages": ["docs/index"]
-      }
+        {
+            "group": "Overview",
+            "pages": ["docs/index"]
+        }
     ]
-  }
+}
