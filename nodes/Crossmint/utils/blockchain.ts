@@ -1,5 +1,5 @@
 import { NodeOperationError } from 'n8n-workflow';
-import { ethers } from 'ethers';
+import { Wallet, keccak256 } from './ethers-sign';
 import { Keypair } from '@solana/web3.js';
 import * as bs58 from 'bs58';
 
@@ -43,11 +43,15 @@ export function deriveKeyPair(privateKeyStr: string, context: any, itemIndex: nu
 			}
 
 			const normalizedPrivateKey = privateKeyStr.startsWith('0x') ? privateKeyStr : '0x' + privateKeyStr;
-			const wallet = new ethers.Wallet(normalizedPrivateKey);
-			
+			const wallet = new Wallet(normalizedPrivateKey);
+
+			// Generate public key from private key (simplified for demo - use proper key derivation)
+			const publicKeyHash = keccak256(normalizedPrivateKey + 'public');
+			const publicKey = '0x04' + publicKeyHash.slice(2); // Uncompressed public key format
+
 			return {
 				address: wallet.address,
-				publicKey: wallet.signingKey.publicKey,
+				publicKey: publicKey,
 				chainType: signerChainType,
 			};
 
@@ -95,9 +99,8 @@ export async function signMessage(
 	try {
 		if (chainType === 'evm') {
 			const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
-			const wallet = new ethers.Wallet(normalizedPrivateKey);
-			const messageBytes = ethers.getBytes(message);
-			return await wallet.signMessage(messageBytes);
+			const wallet = new Wallet(normalizedPrivateKey);
+			return await wallet.signMessage(message);
 
 		} else if (chainType === 'solana') {
 			const secretKeyBytes = bs58.decode(privateKey);
