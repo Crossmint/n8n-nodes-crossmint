@@ -51,6 +51,18 @@ export class CrossmintWallets implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
+						name: 'Create Transfer',
+						value: 'transferToken',
+						description: 'Transfer tokens between wallets',
+						action: 'Create transfer',
+					},
+					{
+						name: 'Get Balance',
+						value: 'getBalance',
+						description: 'Get wallet balance for tokens',
+						action: 'Get balance',
+					},
+					{
 						name: 'Get or Create Wallet',
 						value: 'createWallet',
 						description: 'Create a wallet or retrieve an existing one',
@@ -61,18 +73,6 @@ export class CrossmintWallets implements INodeType {
 						value: 'getWallet',
 						description: 'Get wallet details by locator',
 						action: 'Get wallet',
-					},
-					{
-						name: 'Get Balance',
-						value: 'getBalance',
-						description: 'Get wallet balance for tokens',
-						action: 'Get balance',
-					},
-					{
-						name: 'Create Transfer',
-						value: 'transferToken',
-						description: 'Transfer tokens between wallets',
-						action: 'Create transfer',
 					},
 					{
 						name: 'Sign Transaction',
