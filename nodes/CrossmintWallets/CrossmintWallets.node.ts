@@ -24,7 +24,7 @@ export class CrossmintWallets implements INodeType {
 		icon: 'file:crossmint-wallet.svg',
 		group: ['transform'],
 		version: 1,
-		subtitle: '={{$parameter["operation"]}}',
+		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Interact with Crossmint Wallet APIs',
 		defaults: {
 			name: 'Crossmint Wallets',

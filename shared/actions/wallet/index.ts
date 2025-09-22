@@ -425,22 +425,14 @@ export const walletFields: INodeProperties[] = [
 		required: true,
 	},
 	{
-		displayName: 'Transfer NFT',
-		name: 'transferNft',
-		type: 'boolean',
-		displayOptions: { show: { operation: ['transferToken'] } },
-		default: false,
-		description: 'Whether to enable when transferring an NFT. Amount will be ignored and hidden.'
-	},
-	{
 		displayName: 'Amount',
 		name: 'amount',
 		type: 'string',
-		displayOptions: { show: { operation: ['transferToken'], transferNft: [false] } },
+		displayOptions: { show: { operation: ['transferToken'] } },
 		default: '',
 		placeholder: '10.50',
-		description: 'Amount of tokens to send (decimal format). Hidden for NFTs.',
-		
+		description: 'Amount of tokens to send (decimal format).',
+		required: true,
 	},
 
 	// ---- Get balance fields

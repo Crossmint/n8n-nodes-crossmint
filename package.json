@@ -34,8 +34,7 @@
         ],
         "nodes": [
             "dist/nodes/CrossmintWallets/CrossmintWallets.node.js",
-            "dist/nodes/CrossmintCheckout/CrossmintCheckout.node.js",
-            "dist/nodes/CrossmintNFT/CrossmintNFT.node.js"
+            "dist/nodes/CrossmintCheckout/CrossmintCheckout.node.js"
         ]
     },
     "devDependencies": {

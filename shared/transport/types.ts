@@ -59,25 +59,6 @@ export interface OrderCreateRequest {
 	}>;
 }
 
-export interface NFTMintRequest {
-	recipient: string;
-	sendNotification: boolean;
-	locale: string;
-	reuploadLinkedFiles: boolean;
-	compressed: boolean;
-	templateId?: string;
-	metadata?: string | {
-		name: string;
-		image: string;
-		description: string;
-		animation_url?: string;
-		symbol?: string;
-		attributes?: Array<{
-			trait_type: string;
-			value: string | number;
-		}>;
-	};
-}
 
 export interface TransactionCreateRequest {
 	params: {

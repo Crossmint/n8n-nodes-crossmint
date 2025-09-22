@@ -120,7 +120,7 @@ To test transactions in staging, you'll need test USDC tokens. You can get them 
 
 ## 💡 Supported Operations
 
-The node is organized into three primary resources: **Wallet**, **Checkout**, and **NFT**.
+The node is organized into two primary resources: **Wallet** and **Checkout**.
 
 ### Resource: Wallet
 Operations for managing blockchain wallets which can hold and transfer money (in cryptocurrencies like USDC).
@@ -135,14 +135,13 @@ Operations for managing blockchain wallets which can hold and transfer money (in
   - `Wallet` - Wallet identifier (address, email, userId, phone, twitter, x)
   - `Chain Type` - Required for non-address locators (evm or solana)
 
-* **Create Transfer**: Sends tokens (like USDC) or NFTs between wallets. Requires the wallet's private key to digitally sign and authorize the transfer.
+* **Create Transfer**: Sends tokens (like USDC) between wallets. Requires the wallet's private key to digitally sign and authorize the transfer.
   - `Blockchain Type` - Network type for both wallets (evm or solana)
   - `Origin Wallet` - Source wallet for the transfer
   - `Recipient Wallet` - Destination wallet for the transfer
   - `Token Chain` - Specific blockchain network (e.g., ethereum-sepolia)
   - `Token Name` - Token symbol or identifier (e.g., usdc)
-  - `Transfer NFT` - Toggle for NFT transfers (hides amount field)
-  - `Amount` - Token amount to transfer (hidden for NFTs)
+  - `Amount` - Token amount to transfer
 
 * **Get Balance**: Checks token balances for a wallet across one or more blockchain networks.
   - `Wallet` - Wallet locator to check balance for (address, email, userId, phone, twitter, x)
@@ -184,40 +183,6 @@ Operations to automate the purchase of products using digital money (e.g. tokens
   - `Payer Wallet Address` - Wallet address making the payment
   - `Private Key` - Private key to authorize the payment
 
-### Resource: NFT
-Operations for minting and managing NFTs (Non-Fungible Tokens).
-
-* **Mint NFT**: Creates a new NFT and sends it to a specified wallet. Supports template-based minting, metadata URLs, or custom metadata objects.
-  - `Collection ID` - ID of the NFT collection to mint from
-  - `Recipient` - Wallet to receive the NFT (address, email, userId, phone, twitter, x)
-  - `Chain` - Blockchain network for the NFT
-  - `Metadata Type` - How to provide NFT metadata (template, url, or object)
-
-  **When Metadata Type = "Metadata Object":**
-  - `NFT Name` - Name of the NFT (Max length: 32)
-  - `NFT Image URL` - Direct link to your NFT image
-  - `NFT Description` - Description of the NFT (Max length: 64)
-  - `Animation URL` - Animation/video URL (EVM only, optional)
-  - `Symbol (Solana)` - Token symbol (Max length: 10, Solana only, optional)
-  - `Attributes` - JSON array of traits (optional)
-
-  **When Metadata Type = "Metadata URL":**
-  - `Metadata URL` - URL to a JSON file containing the metadata
-
-  **When Metadata Type = "Template ID":**
-  - `Template ID` - ID of the template to use for minting
-
-  **Common fields for all metadata types:**
-  - `Send Notification` - Whether to send email notification
-  - `Locale` - Language for notifications
-  - `Reupload Linked Files` - Whether to reupload referenced files
-  - `Compressed (Solana)` - Whether to use compressed NFTs (Solana only)
-
-* **Get NFTs From Wallet**: Retrieves all NFTs owned by a specific wallet, with optional filtering by contract address and token ID.
-  - `Wallet Identifier` - Wallet to get NFTs from (address, email, userId, phone, twitter, x)
-  - `Chain` - Blockchain network for the wallet
-  - `Contract Addresses` - Comma-separated list of contract addresses to filter (optional)
-  - `Token ID` - Specific token ID to filter (optional)
 
 ## 📖 API Reference
 
@@ -234,9 +199,6 @@ For detailed information about each operation, parameters, and response formats,
 - **Create Order**: [Crossmint Checkout API - Create Order](https://docs.crossmint.com/api-reference/headless/create-order)
 - **Pay Order**: [Crossmint Checkout API - Submit Transaction](https://docs.crossmint.com/api-reference/wallets/create-transaction)
 
-### NFT Operations
-- **Mint NFT**: [Crossmint Collections API - Mint NFT](https://docs.crossmint.com/api-reference/minting/mint-nft)
-- **Get NFTs From Wallet**: [Crossmint Collections API - Get NFTs](https://docs.crossmint.com/api-reference/collections/get-nfts)
 
 ### Additional Resources
 - [Supported Chains and Tokens](https://docs.crossmint.com/introduction/supported-chains#supported-chains)
@@ -279,7 +241,7 @@ The **Admin Signer Private Key** is a critical security component that gives you
 
 The Admin Signer is the private key that acts as the "master key" for your smart wallet. It's used to:
 - **Authorize all transactions** from the wallet
-- **Sign transfer approvals** when moving tokens or NFTs
+- **Sign transfer approvals** when moving tokens
 - **Control wallet permissions** and operations
 
 ### Key Requirements by Blockchain

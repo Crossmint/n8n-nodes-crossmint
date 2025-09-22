@@ -21,7 +21,7 @@ export class CrossmintCheckout implements INodeType {
 		icon: 'file:crossmint-checkout.svg',
 		group: ['transform'],
 		version: 1,
-		subtitle: '={{$parameter["operation"]}}',
+		subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 		description: 'Interact with Crossmint Checkout APIs for Amazon and Shopify products',
 		defaults: {
 			name: 'Crossmint Checkout',
