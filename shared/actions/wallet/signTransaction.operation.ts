@@ -20,6 +20,8 @@ async function handleWaitForCompletion(
 	transactionId: string,
 	initialResponse: any,
 	simplifiedOutput: any,
+	context: IExecuteFunctions,
+	itemIndex: number,
 ): Promise<any> {
 	let currentStatus = initialResponse.status;
 	let attempts = 0;
@@ -53,10 +55,12 @@ async function handleWaitForCompletion(
 				raw: statusResponse
 			};
 
-		} catch {
-			// If we can't get status updates, return the last known state
-			// This prevents the operation from failing due to temporary API issues during polling
-			break;
+		} catch (error) {
+			// Log the error using n8n's proper error handling
+			throw new NodeOperationError(context.getNode(), `Failed to get transaction status during polling: ${error}`, {
+				itemIndex,
+				description: 'Transaction status polling failed. This may be due to temporary API issues.',
+			});
 		}
 
 		if (currentStatus === 'success' || currentStatus === 'failed') {
@@ -143,7 +147,7 @@ export async function signTransaction(
 	};
 
 	if (waitForCompletion) {
-		return await handleWaitForCompletion(api, walletAddress, transactionId, rawResponse, simplifiedOutput);
+		return await handleWaitForCompletion(api, walletAddress, transactionId, rawResponse, simplifiedOutput, context, itemIndex);
 	}
 
 	return {
