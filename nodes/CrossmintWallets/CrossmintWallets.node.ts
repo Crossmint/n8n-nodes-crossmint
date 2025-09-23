@@ -484,7 +484,7 @@ export class CrossmintWallets implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['createTransfer'] } },
 				default: '',
 				placeholder: '10.50',
-				description: 'Amount of tokens to send (decimal format).',
+				description: 'Amount of tokens to send (decimal format)',
 				required: true,
 			},
 
