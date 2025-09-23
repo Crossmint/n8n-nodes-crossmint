@@ -16,10 +16,11 @@ import {
 	transferToken, 
 	signTransaction 
 } from './actions/wallet';
-import { 
-	checkoutFields, 
-	findProduct, 
-	purchaseProduct 
+import {
+	checkoutFields,
+	findProduct,
+	purchaseProduct,
+	bookFlight
 } from './actions/checkout';
 import { 
 	nftFields, 
@@ -132,6 +133,9 @@ export class Crossmint implements INodeType {
 							break;
 						case 'purchaseProduct':
 							result = await purchaseProduct(this, api, itemIndex);
+							break;
+						case 'bookFlight':
+							result = await bookFlight(this, api, itemIndex);
 							break;
 						default:
 							throw new NodeOperationError(this.getNode(), `Unknown checkout operation: ${operation}`, {
