@@ -66,7 +66,7 @@ Once you've installed the community node, here's how to add and configure your f
 3. Select the **Crossmint** node from the results
 
 <div align="center">
-<img src="./images/crossmint-search.png" alt="Crossmint node search" width="50%">
+<img src="./images/crossmint-search.png" alt="Crossmint node search" width="50%"></img>
 </div>
 
 

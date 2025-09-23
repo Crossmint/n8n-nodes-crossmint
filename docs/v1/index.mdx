@@ -1,17 +1,15 @@
 ---
 title: Crossmint n8n Node
-description: Full-featured n8n integration for Crossmint Wallet, Checkout, and NFT APIs—install, configure, and build your first workflow.
+description: Full-featured n8n integration for Crossmint Wallet and Checkout APIs—install, configure, and build your first workflow.
 ---
 
-This community node for n8n provides a complete integration with Crossmint's **Wallet**, **Checkout**, and **NFT** APIs. It lets users and AI agents program digital money inside wallets and automate the purchase of physical products—all inside your n8n workflows.
+This community node for n8n provides a complete integration with Crossmint's **Wallet** and **Checkout** APIs. It lets users and AI agents program digital money inside wallets and automate the purchase of physical products—all inside your n8n workflows.
 
-<Callout type="success">
-<b>Recent updates</b>
+<Callout type="info">
+<b>Start here</b>: Select the proper documentation for your node version. If you don't know, choose the latest.
 <ul>
-  <li><b>Modular Architecture</b>: Refactored into organized modules for better maintainability</li>
-  <li><b>Enhanced Error Handling</b>: Proper API error propagation and clearer messages</li>
-  <li><b>Development Workflow</b>: <code>npm run dev</code> for automatic rebuilds</li>
-  <li><b>Code Quality</b>: Fixed lint issues and tightened type safety</li>
+  <li><a href="/docs/v1/index"><b>Latest (v1)</b></a></li>
+  <li><a href="/docs/v1/index"><b>v1</b></a> — only for workflows created before new deployments.</li>
 </ul>
 </Callout>
 
@@ -57,8 +55,8 @@ Once the community node is installed, add and configure your first Crossmint nod
       <li>For this example, choose the <b>Get or Create Wallet</b> operation.</li>
     </ol>
 
-    <img src="./images/crossmint-search.png" alt="Crossmint node search" style={{width: '500px'}} />
-    <img src="./images/crossmint-config.png" alt="Crossmint node configuration" style={{width: '500px'}} />
+    <img src="/images/crossmint-search.png" alt="Crossmint node search" style={{width: '500px'}} />
+    <img src="/images/crossmint-config.png" alt="Crossmint node configuration" style={{width: '500px'}} />
   </Step>
 
   <Step title="Set up a Crossmint project & credentials (Staging)">
@@ -68,7 +66,7 @@ Once the community node is installed, add and configure your first Crossmint nod
       <li>Copy your <b>server-side API key</b> from the project settings.</li>
     </ol>
 
-    <img src="./images/crossmint-staging-console.png" alt="Crossmint staging console" style={{width: '500px'}} />
+    <img src="/images/crossmint-staging-console.png" alt="Crossmint staging console" style={{width: '500px'}} />
 
     <ol start="4">
       <li>Back in n8n, in the Crossmint node, open <b>Credential to connect with</b> and choose <b>Create New</b>.</li>
@@ -76,11 +74,11 @@ Once the community node is installed, add and configure your first Crossmint nod
       <li>Set <b>Environment</b> to <b>Staging</b> for testing and click <b>Save</b>.</li>
     </ol>
 
-    <img src="./images/credential-form.png" alt="Crossmint API credential form" style={{width: '500px'}} />
+    <img src="/images/credential-form.png" alt="Crossmint API credential form" style={{width: '500px'}} />
 
     <p>Finish the wallet configuration (e.g., Owner Type = “Email”, enter an email address).</p>
 
-    <img src="./images/completed-config.png" alt="Completed node configuration" style={{width: '500px'}} />
+    <img src="/images/completed-config.png" alt="Completed node configuration" style={{width: '500px'}} />
 
     <Callout type="warning">
     Always use <b>server-side API keys</b>. Client-side keys will not work. For initial testing, select the <b>Staging</b> environment.
@@ -96,7 +94,7 @@ Once the community node is installed, add and configure your first Crossmint nod
 
 ## Supported Operations
 
-The node is organized into three primary resources: **Wallet**, **Checkout**, and **NFT**.
+The node is organized into two primary resources: **Wallet** and **Checkout**.
 
 ### Resource: Wallet
 
@@ -112,14 +110,13 @@ Operations for managing blockchain wallets that can hold and transfer money (e.g
   - **Wallet** — Wallet identifier (`address`, `email`, `userId`, `phone`, `twitter`, `x`)
   - **Chain Type** — Required for non-address locators (`evm` or `solana`)
 
-- **Create Transfer** — Sends tokens (like USDC) or NFTs between wallets. Requires the wallet’s private key to sign and authorize.
+- **Create Transfer** — Sends tokens (like USDC) between wallets. Requires the wallet’s private key to sign and authorize.
   - **Blockchain Type** — `evm` or `solana`
   - **Origin Wallet** — Source wallet
   - **Recipient Wallet** — Destination wallet
   - **Token Chain** — Specific network (e.g., `ethereum-sepolia`)
   - **Token Name** — Token symbol/identifier (e.g., `usdc`)
-  - **Transfer NFT** — Toggle for NFT transfers (hides amount)
-  - **Amount** — Token amount (hidden for NFTs)
+  - **Amount** — Token amount
 
 - **Get Balance** — Checks token balances for a wallet across one or more networks.
   - **Wallet** — Locator (`address`, `email`, `userId`, `phone`, `twitter`, `x`)
@@ -157,37 +154,6 @@ Operations to automate purchasing products using digital money (e.g., USDC). Two
   - **Payer Wallet Address** — Paying wallet
   - **Private Key** — Authorize payment
 
-### Resource: NFT
-
-- **Mint NFT** — Create a new NFT and send it to a wallet. Supports templates, metadata URLs, or object metadata.
-  - **Collection ID**
-  - **Recipient** — (`address`, `email`, `userId`, `phone`, `twitter`, `x`)
-  - **Chain**
-  - **Metadata Type** — `template`, `url`, or `object`
-
-  **When Metadata Type = "Metadata Object":**
-  - **NFT Name** (max 32)
-  - **NFT Image URL**
-  - **NFT Description** (max 64)
-  - **Animation URL** (EVM only, optional)
-  - **Symbol (Solana)** (max 10, optional)
-  - **Attributes** (JSON array, optional)
-
-  **When Metadata Type = "Metadata URL":**
-  - **Metadata URL** — JSON file URL
-
-  **When Metadata Type = "Template ID":**
-  - **Template ID**
-
-  **Common fields:**
-  - **Send Notification**, **Locale**, **Reupload Linked Files**
-  - **Compressed (Solana)** — Use compressed NFTs (Solana only)
-
-- **Get NFTs From Wallet** — Retrieves all NFTs owned by a wallet, with optional contract/token filters.
-  - **Wallet Identifier**
-  - **Chain**
-  - **Contract Addresses** — Comma-separated (optional)
-  - **Token ID** — Specific token (optional)
 
 ## Understanding Wallet Locators
 
@@ -296,11 +262,11 @@ Ready-to-use examples live in the `workflows-examples/` folder:
 
 - **`crossmint-nodes-examples.json`** — Full wallet flow (create wallet, get details, check balance) + checkout (create & pay order).
 
-  ![Crossmint nodes examples](./images/crossmint-nodes-examples.png)
+  ![Crossmint nodes examples](/images/crossmint-nodes-examples.png)
 
 - **`buy-items-from-amazon.json`** — Advanced flow with AI-powered order parsing (Telegram input → OpenAI extraction → automatic Amazon purchase).
 
-  ![Buy items from Amazon workflow](./images/buy-items-from-amazon.png)
+  ![Buy items from Amazon workflow](/images/buy-items-from-amazon.png)
 
 **How to use**
 1. Import the JSON into your n8n instance

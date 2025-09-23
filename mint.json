@@ -1,6 +1,6 @@
 {
     "$schema": "https://mintlify.com/docs.json",
-    "theme": "quill",
+    "theme": "mint",
     "name": "Crossmint n8n Node",
     "colors": {
         "primary": "#36b37e",
@@ -42,10 +42,24 @@
             "discord": "https://discord.gg/crossmint"
         }
     },
+    "versions": [
+        "v1",
+        "Incoming Features"
+    ],
     "navigation": [
         {
-            "group": "Overview",
-            "pages": ["docs/index"]
+            "group": "Getting Started",
+            "version": "v1",
+            "pages": [
+                "docs/v1/index"
+            ]
+        },
+        {
+            "group": "Getting Started",
+            "version": "Incoming Features",
+            "pages": [
+                "docs/v2/index"
+            ]
         }
     ]
 }
