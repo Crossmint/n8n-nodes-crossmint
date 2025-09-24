@@ -287,13 +287,13 @@ You can generate secure private keys using:
 
 Ready-to-use workflow examples are available in the `workflows-examples/` folder:
 
-- **`crossmint-nodes-examples.json`**: Complete workflow demonstrating all wallet operations (create wallet, get wallet details, check balance) followed by a checkout flow (create order and pay order).
+- [buy-celsius.json](workflows-examples/buy-celsius.json): Complete flow demonstrating wallet operations (get wallet, check balance) followed by checkout (create order and pay order).
 
 <div align="center">
-<img src="./images/crossmint-nodes-examples.png" alt="Crossmint nodes examples" width="100%">
+<img src="./images/buy-celsius.png" alt="Buy Celsius workflow" width="100%">
 </div>
 
-- **`buy-items-from-amazon.json`**: Advanced workflow with AI-powered order processing that accepts free-form messages via Telegram, extracts order details using OpenAI, and automatically purchases Amazon products.
+- [buy-items-amazon.json](workflows-examples/buy-items-amazon.json): Advanced workflow with AI-powered order processing that accepts free-form messages via Chat (can be Telegram), extracts order details using OpenAI, and automatically purchases Amazon products.
 
 <div align="center">
 <img src="./images/buy-items-from-amazon.png" alt="Buy items from Amazon workflow" width="100%">

@@ -1,4 +1,4 @@
-import { IExecuteFunctions, NodeApiError } from 'n8n-workflow';
+import { IExecuteFunctions } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { buildWalletLocator } from '../../utils/locators';
@@ -15,12 +15,32 @@ export async function getBalance(
 
 	const walletLocator = buildWalletLocator(walletResource, chainType, context, itemIndex);
 
-	const endpoint = `wallets/${encodeURIComponent(walletLocator)}/balances?chains=${encodeURIComponent(chains)}&tokens=${encodeURIComponent(tokens)}`;
+	const endpoint = `wallets/${walletLocator}/balances?chains=${encodeURIComponent(chains)}&tokens=${encodeURIComponent(tokens)}`;
+
+	// Build request details for error reporting
+	const requestDetails = {
+		endpoint,
+		method: 'GET',
+		walletLocator,
+		parameters: {
+			chains,
+			tokens,
+			chainType,
+			walletResource
+		},
+		apiVersion: API_VERSIONS.WALLETS
+	};
 
 	try {
 		return await api.get(endpoint, API_VERSIONS.WALLETS);
 	} catch (error: any) {
-		// Pass through the original Crossmint API error exactly as received
-		throw new NodeApiError(context.getNode(), error);
+		// Return error details as node output instead of throwing
+		return {
+			error: true,
+			errorMessage: error.message || 'Unknown error',
+			statusCode: error.response?.status || error.status || 'Unknown',
+			requestDetails,
+			originalError: error.response?.data || error
+		};
 	}
 }

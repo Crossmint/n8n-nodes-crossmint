@@ -10,8 +10,8 @@ export class CrossmintApi {
 	constructor(context: IExecuteFunctions, credentials: CrossmintCredentials) {
 		this.context = context;
 		this.credentials = credentials;
-		this.baseUrl = credentials.environment === 'Production' 
-			? API_ENDPOINTS.PRODUCTION 
+		this.baseUrl = credentials.environment === 'production'
+			? API_ENDPOINTS.PRODUCTION
 			: API_ENDPOINTS.STAGING;
 	}
 

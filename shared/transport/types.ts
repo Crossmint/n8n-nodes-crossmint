@@ -2,7 +2,7 @@ import { IHttpRequestOptions } from 'n8n-workflow';
 
 export interface CrossmintCredentials {
 	apiKey: string;
-	environment: 'Production' | 'Staging';
+	environment: 'production' | 'staging';
 }
 
 export interface ApiRequestOptions extends Omit<IHttpRequestOptions, 'headers' | 'url'> {

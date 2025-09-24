@@ -1,0 +1,174 @@
+{
+  "name": "buy-celsius",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        32,
+        128
+      ],
+      "id": "359fadaf-d6c9-429b-a7a3-a1558e09103a",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "getWallet",
+        "getWalletLocator": {
+          "__rl": true,
+          "value": "user@example.com",
+          "mode": "email"
+        }
+      },
+      "type": "CUSTOM.crossmintWallets",
+      "typeVersion": 1,
+      "position": [
+        240,
+        128
+      ],
+      "id": "42d5aabd-2ff8-4305-bfdc-ee4511008918",
+      "name": "Get Wallet",
+      "credentials": {
+        "crossmintApi": {
+          "id": "EfgFSYGNmxqAaszt",
+          "name": "Crossmint account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "productIdentifier": "B001PN0HOU",
+        "recipientEmail": "buyer@example.com",
+        "recipientName": "Jane Smith",
+        "addressLine1": "123 Main St",
+        "addressLine2": "Suite 100",
+        "city": "Anytown",
+        "state": "CA",
+        "postalCode": "94016",
+        "environment": "production",
+        "paymentMethod": "base",
+        "payerAddress": "={{ $('Get Wallet').item.json.address }}"
+      },
+      "type": "CUSTOM.crossmintCheckout",
+      "typeVersion": 1,
+      "position": [
+        592,
+        128
+      ],
+      "id": "62d7c0c2-2ae6-4328-9aaa-98a1941adfdd",
+      "name": "Create Order",
+      "credentials": {
+        "crossmintApi": {
+          "id": "EfgFSYGNmxqAaszt",
+          "name": "Crossmint account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "purchaseProduct",
+        "serializedTransaction": "={{ $json.order.payment.preparation.serializedTransaction }}",
+        "paymentMethod": "base",
+        "payerAddress": "={{ $('Get Wallet').item.json.address }}",
+        "purchasePrivateKey": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      "type": "CUSTOM.crossmintCheckout",
+      "typeVersion": 1,
+      "position": [
+        768,
+        128
+      ],
+      "id": "1543db3e-1e98-4488-9987-4d530c1731ee",
+      "name": "Pay Order",
+      "credentials": {
+        "crossmintApi": {
+          "id": "EfgFSYGNmxqAaszt",
+          "name": "Crossmint account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getBalance",
+        "walletLocator": {
+          "__rl": true,
+          "value": "={{ $json.address }}",
+          "mode": "address"
+        },
+        "chains": "base"
+      },
+      "type": "CUSTOM.crossmintWallets",
+      "typeVersion": 1,
+      "position": [
+        416,
+        128
+      ],
+      "id": "9186f5e6-45f2-450e-b3fb-442d43c272b7",
+      "name": "Get balance",
+      "credentials": {
+        "crossmintApi": {
+          "id": "EfgFSYGNmxqAaszt",
+          "name": "Crossmint account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get Wallet": {
+      "main": [
+        [
+          {
+            "node": "Get balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Order": {
+      "main": [
+        [
+          {
+            "node": "Pay Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get balance": {
+      "main": [
+        [
+          {
+            "node": "Create Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Wallet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8cbebd8c-038f-4cfd-869b-80518ac5764c",
+  "meta": {
+    "instanceId": "9fdc99c284b0bd3a8affd2a4327edb883b9f65f50d987bd1a76179a598e91f8d"
+  },
+  "id": "nZv9sRMOsRo6p3Df",
+  "tags": []
+}
