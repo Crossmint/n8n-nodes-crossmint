@@ -1,6 +1,6 @@
 {
     "name": "n8n-nodes-crossmint",
-    "version": "0.4.1",
+    "version": "1.0.0",
     "description": "Crossmint n8n node",
     "license": "MIT",
     "homepage": "https://crossmint.com",
