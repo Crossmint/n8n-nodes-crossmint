@@ -1,6 +1,6 @@
 {
     "name": "n8n-nodes-crossmint",
-    "version": "0.4.0",
+    "version": "1.0.0",
     "description": "Crossmint n8n node",
     "license": "MIT",
     "homepage": "https://crossmint.com",
@@ -15,22 +15,22 @@
         "type": "git",
         "url": "https://github.com/crossmint/n8n-nodes-crossmint.git"
     },
-   "scripts": {
-		"build": "n8n-node build",
-		"build:watch": "tsc --watch",
-		"dev": "n8n-node dev",
-		"lint": "n8n-node lint",
-		"lint:fix": "n8n-node lint --fix",
-		"release": "n8n-node release",
-		"prepublishOnly": "n8n-node prerelease"
-	},
+    "scripts": {
+        "build": "n8n-node build",
+        "build:watch": "tsc --watch",
+        "dev": "n8n-node dev",
+        "lint": "n8n-node lint",
+        "lint:fix": "n8n-node lint --fix",
+        "release": "n8n-node release",
+        "prepublishOnly": "n8n-node prerelease"
+    },
     "files": [
         "dist"
     ],
     "n8n": {
         "n8nNodesApiVersion": 1,
         "credentials": [
-        "dist/credentials/CrossmintApi.credentials.js"
+            "dist/credentials/CrossmintApi.credentials.js"
         ],
         "nodes": [
             "dist/nodes/CrossmintWallets/CrossmintWallets.node.js",
@@ -48,9 +48,9 @@
         "n8n-workflow": "*"
     },
     "dependencies": {
-      "@solana/web3.js": "^1.98.4",
-      "@types/bs58": "^4.0.4",
-      "ethers": "^6.15.0",
-      "tweetnacl": "^1.0.3"
+        "@solana/web3.js": "^1.98.4",
+        "@types/bs58": "^4.0.4",
+        "ethers": "^6.15.0",
+        "tweetnacl": "^1.0.3"
     }
 }
