@@ -53,16 +53,16 @@ let randombytes: (x: Uint8Array, n: number) => void = () => {
 const gf0: GF = gf();
 const gf1: GF = gf([1]);
 // Unused tweetnacl constants - kept for cryptographic completeness
-// @ts-ignore: TS6133 - Cryptographic constants preserved for completeness
+// @ts-expect-error: TS6133 - Cryptographic constants preserved for completeness
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const __121665: GF = gf([0xdb41, 1]);
-// @ts-ignore: TS6133 - Cryptographic constants preserved for completeness
+// @ts-expect-error: TS6133 - Cryptographic constants preserved for completeness
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _D: GF = gf([0x78a3, 0x1359, 0x4dca, 0x75eb, 0xd8ab, 0x4141, 0x0a4d, 0x0070, 0xe898, 0x7779, 0x4079, 0x8cc7, 0xfe73, 0x2b6f, 0x6cee, 0x5203]);
 const D2: GF = gf([0xf159, 0x26b2, 0x9b94, 0xebd6, 0xb156, 0x8283, 0x149a, 0x00e0, 0xd130, 0xeef3, 0x80f2, 0x198e, 0xfce7, 0x56df, 0xd9dc, 0x2406]);
 const X: GF = gf([0xd51a, 0x8f25, 0x2d60, 0xc956, 0xa7b2, 0x9525, 0xc760, 0x692c, 0xdc5c, 0xfdd6, 0xe231, 0xc0a4, 0x53fe, 0xcd6e, 0x36d3, 0x2169]);
 const Y: GF = gf([0x6658, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666, 0x6666]);
-// @ts-ignore: TS6133 - Cryptographic constants preserved for completeness
+// @ts-expect-error: TS6133 - Cryptographic constants preserved for completeness
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _I: GF = gf([0xa0b0, 0x4a0e, 0x1b27, 0xc4ee, 0xe478, 0xad2f, 0x1806, 0x2f43, 0xd7a7, 0x3dfb, 0x0099, 0x2b4d, 0xdf0b, 0x4fc1, 0x2480, 0x2b83]);
 
