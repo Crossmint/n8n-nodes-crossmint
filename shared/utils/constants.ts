@@ -10,14 +10,12 @@ export const API_VERSIONS = {
 } as const;
 
 export const CHAIN_TYPES = {
-	EVM: 'evm',
 	SOLANA: 'solana',
 } as const;
 
 export const VALIDATION_PATTERNS = {
 	EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-	EVM_ADDRESS: /^0x[a-fA-F0-9]{40}$/,
-	EVM_PRIVATE_KEY: /^(0x)?[a-fA-F0-9]{64}$/,
+	SOLANA_ADDRESS: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
 	PHONE: /^\+?[\d\s\-()]+$/,
 } as const;
 

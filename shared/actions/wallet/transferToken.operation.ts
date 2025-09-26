@@ -32,7 +32,7 @@ export async function transferToken(
 		amount: amount.toString().trim(),
 	};
 
-	const endpoint = `wallets/${fromWalletLocator}/tokens/${encodeURIComponent(tokenLocator)}/transfers`;
+	const endpoint = `wallets/${encodeURIComponent(fromWalletLocator)}/tokens/${encodeURIComponent(tokenLocator)}/transfers`;
 
 	let rawResponse;
 	try {

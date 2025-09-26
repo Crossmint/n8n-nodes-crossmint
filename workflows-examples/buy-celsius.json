@@ -47,7 +47,7 @@
         "state": "CA",
         "postalCode": "94016",
         "environment": "production",
-        "paymentMethod": "base",
+        "paymentMethod": "solana",
         "payerAddress": "={{ $('Get Wallet').item.json.address }}"
       },
       "type": "CUSTOM.crossmintCheckout",
@@ -69,7 +69,7 @@
       "parameters": {
         "operation": "purchaseProduct",
         "serializedTransaction": "={{ $json.order.payment.preparation.serializedTransaction }}",
-        "paymentMethod": "base",
+        "paymentMethod": "solana",
         "payerAddress": "={{ $('Get Wallet').item.json.address }}",
         "purchasePrivateKey": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
       },
@@ -96,7 +96,7 @@
           "value": "={{ $json.address }}",
           "mode": "address"
         },
-        "chains": "base"
+        "chains": "solana"
       },
       "type": "CUSTOM.crossmintWallets",
       "typeVersion": 1,

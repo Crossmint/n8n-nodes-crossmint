@@ -84,16 +84,9 @@ export async function signTransaction(
 	const signerAddress = context.getNodeParameter('signSubmitSignerAddress', itemIndex) as string;
 	const waitForCompletion = context.getNodeParameter('waitForCompletion', itemIndex) as boolean;
 
-	let signerChainType: string;
-	if (chain.includes('solana')) {
-		signerChainType = 'solana';
-		validatePrivateKey(privateKey, signerChainType, context, itemIndex);
-	} else {
-		signerChainType = 'evm';
-		validatePrivateKey(privateKey, signerChainType, context, itemIndex);
-	}
+	validatePrivateKey(privateKey, context, itemIndex);
 
-	const signature = await signMessage(transactionData, privateKey, signerChainType, context, itemIndex);
+	const signature = await signMessage(transactionData, privateKey, context, itemIndex);
 
 	if (!signature) {
 		throw new NodeOperationError(context.getNode(), 'Failed to generate signature', {
@@ -134,7 +127,7 @@ export async function signTransaction(
 		signingDetails: {
 			signature: signature,
 			signedTransaction: signature,
-			chainType: signerChainType,
+			chainType: 'solana',
 			chain: chain,
 			transactionData: transactionData,
 		},
