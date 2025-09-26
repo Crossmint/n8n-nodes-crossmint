@@ -111,10 +111,9 @@ export class CrossmintCheckout implements INodeType {
 				type: 'options',
 				displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'] } },
 				options: [
-					{ name: 'Solana Devnet', value: 'solana-devnet', description: 'Solana testnet' },
-					{ name: 'Solana', value: 'solana', description: 'Solana mainnet' },
+					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
 				],
-				default: 'solana-devnet',
+				default: 'solana',
 				description: 'Payment method for completing the transaction',
 				required: true,
 			},
@@ -260,9 +259,9 @@ export class CrossmintCheckout implements INodeType {
 				type: 'options',
 				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], environment: ['staging'] } },
 				options: [
-					{ name: 'Solana Devnet', value: 'solana-devnet', description: 'Solana testnet' },
+					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
 				],
-				default: 'solana-devnet',
+				default: 'solana',
 				description: 'Payment method for the purchase (Staging/Testnet)',
 				required: true,
 			},
@@ -272,7 +271,7 @@ export class CrossmintCheckout implements INodeType {
 				type: 'options',
 				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], environment: ['production'] } },
 				options: [
-					{ name: 'Solana', value: 'solana', description: 'Solana mainnet' },
+					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
 				],
 				default: 'solana',
 				description: 'Payment method for the purchase (Production/Mainnet)',
@@ -285,14 +284,15 @@ export class CrossmintCheckout implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['checkout'], operation: ['findProduct'],
-						paymentMethod: ['solana', 'solana-devnet'],
+						paymentMethod: ['solana'],
 					},
 				},
 				options: [
-					{ name: 'USDC', value: 'usdc', description: 'USD Coin (Only supported currency)' },
+					{ name: 'USDC', value: 'usdc', description: 'USD Coin' },
+					{ name: 'SOL', value: 'sol', description: 'Solana native token' },
 				],
 				default: 'usdc',
-				description: 'Cryptocurrency to pay with (USDC only)',
+				description: 'Cryptocurrency to pay with',
 				required: true,
 			},
 			{
@@ -302,7 +302,7 @@ export class CrossmintCheckout implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['checkout'], operation: ['findProduct'],
-						paymentMethod: ['solana', 'solana-devnet'],
+						paymentMethod: ['solana'],
 					},
 				},
 				default: '',
