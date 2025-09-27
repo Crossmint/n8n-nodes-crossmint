@@ -1,6 +1,6 @@
 {
     "name": "n8n-nodes-crossmint",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Crossmint n8n node",
     "license": "MIT",
     "homepage": "https://crossmint.com",
@@ -39,6 +39,7 @@
     },
     "devDependencies": {
         "@n8n/node-cli": "*",
+        "@types/node": "*",
         "eslint": "9.32.0",
         "prettier": "3.6.2",
         "release-it": "^19.0.4",
@@ -47,10 +48,5 @@
     "peerDependencies": {
         "n8n-workflow": "*"
     },
-    "dependencies": {
-        "@solana/web3.js": "^1.98.4",
-        "@types/bs58": "^4.0.4",
-        "ethers": "^6.15.0",
-        "tweetnacl": "^1.0.3"
-    }
+    "dependencies": {}
 }

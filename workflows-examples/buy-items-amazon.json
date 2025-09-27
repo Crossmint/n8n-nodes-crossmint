@@ -214,7 +214,7 @@
         "city": "Anytown",
         "state": "CA",
         "postalCode": "94016",
-        "paymentMethod": "ethereum-sepolia",
+        "paymentMethod": "solana-devnet",
         "payerAddress": "={{ $('Get Wallet').item.json.address }}"
       },
       "type": "CUSTOM.crossmintCheckout",

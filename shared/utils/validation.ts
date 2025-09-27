@@ -1,4 +1,5 @@
 import { NodeOperationError } from 'n8n-workflow';
+import { decode as base58Decode } from './base58';
 
 export function validateEmail(email: string, context: any, itemIndex: number): void {
 	if (!email || email.trim() === '') {
@@ -44,25 +45,22 @@ export function validateRequiredField(value: string, fieldName: string, context:
 	}
 }
 
-export function validatePrivateKey(privateKey: string, chainType: string, context: any, itemIndex: number): void {
+export function validatePrivateKey(privateKey: string, context: any, itemIndex: number): void {
 	if (!privateKey || privateKey.trim() === '') {
 		throw new NodeOperationError(context.getNode(), 'Private key is required', {
 			itemIndex,
 		});
 	}
 
-	if (chainType === 'solana') {
-		if (!(privateKey.length >= 80 && privateKey.length <= 90)) {
-			throw new NodeOperationError(context.getNode(), 'Invalid Solana private key format. Use base58 encoded key', {
-				itemIndex,
-			});
+	try {
+		const decoded = base58Decode(privateKey);
+		if (decoded.length !== 32 && decoded.length !== 64) {
+			throw new Error('Invalid key length');
 		}
-	} else {
-		if (!(privateKey.startsWith('0x') || (privateKey.length === 64 && /^[a-fA-F0-9]+$/.test(privateKey)))) {
-			throw new NodeOperationError(context.getNode(), 'Invalid EVM private key format. Use 32-byte hex string', {
-				itemIndex,
-			});
-		}
+	} catch {
+		throw new NodeOperationError(context.getNode(), 'Invalid base58 private key format', {
+			itemIndex,
+		});
 	}
 }
 

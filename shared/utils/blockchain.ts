@@ -1,7 +1,7 @@
 import { NodeOperationError } from 'n8n-workflow';
-import { ethers } from 'ethers';
-import { Keypair } from '@solana/web3.js';
-import * as bs58 from 'bs58';
+import { webcrypto } from 'node:crypto';
+import * as base58 from './base58';
+import { derivePublicKeyFromSecretKey, derivePublicKeyFromSeed } from './solana-key-derivation';
 
 export interface KeyPairResult {
 	address: string;
@@ -10,74 +10,38 @@ export interface KeyPairResult {
 }
 
 export function deriveKeyPair(privateKeyStr: string, context: any, itemIndex: number): KeyPairResult {
-	let signerChainType: string;
-
-	if (privateKeyStr.startsWith('0x') || (privateKeyStr.length === 64 && /^[a-fA-F0-9]+$/.test(privateKeyStr))) {
-		signerChainType = 'evm';
-	} else {
-		try {
-			const decoded = bs58.decode(privateKeyStr);
-			if (decoded.length === 64 || decoded.length === 32) {
-				signerChainType = 'solana';
-			} else {
-				throw new NodeOperationError(context.getNode(), 'Invalid key length');
-			}
-		} catch {
-			throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use 32-byte hex for EVM or base58 for Solana', {
-				itemIndex,
-			});
+	try {
+		const decoded = base58.decode(privateKeyStr);
+		if (decoded.length !== 64 && decoded.length !== 32) {
+			throw new NodeOperationError(context.getNode(), 'Invalid Solana private key length');
 		}
+	} catch {
+		throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use base58 for Solana', {
+			itemIndex,
+		});
 	}
 
 	try {
-		if (signerChainType === 'evm') {
-			let privateKeyBuffer: Buffer;
-			if (privateKeyStr.startsWith('0x')) {
-				privateKeyBuffer = Buffer.from(privateKeyStr.slice(2), 'hex');
-			} else {
-				privateKeyBuffer = Buffer.from(privateKeyStr, 'hex');
-			}
+		const secretKeyBytes = base58.decode(privateKeyStr);
 
-			if (privateKeyBuffer.length !== 32) {
-				throw new NodeOperationError(context.getNode(), 'EVM private key must be 32 bytes');
-			}
-
-			const normalizedPrivateKey = privateKeyStr.startsWith('0x') ? privateKeyStr : '0x' + privateKeyStr;
-			const wallet = new ethers.Wallet(normalizedPrivateKey);
-			
-			return {
-				address: wallet.address,
-				publicKey: wallet.signingKey.publicKey,
-				chainType: signerChainType,
-			};
-
-		} else if (signerChainType === 'solana') {
-			const secretKeyBytes = bs58.decode(privateKeyStr);
-
-			let fullSecretKey: Uint8Array;
-			if (secretKeyBytes.length === 32) {
-				fullSecretKey = new Uint8Array(64);
-				fullSecretKey.set(secretKeyBytes);
-				fullSecretKey.set(secretKeyBytes, 32);
-			} else if (secretKeyBytes.length === 64) {
-				fullSecretKey = secretKeyBytes;
-			} else {
-				throw new NodeOperationError(context.getNode(), `Invalid Solana private key: decoded to ${secretKeyBytes.length} bytes, expected 32 or 64`);
-			}
-
-			const keypair = Keypair.fromSecretKey(fullSecretKey);
-			const address = keypair.publicKey.toBase58();
-			
-			return {
-				address,
-				publicKey: address,
-				chainType: signerChainType,
-			};
+		let keyPair;
+		if (secretKeyBytes.length === 32) {
+			// 32-byte seed - use derivePublicKeyFromSeed
+			keyPair = derivePublicKeyFromSeed(secretKeyBytes);
+		} else if (secretKeyBytes.length === 64) {
+			// 64-byte secret key - use derivePublicKeyFromSecretKey
+			keyPair = derivePublicKeyFromSecretKey(secretKeyBytes);
 		} else {
-			throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${signerChainType}`, {
-				itemIndex,
-			});
+			throw new NodeOperationError(context.getNode(), `Invalid Solana private key: decoded to ${secretKeyBytes.length} bytes, expected 32 or 64`);
 		}
+
+		const address = base58.encode(keyPair.publicKey);
+
+		return {
+			address,
+			publicKey: address,
+			chainType: 'solana',
+		};
 	} catch (error: any) {
 		throw new NodeOperationError(context.getNode(), `Failed to process private key: ${error.message}`, {
 			itemIndex,
@@ -85,44 +49,74 @@ export function deriveKeyPair(privateKeyStr: string, context: any, itemIndex: nu
 	}
 }
 
+// Helper: build PKCS#8 DER for Ed25519 from a 32-byte seed.
+// RFC 8410 specifies Ed25519 OID 1.3.101.112 and PKCS#8 layout.
+// DER = 0x302e020100300506032b657004220420 || seed(32)
+function ed25519Pkcs8FromSeed(seed32: Uint8Array): ArrayBuffer {
+	const prefix = Uint8Array.from([
+		0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70,
+		0x04, 0x22, 0x04, 0x20
+	]);
+	const der = new Uint8Array(prefix.length + seed32.length);
+	der.set(prefix, 0);
+	der.set(seed32, prefix.length);
+	return der.buffer;
+}
+
 export async function signMessage(
 	message: string,
-	privateKey: string,
-	chainType: string,
+	privateKey: string,   // base58, 64 bytes when decoded (seed || pub)
 	context: any,
 	itemIndex: number
 ): Promise<string> {
 	try {
-		if (chainType === 'evm') {
-			const normalizedPrivateKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
-			const wallet = new ethers.Wallet(normalizedPrivateKey);
-			const messageBytes = ethers.getBytes(message);
-			return await wallet.signMessage(messageBytes);
-
-		} else if (chainType === 'solana') {
-			const secretKeyBytes = bs58.decode(privateKey);
-			if (secretKeyBytes.length !== 64) {
-				throw new NodeOperationError(context.getNode(), 'Invalid Solana private key: must decode to 64 bytes');
-			}
-
-			let messageBytes: Uint8Array;
-			try {
-				messageBytes = bs58.decode(message);
-			} catch {
-				messageBytes = new TextEncoder().encode(message);
-			}
-
-			const nacl = await import('tweetnacl');
-			const signatureBytes = nacl.sign.detached(messageBytes, secretKeyBytes);
-			return bs58.encode(signatureBytes);
-		} else {
-			throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${chainType}`, {
-				itemIndex,
-			});
+		// 1) Decode Solana secret key (NaCl layout: [32-byte seed || 32-byte public])
+		const secretKeyBytes = base58.decode(privateKey);
+		if (secretKeyBytes.length !== 64) {
+			throw new NodeOperationError(
+				context.getNode(),
+				'Invalid Solana private key: must decode to 64 bytes'
+			);
 		}
+		const seed32 = secretKeyBytes.subarray(0, 32); // first 32 bytes are the seed
+
+		// 2) Prepare the message bytes (accept base58 or plain text)
+		let messageBytes: Uint8Array;
+		try {
+			messageBytes = base58.decode(message);
+		} catch {
+			messageBytes = new TextEncoder().encode(message);
+		}
+
+		// 3) Import Ed25519 private key via PKCS#8, then sign with SubtleCrypto
+		const subtle = webcrypto.subtle;
+		const pkcs8 = ed25519Pkcs8FromSeed(seed32); // per RFC 8410 PKCS#8 for Ed25519
+		const privateCryptoKey = await subtle.importKey(
+			'pkcs8',
+			pkcs8,
+			{ name: 'Ed25519' },
+			false,
+			['sign']
+		);
+
+		const sigBuf = await subtle.sign({ name: 'Ed25519' }, privateCryptoKey, messageBytes);
+		const signature = new Uint8Array(sigBuf); // Signature is 64 bytes (Ed25519)
+
+		return base58.encode(signature);
 	} catch (error: any) {
-		throw new NodeOperationError(context.getNode(), `Failed to sign message: ${error.message}`, {
-			itemIndex,
-		});
+		// Helpful hint if the runtime lacks Ed25519 support
+		if (String(error?.message || '').toLowerCase().includes('algorithm') ||
+			String(error?.name || '').includes('NotSupportedError')) {
+			throw new NodeOperationError(
+				context.getNode(),
+				'Ed25519 Web Crypto is not supported in this runtime. Try a newer Node version (Web Crypto) or enable a runtime that supports Ed25519 in SubtleCrypto.',
+				{ itemIndex }
+			);
+		}
+		throw new NodeOperationError(
+			context.getNode(),
+			`Failed to sign message: ${error.message}`,
+			{ itemIndex }
+		);
 	}
 }

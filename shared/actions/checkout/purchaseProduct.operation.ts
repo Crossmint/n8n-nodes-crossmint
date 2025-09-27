@@ -20,23 +20,11 @@ export async function purchaseProduct(
 	validateRequiredField(chain, 'Chain', context, itemIndex);
 	validateRequiredField(privateKey, 'Private key', context, itemIndex);
 	
-	let requestBody: TransactionCreateRequest;
-	if (chain.includes('solana')) {
-		requestBody = {
-			params: {
-				transaction: serializedTransaction
-			}
-		};
-	} else {
-		requestBody = {
-			params: {
-				calls: [{
-					transaction: serializedTransaction
-				}],
-				chain: chain
-			}
-		};
-	}
+	const requestBody: TransactionCreateRequest = {
+		params: {
+			transaction: serializedTransaction
+		}
+	};
 	
 	const endpoint = `wallets/${encodeURIComponent(payerAddress)}/transactions`;
 
@@ -59,14 +47,13 @@ export async function purchaseProduct(
 	const messageToSign = transactionResponse.approvals.pending[0].message;
 	const signerAddress = transactionResponse.approvals.pending[0].signer.address || transactionResponse.approvals.pending[0].signer.locator.split(':')[1];
 	
-	const chainType = chain.includes('solana') ? 'solana' : 'evm';
-	const signature = await signMessage(messageToSign, privateKey, chainType, context, itemIndex);
+	const signature = await signMessage(messageToSign, privateKey, context, itemIndex);
 
 	const signingDetails = {
 		signature,
 		messageToSign,
 		signerAddress,
-		chainType,
+		chainType: 'solana',
 		chain
 	};
 

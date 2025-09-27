@@ -126,27 +126,27 @@ The node is organized into two primary resources: **Wallet** and **Checkout**.
 Operations for managing blockchain wallets which can hold and transfer money (in cryptocurrencies like USDC).
 
 * **Get or Create Wallet**: Creates a non-custodial smart wallet or retrieves an existing one. You maintain full control via a private key that authorizes all transactions. This operation is idempotent.
-  - `Chain Type` - Blockchain type (evm for Ethereum-compatible, solana for Solana)
+  - `Chain Type` - Blockchain type (solana)
   - `Owner Type` - Optional owner identifier type (email, userId, phone, twitter, x, none)
   - `Owner Details` - Specific owner information based on selected type
   - `Admin Signer` - Private key that authorizes all transactions from this wallet ([see Admin Signer Private Key](#🔐-admin-signer-private-key))
 
 * **Get Wallet**: Retrieves wallet details using its wallet locator (address, email, user ID, etc.).
   - `Wallet` - Wallet identifier (address, email, userId, phone, twitter, x)
-  - `Chain Type` - Required for non-address locators (evm or solana)
+  - `Chain Type` - Required for non-address locators (solana)
 
 * **Create Transfer**: Sends tokens (like USDC) between wallets. Requires the wallet's private key to digitally sign and authorize the transfer.
-  - `Blockchain Type` - Network type for both wallets (evm or solana)
+  - `Blockchain Type` - Network type for both wallets (solana)
   - `Origin Wallet` - Source wallet for the transfer
   - `Recipient Wallet` - Destination wallet for the transfer
-  - `Token Chain` - Specific blockchain network (e.g., ethereum-sepolia)
+  - `Token Chain` - Specific blockchain network (e.g., solana, solana-devnet)
   - `Token Name` - Token symbol or identifier (e.g., usdc)
   - `Amount` - Token amount to transfer
 
 * **Get Balance**: Checks token balances for a wallet across one or more blockchain networks.
   - `Wallet` - Wallet locator to check balance for (address, email, userId, phone, twitter, x)
-  - `Chain Type` - Required for non-address locators (evm or solana)
-  - `Chains` - Blockchain network to query (e.g., ethereum-sepolia, polygon, base)
+  - `Chain Type` - Required for non-address locators (solana)
+  - `Chains` - Blockchain network to query (e.g., solana, solana-devnet)
   - `Tokens` - Comma-separated list of token symbols to query
 
 * **Sign Transaction**: Signs a transaction with a private key and submits the signature to complete pending transactions.
@@ -211,19 +211,18 @@ Wallet locators are a key concept used throughout all Crossmint node operations.
 
 | Type | Format | Example | Use Case |
 |------|--------|---------|----------|
-| **Wallet Address** | `0x...` | `0x1234567890123456789012345678901234567890` | Direct blockchain address reference |
-| **Email** | `email:{email}:{chainType}:smart` | `email:user@example.com:evm:smart` | User identification by email |
-| **User ID** | `userId:{id}:{chainType}:smart` | `userId:user-123:evm:smart` | Custom user identifier |
-| **Phone Number** | `phoneNumber:{phone}:{chainType}:smart` | `phoneNumber:+1234567890:evm:smart` | SMS-based identification |
-| **Twitter Handle** | `twitter:{handle}:{chainType}:smart` | `twitter:username:evm:smart` | Social media identification |
-| **X Handle** | `x:{handle}:{chainType}:smart` | `x:username:evm:smart` | X (formerly Twitter) identification |
+| **Wallet Address** | `1A1z...` | `1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa` | Direct blockchain address reference |
+| **Email** | `email:{email}:{chainType}:smart` | `email:user@example.com:solana:smart` | User identification by email |
+| **User ID** | `userId:{id}:{chainType}:smart` | `userId:user-123:solana:smart` | Custom user identifier |
+| **Phone Number** | `phoneNumber:{phone}:{chainType}:smart` | `phoneNumber:+1234567890:solana:smart` | SMS-based identification |
+| **Twitter Handle** | `twitter:{handle}:{chainType}:smart` | `twitter:username:solana:smart` | Social media identification |
+| **X Handle** | `x:{handle}:{chainType}:smart` | `x:username:solana:smart` | X (formerly Twitter) identification |
 
 
 For more detailed information about wallet locator formats and specifications, see: [Crossmint Wallet Locators Documentation](https://docs.crossmint.com/api-reference/wallets/get-wallet-by-locator)
 
 ### Chain Types
 
-- **EVM**: Ethereum Virtual Machine compatible chains (Ethereum, Polygon, Base, Arbitrum, etc.)
 - **Solana**: Solana blockchain
 
 ### Best Practices
@@ -246,11 +245,6 @@ The Admin Signer is the private key that acts as the "master key" for your smart
 
 ### Key Requirements by Blockchain
 
-**For EVM Chains (Ethereum, Polygon, Base, etc.):**
-- Format: 32-byte hexadecimal string
-- Example: `0x1234567890123456789012345678901234567890123456789012345678901234`
-- Can start with `0x` or without (both accepted)
-
 **For Solana:**
 - Format: Base58 encoded string
 - Example: `5Kb8kLf9CJtPkDCe4jfE9TjC8d7X9e3Jh4F6h8F2K3h7J9F4K6h8F2K3h7J9F4K6h`
@@ -260,7 +254,7 @@ The Admin Signer is the private key that acts as the "master key" for your smart
 
 You can generate secure private keys using:
 - **Crossmint Generator**: [https://www.val.town/x/Crossmint/crypto-address-generator](https://www.val.town/x/Crossmint/crypto-address-generator)
-- **MetaMask**: Export private key from an existing wallet
+- **Phantom Wallet**: Export private key from an existing Solana wallet
 - **Solana CLI**: Generate Solana keypairs
 - **Hardware wallets**: Export or derive keys securely
 
