@@ -1,4 +1,5 @@
 import { NodeOperationError } from 'n8n-workflow';
+import { decode as base58Decode } from './base58';
 
 export function validateEmail(email: string, context: any, itemIndex: number): void {
 	if (!email || email.trim() === '') {
@@ -51,8 +52,13 @@ export function validatePrivateKey(privateKey: string, context: any, itemIndex: 
 		});
 	}
 
-	if (!(privateKey.length >= 80 && privateKey.length <= 90)) {
-		throw new NodeOperationError(context.getNode(), 'Invalid Solana private key format. Use base58 encoded key', {
+	try {
+		const decoded = base58Decode(privateKey);
+		if (decoded.length !== 32 && decoded.length !== 64) {
+			throw new Error('Invalid key length');
+		}
+	} catch {
+		throw new NodeOperationError(context.getNode(), 'Invalid base58 private key format', {
 			itemIndex,
 		});
 	}
