@@ -1,6 +1,6 @@
 {
     "name": "n8n-nodes-crossmint",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Crossmint n8n node",
     "license": "MIT",
     "homepage": "https://crossmint.com",
@@ -13,7 +13,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/crossmint/n8n-nodes-crossmint.git"
+        "url": "git+https://github.com/crossmint/n8n-nodes-crossmint.git"
     },
     "scripts": {
         "build": "n8n-node build",
