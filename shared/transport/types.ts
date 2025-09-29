@@ -1,4 +1,4 @@
-import { IHttpRequestOptions } from 'n8n-workflow';
+import { IHttpRequestOptions, IDataObject } from 'n8n-workflow';
 
 export interface CrossmintCredentials {
 	apiKey: string;
@@ -69,3 +69,14 @@ export interface TransactionCreateRequest {
 		chain?: string;
 	};
 }
+
+export interface WalletLocatorData {
+	mode: string;
+	value: string;
+}
+
+// API Response types
+export type ApiResponse = IDataObject;
+
+// Error type for NodeApiError compatibility
+export type NodeApiErrorData = Record<string, string | number | boolean | null>;

@@ -1,4 +1,5 @@
 import {
+	IDataObject,
 	IExecuteFunctions,
 	INodeType,
 	INodeTypeDescription,
@@ -455,8 +456,8 @@ export class CrossmintWallets implements INodeType {
 				],
 			},
 			{
-				displayName: 'Token Chain',
-				name: 'tokenChain',
+				displayName: 'Chain',
+				name: 'tknChain',
 				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['createTransfer'] } },
 				default: '',
@@ -466,7 +467,7 @@ export class CrossmintWallets implements INodeType {
 			},
 			{
 				displayName: 'Token Name (Locator ID)',
-				name: 'tokenName',
+				name: 'tknName',
 				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['createTransfer'] } },
 				default: '',
@@ -589,9 +590,8 @@ export class CrossmintWallets implements INodeType {
 			},
 			{
 				displayName: 'Tokens',
-				name: 'tokens',
+				name: 'tkn',
 				type: 'string',
-				typeOptions: { password: false },
 				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
 				default: 'sol,usdc',
 				placeholder: 'sol,usdc,usdt',
@@ -683,7 +683,7 @@ export class CrossmintWallets implements INodeType {
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
 				const operation = this.getNodeParameter('operation', itemIndex) as string;
-				let result: any;
+				let result: IDataObject;
 
 				switch (operation) {
 					case 'getOrCreateWallet':

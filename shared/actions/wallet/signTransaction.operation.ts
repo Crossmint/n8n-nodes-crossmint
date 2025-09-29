@@ -1,15 +1,16 @@
-import { IExecuteFunctions, NodeOperationError, NodeApiError } from 'n8n-workflow';
+import { IExecuteFunctions, NodeOperationError, NodeApiError, IDataObject } from 'n8n-workflow';
+import { setTimeout as delay } from 'timers/promises';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS, PAGINATION } from '../../utils/constants';
 import { validatePrivateKey, validateRequiredField } from '../../utils/validation';
 import { signMessage } from '../../utils/blockchain';
-import { ApprovalRequest } from '../../transport/types';
+import { ApprovalRequest, ApiResponse } from '../../transport/types';
 
 async function getTransactionStatus(
 	api: CrossmintApi,
 	walletAddress: string,
 	transactionId: string,
-): Promise<any> {
+): Promise<unknown> {
 	const endpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}`;
 	return await api.get(endpoint, API_VERSIONS.WALLETS);
 }
@@ -18,25 +19,25 @@ async function handleWaitForCompletion(
 	api: CrossmintApi,
 	walletAddress: string,
 	transactionId: string,
-	initialResponse: any,
-	simplifiedOutput: any,
+	initialResponse: unknown,
+	simplifiedOutput: Record<string, unknown>,
 	context: IExecuteFunctions,
 	itemIndex: number,
-): Promise<any> {
-	let currentStatus = initialResponse.status;
+): Promise<IDataObject> {
+	let currentStatus = (initialResponse as Record<string, unknown>).status;
 	let attempts = 0;
-	let finalResponse = {
+	let finalResponse: IDataObject = {
 		'simplified-output': simplifiedOutput,
 		raw: initialResponse
-	};
+	} as IDataObject;
 
 	while (currentStatus === 'pending' && attempts < PAGINATION.MAX_ATTEMPTS) {
-		await new Promise(resolve => setTimeout(resolve, PAGINATION.POLL_INTERVAL));
+		await delay(PAGINATION.POLL_INTERVAL);
 		attempts++;
 
 		try {
-			const statusResponse = await getTransactionStatus(api, walletAddress, transactionId);
-			currentStatus = statusResponse.status;
+			const statusResponse = await getTransactionStatus(api, walletAddress, transactionId) as IDataObject;
+			currentStatus = (statusResponse as Record<string, unknown>).status;
 
 			const updatedSimplifiedOutput = {
 				...simplifiedOutput,
@@ -44,16 +45,16 @@ async function handleWaitForCompletion(
 			};
 
 			if (statusResponse.completedAt) {
-				(updatedSimplifiedOutput as any).completedAt = statusResponse.completedAt;
+				(updatedSimplifiedOutput as Record<string, unknown>).completedAt = statusResponse.completedAt;
 			}
 			if (statusResponse.error) {
-				(updatedSimplifiedOutput as any).error = statusResponse.error;
+				(updatedSimplifiedOutput as Record<string, unknown>).error = statusResponse.error;
 			}
 
 			finalResponse = {
 				'simplified-output': updatedSimplifiedOutput,
 				raw: statusResponse
-			};
+			} as IDataObject;
 
 		} catch (error) {
 			// Log the error using n8n's proper error handling
@@ -75,7 +76,7 @@ export async function signTransaction(
 	context: IExecuteFunctions,
 	api: CrossmintApi,
 	itemIndex: number,
-): Promise<any> {
+): Promise<IDataObject> {
 	const chain = context.getNodeParameter('signSubmitChain', itemIndex) as string;
 	const privateKey = context.getNodeParameter('signSubmitPrivateKey', itemIndex) as string;
 	const transactionData = context.getNodeParameter('signSubmitTransactionData', itemIndex) as string;
@@ -109,21 +110,22 @@ export async function signTransaction(
 
 	const endpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`;
 
-	let rawResponse;
+	let rawResponse: ApiResponse;
 	try {
-		rawResponse = await api.post(endpoint, requestBody, API_VERSIONS.WALLETS);
-	} catch (error: any) {
+		rawResponse = await api.post(endpoint, requestBody as unknown as IDataObject, API_VERSIONS.WALLETS);
+	} catch (error: unknown) {
 		// Pass through the original Crossmint API error exactly as received
-		throw new NodeApiError(context.getNode(), error);
+		throw new NodeApiError(context.getNode(), error as object & { message?: string });
 	}
 
+	const rawResponseData = rawResponse as IDataObject;
 	const simplifiedOutput = {
-		chainType: rawResponse.chainType,
-		walletType: rawResponse.walletType,
-		id: rawResponse.id,
-		status: rawResponse.status,
-		createdAt: rawResponse.createdAt,
-		approvals: rawResponse.approvals || {},
+		chainType: rawResponseData.chainType,
+		walletType: rawResponseData.walletType,
+		id: rawResponseData.id,
+		status: rawResponseData.status,
+		createdAt: rawResponseData.createdAt,
+		approvals: rawResponseData.approvals || {},
 		signingDetails: {
 			signature: signature,
 			signedTransaction: signature,
@@ -146,5 +148,5 @@ export async function signTransaction(
 	return {
 		'simplified-output': simplifiedOutput,
 		raw: rawResponse
-	};
+	} as IDataObject;
 }

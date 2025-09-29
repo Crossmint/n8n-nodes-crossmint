@@ -1,15 +1,15 @@
-import { IExecuteFunctions, NodeOperationError, NodeApiError } from 'n8n-workflow';
+import { IExecuteFunctions, NodeOperationError, NodeApiError, IDataObject } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { validateRequiredField } from '../../utils/validation';
 import { signMessage } from '../../utils/blockchain';
-import { TransactionCreateRequest, ApprovalRequest } from '../../transport/types';
+import { TransactionCreateRequest, ApprovalRequest, ApiResponse } from '../../transport/types';
 
 export async function purchaseProduct(
 	context: IExecuteFunctions,
 	api: CrossmintApi,
 	itemIndex: number,
-): Promise<any> {
+): Promise<IDataObject> {
 	const serializedTransaction = context.getNodeParameter('serializedTransaction', itemIndex) as string;
 	const payerAddress = context.getNodeParameter('payerAddress', itemIndex) as string;
 	const chain = context.getNodeParameter('paymentMethod', itemIndex) as string;
@@ -28,24 +28,26 @@ export async function purchaseProduct(
 	
 	const endpoint = `wallets/${encodeURIComponent(payerAddress)}/transactions`;
 
-	let transactionResponse;
+	let transactionResponse: ApiResponse;
 	try {
-		transactionResponse = await api.post(endpoint, requestBody, API_VERSIONS.WALLETS);
-	} catch (error: any) {
+		transactionResponse = await api.post(endpoint, requestBody as unknown as IDataObject, API_VERSIONS.WALLETS);
+	} catch (error: unknown) {
 		// Pass through the original Crossmint API error exactly as received
-		throw new NodeApiError(context.getNode(), error);
+		throw new NodeApiError(context.getNode(), error as object & { message?: string });
 	}
 
-	const transactionId = transactionResponse.id; 
+	const transactionId = (transactionResponse as IDataObject).id; 
 	
-	if (!transactionResponse.approvals || !transactionResponse.approvals.pending || !transactionResponse.approvals.pending[0]) {
+	const response = transactionResponse as IDataObject;
+	const approvals = response.approvals as { pending?: Array<{ message: string; signer: { address?: string; locator?: string } }> };
+	if (!approvals || !approvals.pending || !approvals.pending[0]) {
 		throw new NodeOperationError(context.getNode(), 'No pending approval found in transaction response', {
 			itemIndex,
 		});
 	}
 	
-	const messageToSign = transactionResponse.approvals.pending[0].message;
-	const signerAddress = transactionResponse.approvals.pending[0].signer.address || transactionResponse.approvals.pending[0].signer.locator.split(':')[1];
+	const messageToSign = approvals.pending[0].message;
+	const signerAddress = approvals.pending[0].signer.address || (approvals.pending[0].signer.locator as string).split(':')[1];
 	
 	const signature = await signMessage(messageToSign, privateKey, context, itemIndex);
 
@@ -64,14 +66,14 @@ export async function purchaseProduct(
 		}]
 	};
 
-	const approvalEndpoint = `wallets/${encodeURIComponent(payerAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`;
+	const approvalEndpoint = `wallets/${encodeURIComponent(payerAddress as string)}/transactions/${encodeURIComponent(transactionId as string)}/approvals`;
 
-	let approvalResponse;
+	let approvalResponse: ApiResponse;
 	try {
-		approvalResponse = await api.post(approvalEndpoint, approvalRequestBody, API_VERSIONS.WALLETS);
-	} catch (error: any) {
+		approvalResponse = await api.post(approvalEndpoint, approvalRequestBody as unknown as IDataObject, API_VERSIONS.WALLETS);
+	} catch (error: unknown) {
 		// Pass through the original Crossmint API error exactly as received
-		throw new NodeApiError(context.getNode(), error);
+		throw new NodeApiError(context.getNode(), error as object & { message?: string });
 	}
 	
 	return {

@@ -1,4 +1,4 @@
-import { IExecuteFunctions, NodeApiError } from 'n8n-workflow';
+import { IExecuteFunctions, NodeApiError, IDataObject } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { validateRequiredField } from '../../utils/validation';
@@ -9,7 +9,7 @@ export async function createWallet(
 	context: IExecuteFunctions,
 	api: CrossmintApi,
 	itemIndex: number,
-): Promise<any> {
+): Promise<IDataObject> {
 	const chainType = context.getNodeParameter('chainType', itemIndex) as string;
 	const ownerType = context.getNodeParameter('ownerType', itemIndex) as string;
 	const externalSignerDetails = context.getNodeParameter('externalSignerDetails', itemIndex) as string;
@@ -67,19 +67,19 @@ export async function createWallet(
 	}
 
 	try {
-		const response = await api.post('wallets', requestBody, API_VERSIONS.WALLETS);
+		const response = await api.post('wallets', requestBody as unknown as IDataObject, API_VERSIONS.WALLETS);
 
 		if(keyPair.address && keyPair.publicKey) {
 			return {
-				...response,
+				...(response as IDataObject),
 				derivedAddress: keyPair.address,
 				derivedPublicKey: keyPair.publicKey,
 			};
 		}
 
 		return response;
-	} catch (error: any) {
+	} catch (error: unknown) {
 		// Pass through the original Crossmint API error exactly as received
-		throw new NodeApiError(context.getNode(), error);
+		throw new NodeApiError(context.getNode(), error as object & { message?: string });
 	}
 }

@@ -1,6 +1,6 @@
-import { IExecuteFunctions, IHttpRequestOptions, NodeApiError } from 'n8n-workflow';
+import { IExecuteFunctions, IHttpRequestOptions, NodeApiError, IDataObject } from 'n8n-workflow';
 import { API_ENDPOINTS } from '../utils/constants';
-import { CrossmintCredentials, ApiRequestOptions } from './types';
+import { CrossmintCredentials, ApiRequestOptions, ApiResponse } from './types';
 
 export class CrossmintApi {
 	private context: IExecuteFunctions;
@@ -15,7 +15,7 @@ export class CrossmintApi {
 			: API_ENDPOINTS.STAGING;
 	}
 
-	async request(options: ApiRequestOptions): Promise<any> {
+	async request(options: ApiRequestOptions): Promise<ApiResponse> {
 		const { endpoint, version, headers = {}, ...requestOptions } = options;
 		
 		const url = version 
@@ -37,12 +37,12 @@ export class CrossmintApi {
 
 		try {
 			return await this.context.helpers.httpRequest(httpOptions);
-		} catch (error: any) {
-			throw new NodeApiError(this.context.getNode(), error);
+		} catch (error: unknown) {
+			throw new NodeApiError(this.context.getNode(), error as object & { message?: string });
 		}
 	}
 
-	async get(endpoint: string, version?: string, headers?: Record<string, string>): Promise<any> {
+	async get(endpoint: string, version?: string, headers?: Record<string, string>): Promise<ApiResponse> {
 		return this.request({
 			method: 'GET',
 			endpoint,
@@ -51,7 +51,7 @@ export class CrossmintApi {
 		});
 	}
 
-	async post(endpoint: string, body: any, version?: string, headers?: Record<string, string>): Promise<any> {
+	async post(endpoint: string, body: IDataObject, version?: string, headers?: Record<string, string>): Promise<ApiResponse> {
 		return this.request({
 			method: 'POST',
 			endpoint,

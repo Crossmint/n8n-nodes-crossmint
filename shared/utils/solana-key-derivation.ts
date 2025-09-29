@@ -486,15 +486,16 @@ const crypto_sign_SEEDBYTES = 32;
 function initializeRandom(): void {
   // Initialize PRNG if environment provides CSPRNG.
   // @ts-expect-error - browser/node compatibility for global object access
-  let crypto: any = typeof self !== 'undefined' ? (self as any).crypto || (self as any).msCrypto : null;
+  let crypto: unknown = typeof self !== 'undefined' ? (self as { crypto?: unknown; msCrypto?: unknown }).crypto || (self as { crypto?: unknown; msCrypto?: unknown }).msCrypto : null;
   
-  if (crypto && crypto.getRandomValues) {
+  if (crypto && (crypto as { getRandomValues?: (arr: Uint8Array) => void; randomBytes?: (size: number) => Buffer }).getRandomValues) {
     // Browsers.
     const QUOTA = 65536;
     randombytes = (x: Uint8Array, n: number): void => {
       const v = new Uint8Array(n);
       for (let i = 0; i < n; i += QUOTA) {
-        crypto.getRandomValues(v.subarray(i, i + Math.min(n - i, QUOTA)));
+        const cryptoTyped = crypto as { getRandomValues?: (arr: Uint8Array) => void; randomBytes?: (size: number) => Buffer };
+        cryptoTyped.getRandomValues?.(v.subarray(i, i + Math.min(n - i, QUOTA)));
       }
       for (let i = 0; i < n; i++) x[i] = v[i];
     };
@@ -503,10 +504,13 @@ function initializeRandom(): void {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       crypto = require('crypto');
-      if (crypto && crypto.randomBytes) {
+      if (crypto && (crypto as { getRandomValues?: (arr: Uint8Array) => void; randomBytes?: (size: number) => Buffer }).randomBytes) {
         randombytes = (x: Uint8Array, n: number): void => {
-          const v = crypto.randomBytes(n);
-          for (let i = 0; i < n; i++) x[i] = v[i];
+          const cryptoTyped = crypto as { getRandomValues?: (arr: Uint8Array) => void; randomBytes?: (size: number) => Buffer };
+          const v = cryptoTyped.randomBytes?.(n);
+          if (v) {
+            for (let i = 0; i < n; i++) x[i] = v[i];
+          }
         };
       }
     } catch {
@@ -515,7 +519,7 @@ function initializeRandom(): void {
   }
 }
 
-function checkArrayTypes(...args: any[]): void {
+function checkArrayTypes(...args: unknown[]): void {
   for (let i = 0; i < args.length; i++) {
     if (!(args[i] instanceof Uint8Array)) {
       throw new TypeError('unexpected type, use Uint8Array');
