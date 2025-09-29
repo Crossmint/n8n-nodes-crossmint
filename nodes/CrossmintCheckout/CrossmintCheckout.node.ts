@@ -1,4 +1,5 @@
 import {
+	IDataObject,
 	IExecuteFunctions,
 	INodeType,
 	INodeTypeDescription,
@@ -323,7 +324,7 @@ export class CrossmintCheckout implements INodeType {
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
 				const operation = this.getNodeParameter('operation', itemIndex) as string;
-				let result: any;
+				let result: IDataObject;
 
 				switch (operation) {
 					case 'findProduct':

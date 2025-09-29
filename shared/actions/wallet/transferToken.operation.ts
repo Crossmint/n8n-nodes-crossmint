@@ -1,31 +1,31 @@
-import { IExecuteFunctions, NodeApiError } from 'n8n-workflow';
+import { IExecuteFunctions, NodeApiError, IDataObject } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { validateAmount, validateRequiredField } from '../../utils/validation';
 import { buildWalletLocator, buildRecipientLocator } from '../../utils/locators';
-import { TransferTokenRequest } from '../../transport/types';
+import { TransferTokenRequest, WalletLocatorData } from '../../transport/types';
 
 export async function transferToken(
 	context: IExecuteFunctions,
 	api: CrossmintApi,
 	itemIndex: number,
-): Promise<any> {
+): Promise<IDataObject> {
 	const amount = context.getNodeParameter('amount', itemIndex) as string;
-	const tokenChain = context.getNodeParameter('tokenChain', itemIndex) as string;
-	const tokenName = context.getNodeParameter('tokenName', itemIndex) as string;
+	const tknChain = context.getNodeParameter('tknChain', itemIndex) as string;
+	const tknName = context.getNodeParameter('tknName', itemIndex) as string;
 	const blockchainType = context.getNodeParameter('blockchainType', itemIndex) as string;
 
 	validateAmount(amount, context, itemIndex);
-	validateRequiredField(tokenChain, 'Token chain', context, itemIndex);
-	validateRequiredField(tokenName, 'Token name', context, itemIndex);
+	validateRequiredField(tknChain, 'Token chain', context, itemIndex);
+	validateRequiredField(tknName, 'Token name', context, itemIndex);
 
-	const tokenLocator = `${tokenChain}:${tokenName}`;
+	const tokenLocator = `${tknChain}:${tknName}`;
 
-	const originWallet = context.getNodeParameter('originWallet', itemIndex) as any;
+	const originWallet = context.getNodeParameter('originWallet', itemIndex) as WalletLocatorData;
 	const fromWalletLocator = buildWalletLocator(originWallet, blockchainType, context, itemIndex);
 
-	const recipientWallet = context.getNodeParameter('recipientWallet', itemIndex) as any;
-	const recipient = buildRecipientLocator(recipientWallet, tokenChain, context, itemIndex);
+	const recipientWallet = context.getNodeParameter('recipientWallet', itemIndex) as WalletLocatorData;
+	const recipient = buildRecipientLocator(recipientWallet, tknChain, context, itemIndex);
 
 	const requestBody: TransferTokenRequest = {
 		recipient: recipient,
@@ -36,26 +36,28 @@ export async function transferToken(
 
 	let rawResponse;
 	try {
-		rawResponse = await api.post(endpoint, requestBody, API_VERSIONS.WALLETS);
-	} catch (error: any) {
+		rawResponse = await api.post(endpoint, requestBody as unknown as IDataObject, API_VERSIONS.WALLETS);
+	} catch (error: unknown) {
 		// Pass through the original Crossmint API error exactly as received
-		throw new NodeApiError(context.getNode(), error);
+		throw new NodeApiError(context.getNode(), error as object & { message?: string });
 	}
 
 	let chain;
-	if (rawResponse.params && rawResponse.params.calls && rawResponse.params.calls[0]) {
-		chain = rawResponse.params.calls[0].chain;
+	const responseParams = (rawResponse as IDataObject).params as { calls?: Array<{ chain?: string }> };
+	if (responseParams && responseParams.calls && responseParams.calls[0]) {
+		chain = responseParams.calls[0].chain;
 	}
 
+	const rawResponseData = rawResponse as IDataObject;
 	const simplifiedOutput = {
-		chainType: rawResponse.chainType,
-		walletType: rawResponse.walletType,
+		chainType: rawResponseData.chainType,
+		walletType: rawResponseData.walletType,
 		from: originWallet,
 		to: recipientWallet,
 		chain: chain,
-		id: rawResponse.id,
-		status: rawResponse.status,
-		approvals: rawResponse.approvals || {}
+		id: rawResponseData.id,
+		status: rawResponseData.status,
+		approvals: rawResponseData.approvals || {}
 	};
 
 	return {

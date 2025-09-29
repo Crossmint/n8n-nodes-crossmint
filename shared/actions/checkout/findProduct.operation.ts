@@ -1,15 +1,15 @@
-import { IExecuteFunctions, NodeApiError } from 'n8n-workflow';
+import { IExecuteFunctions, NodeApiError, IDataObject } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { validateEmail, validateRequiredField, validateAddressFields } from '../../utils/validation';
 import { buildProductLocator } from '../../utils/locators';
-import { OrderCreateRequest } from '../../transport/types';
+import { OrderCreateRequest, ApiResponse } from '../../transport/types';
 
 export async function findProduct(
 	context: IExecuteFunctions,
 	api: CrossmintApi,
 	itemIndex: number,
-): Promise<any> {
+): Promise<ApiResponse> {
 	const platform = context.getNodeParameter('platform', itemIndex) as string;
 	const productIdentifier = context.getNodeParameter('productIdentifier', itemIndex) as string;
 	const recipientEmail = context.getNodeParameter('recipientEmail', itemIndex) as string;
@@ -36,7 +36,7 @@ export async function findProduct(
 
 	const paymentMethod = context.getNodeParameter('paymentMethod', itemIndex) as string;
 
-	const physicalAddress: any = {
+	const physicalAddress: OrderCreateRequest['recipient']['physicalAddress'] = {
 		name: recipientName,
 		line1: addressLine1,
 		city: city,
@@ -51,9 +51,10 @@ export async function findProduct(
 		physicalAddress.state = state;
 	}
 
-	const payment: any = {
+	const payment: OrderCreateRequest['payment'] = {
 		receiptEmail: recipientEmail,
 		method: paymentMethod,
+		currency: '', // Will be set below
 	};
 
 	const paymentCurrency = context.getNodeParameter('paymentCurrency', itemIndex) as string;
@@ -76,9 +77,9 @@ export async function findProduct(
 	};
 
 	try {
-		return await api.post('orders', requestBody, API_VERSIONS.ORDERS);
-	} catch (error: any) {
+		return await api.post('orders', requestBody as unknown as IDataObject, API_VERSIONS.ORDERS);
+	} catch (error: unknown) {
 		// Pass through the original Crossmint API error exactly as received
-		throw new NodeApiError(context.getNode(), error);
+		throw new NodeApiError(context.getNode(), error as object & { message?: string });
 	}
 }

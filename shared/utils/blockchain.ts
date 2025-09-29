@@ -1,4 +1,4 @@
-import { NodeOperationError } from 'n8n-workflow';
+import { NodeOperationError, INode } from 'n8n-workflow';
 import { webcrypto } from 'node:crypto';
 import * as base58 from './base58';
 import { derivePublicKeyFromSecretKey, derivePublicKeyFromSeed } from './solana-key-derivation';
@@ -9,14 +9,14 @@ export interface KeyPairResult {
 	chainType: string;
 }
 
-export function deriveKeyPair(privateKeyStr: string, context: any, itemIndex: number): KeyPairResult {
+export function deriveKeyPair(privateKeyStr: string, context: unknown, itemIndex: number): KeyPairResult {
 	try {
 		const decoded = base58.decode(privateKeyStr);
 		if (decoded.length !== 64 && decoded.length !== 32) {
-			throw new NodeOperationError(context.getNode(), 'Invalid Solana private key length');
+			throw new NodeOperationError((context as { getNode: () => INode }).getNode(), 'Invalid Solana private key length');
 		}
 	} catch {
-		throw new NodeOperationError(context.getNode(), 'Invalid private key format. Use base58 for Solana', {
+		throw new NodeOperationError((context as { getNode: () => INode }).getNode(), 'Invalid private key format. Use base58 for Solana', {
 			itemIndex,
 		});
 	}
@@ -32,7 +32,7 @@ export function deriveKeyPair(privateKeyStr: string, context: any, itemIndex: nu
 			// 64-byte secret key - use derivePublicKeyFromSecretKey
 			keyPair = derivePublicKeyFromSecretKey(secretKeyBytes);
 		} else {
-			throw new NodeOperationError(context.getNode(), `Invalid Solana private key: decoded to ${secretKeyBytes.length} bytes, expected 32 or 64`);
+			throw new NodeOperationError((context as { getNode: () => INode }).getNode(), `Invalid Solana private key: decoded to ${secretKeyBytes.length} bytes, expected 32 or 64`);
 		}
 
 		const address = base58.encode(keyPair.publicKey);
@@ -42,8 +42,8 @@ export function deriveKeyPair(privateKeyStr: string, context: any, itemIndex: nu
 			publicKey: address,
 			chainType: 'solana',
 		};
-	} catch (error: any) {
-		throw new NodeOperationError(context.getNode(), `Failed to process private key: ${error.message}`, {
+	} catch (error: unknown) {
+		throw new NodeOperationError((context as { getNode: () => INode }).getNode(), `Failed to process private key: ${(error as Error).message}`, {
 			itemIndex,
 		});
 	}
@@ -66,7 +66,7 @@ function ed25519Pkcs8FromSeed(seed32: Uint8Array): ArrayBuffer {
 export async function signMessage(
 	message: string,
 	privateKey: string,   // base58, 64 bytes when decoded (seed || pub)
-	context: any,
+	context: unknown,
 	itemIndex: number
 ): Promise<string> {
 	try {
@@ -74,7 +74,7 @@ export async function signMessage(
 		const secretKeyBytes = base58.decode(privateKey);
 		if (secretKeyBytes.length !== 64) {
 			throw new NodeOperationError(
-				context.getNode(),
+				(context as { getNode: () => INode }).getNode(),
 				'Invalid Solana private key: must decode to 64 bytes'
 			);
 		}
@@ -103,19 +103,19 @@ export async function signMessage(
 		const signature = new Uint8Array(sigBuf); // Signature is 64 bytes (Ed25519)
 
 		return base58.encode(signature);
-	} catch (error: any) {
+	} catch (error: unknown) {
 		// Helpful hint if the runtime lacks Ed25519 support
-		if (String(error?.message || '').toLowerCase().includes('algorithm') ||
-			String(error?.name || '').includes('NotSupportedError')) {
+		if (String((error as { message?: string })?.message || '').toLowerCase().includes('algorithm') ||
+			String((error as { name?: string })?.name || '').includes('NotSupportedError')) {
 			throw new NodeOperationError(
-				context.getNode(),
+				(context as { getNode: () => INode }).getNode(),
 				'Ed25519 Web Crypto is not supported in this runtime. Try a newer Node version (Web Crypto) or enable a runtime that supports Ed25519 in SubtleCrypto.',
 				{ itemIndex }
 			);
 		}
 		throw new NodeOperationError(
-			context.getNode(),
-			`Failed to sign message: ${error.message}`,
+			(context as { getNode: () => INode }).getNode(),
+			`Failed to sign message: ${(error as Error).message}`,
 			{ itemIndex }
 		);
 	}
