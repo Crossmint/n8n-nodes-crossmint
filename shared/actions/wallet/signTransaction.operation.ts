@@ -1,4 +1,5 @@
 import { IExecuteFunctions, NodeOperationError, NodeApiError, IDataObject } from 'n8n-workflow';
+import { setTimeout as delay } from 'timers/promises';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS, PAGINATION } from '../../utils/constants';
 import { validatePrivateKey, validateRequiredField } from '../../utils/validation';
@@ -31,7 +32,7 @@ async function handleWaitForCompletion(
 	} as IDataObject;
 
 	while (currentStatus === 'pending' && attempts < PAGINATION.MAX_ATTEMPTS) {
-		await new Promise(resolve => setTimeout(resolve, PAGINATION.POLL_INTERVAL));
+		await delay(PAGINATION.POLL_INTERVAL);
 		attempts++;
 
 		try {
