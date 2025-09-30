@@ -1,6 +1,6 @@
 {
     "$schema": "https://mintlify.com/docs.json",
-    "theme": "mint",
+    "theme": "quill",
     "name": "Crossmint n8n Node",
     "colors": {
         "primary": "#36b37e",

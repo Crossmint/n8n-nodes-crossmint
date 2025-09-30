@@ -1,9 +1,14 @@
 ---
-title: Crossmint n8n Node
+title: Crossmint n8n Nodes
 description: Full-featured n8n integration for Crossmint Wallet and Checkout APIs—install, configure, and build your first workflow.
 ---
 
-This community node for n8n provides a complete integration with Crossmint's **Wallet** and **Checkout** APIs. It lets users and AI agents program digital money inside wallets and automate the purchase of physical products—all inside your n8n workflows.
+This community package for n8n provides two separate nodes with complete integration to Crossmint's APIs:
+
+- **Crossmint Wallets** — Manage blockchain wallets, check balances, and transfer tokens
+- **Crossmint Checkout** — Automate purchases of physical products from Amazon and Shopify using digital money
+
+Both nodes work in **Staging** (for testing) and **Production** (for live operations) environments. Together, these nodes let users and AI agents program digital money inside wallets and automate the purchase of physical products—all inside your n8n workflows.
 
 <Callout type="info">
 <b>Start here</b>: Select the proper documentation for your node version. If you don't know, choose the latest.
@@ -13,45 +18,16 @@ This community node for n8n provides a complete integration with Crossmint's **W
 </ul>
 </Callout>
 
-## Installation (Local Development Setup)
-
-For now you have to run the Crossmint node from source:
-
-<Steps>
-  <Step title="Clone the repository">
-    ```bash
-    git clone https://github.com/Crossmint/n8n-nodes-crossmint.git
-    cd n8n-nodes-crossmint
-    ```
-  </Step>
-
-  <Step title="Install dependencies and build">
-    ```bash
-    npm install
-    npm run build
-    ```
-  </Step>
-
-  <Step title="(Optional) Run in development with auto-reload">
-    ```bash
-    sudo npm run dev
-    ```
-  </Step>
-</Steps>
-
-<Callout type="info">
-You must use the <b>self-hosted</b> version of n8n to run Crossmint nodes. See the official guide: <a href="https://docs.n8n.io/integrations/creating-nodes/build/n8n-node/">Build and run n8n nodes</a>.
-</Callout>
 
 ## Your First Workflow Using Crossmint
 
-Once the community node is installed, add and configure your first Crossmint node:
+Once the community package is installed, you'll have access to two nodes: **Crossmint Wallets** and **Crossmint Checkout**. Let's configure the Wallets node:
 
 <Steps>
-  <Step title="Add the Crossmint node to your workflow">
+  <Step title="Add the Crossmint Wallets node to your workflow">
     <ol>
       <li>In the n8n editor, click the <b>+</b> button to add a new node.</li>
-      <li>Search for <b>Crossmint</b> and select it.</li>
+      <li>Search for <b>Crossmint Wallets</b> and select it.</li>
       <li>For this example, choose the <b>Get or Create Wallet</b> operation.</li>
     </ol>
 
@@ -59,9 +35,9 @@ Once the community node is installed, add and configure your first Crossmint nod
     <img src="/images/crossmint-config.png" alt="Crossmint node configuration" style={{width: '500px'}} />
   </Step>
 
-  <Step title="Set up a Crossmint project & credentials (Staging)">
+  <Step title="Set up a Crossmint project & credentials">
     <ol>
-      <li>Open the <a href="https://staging.crossmint.com/console/overview">Crossmint Staging Console</a>.</li>
+      <li>Open the Crossmint Console: <a href="https://staging.crossmint.com/console/overview">Staging</a> or <a href="https://www.crossmint.com/console/overview">Production</a>.</li>
       <li>Create a new project (or select an existing one).</li>
       <li>Copy your <b>server-side API key</b> from the project settings.</li>
     </ol>
@@ -69,20 +45,23 @@ Once the community node is installed, add and configure your first Crossmint nod
     <img src="/images/crossmint-staging-console.png" alt="Crossmint staging console" style={{width: '500px'}} />
 
     <ol start="4">
-      <li>Back in n8n, in the Crossmint node, open <b>Credential to connect with</b> and choose <b>Create New</b>.</li>
+      <li>Back in n8n, in the Crossmint Wallets node, open <b>Credential to connect with</b> and choose <b>Create New</b>.</li>
       <li>Enter your Crossmint <b>API Key</b> (must be a <b>server-side</b> key).</li>
-      <li>Set <b>Environment</b> to <b>Staging</b> for testing and click <b>Save</b>.</li>
+      <li>Set <b>Environment</b> to <b>Staging</b> for testing or <b>Production</b> for live operations, and click <b>Save</b>.</li>
     </ol>
 
     <img src="/images/credential-form.png" alt="Crossmint API credential form" style={{width: '500px'}} />
 
-    <p>Finish the wallet configuration (e.g., Owner Type = “Email”, enter an email address).</p>
+    <Callout type="warning">
+      Always use <b>server-side API keys</b>. Client-side keys will not work. For initial testing, select the <b>Staging</b> environment. For live operations, use <b>Production</b>.
+    </Callout>
+
+  </Step>
+
+  <Step title="Finish the wallet configuration (e.g., Owner Type = 'Email', enter an email address)">
 
     <img src="/images/completed-config.png" alt="Completed node configuration" style={{width: '500px'}} />
 
-    <Callout type="warning">
-    Always use <b>server-side API keys</b>. Client-side keys will not work. For initial testing, select the <b>Staging</b> environment.
-    </Callout>
   </Step>
 
   <Step title="(Optional) Get test USDC for Staging">
@@ -94,34 +73,34 @@ Once the community node is installed, add and configure your first Crossmint nod
 
 ## Supported Operations
 
-The node is organized into two primary resources: **Wallet** and **Checkout**.
+The package includes two separate nodes:
 
-### Resource: Wallet
+### Crossmint Wallets Node
 
 Operations for managing blockchain wallets that can hold and transfer money (e.g., USDC).
 
 - **Get or Create Wallet** — Creates a non-custodial smart wallet or retrieves an existing one. You control it via a private key that authorizes all transactions. Idempotent.
-  - **Chain Type** — Blockchain type (`evm` for Ethereum-compatible, `solana` for Solana)
+  - **Chain Type** — Blockchain type (`solana`)
   - **Owner Type** — Optional owner identifier type (`email`, `userId`, `phone`, `twitter`, `x`, `none`)
   - **Owner Details** — Specific owner information based on the selected type
   - **Admin Signer** — Private key that authorizes all transactions from this wallet (see [**Admin Signer Private Key**](#admin-signer-private-key) below)
 
 - **Get Wallet** — Retrieves wallet details using its locator (address, email, user ID, etc.).
   - **Wallet** — Wallet identifier (`address`, `email`, `userId`, `phone`, `twitter`, `x`)
-  - **Chain Type** — Required for non-address locators (`evm` or `solana`)
+  - **Chain Type** — Required for non-address locators (`solana`)
 
-- **Create Transfer** — Sends tokens (like USDC) between wallets. Requires the wallet’s private key to sign and authorize.
-  - **Blockchain Type** — `evm` or `solana`
+- **Create Transfer** — Sends tokens (like USDC) between wallets. Requires the wallet's private key to sign and authorize.
+  - **Blockchain Type** — `solana`
   - **Origin Wallet** — Source wallet
   - **Recipient Wallet** — Destination wallet
-  - **Token Chain** — Specific network (e.g., `ethereum-sepolia`)
+  - **Token Chain** — Specific network (`solana`)
   - **Token Name** — Token symbol/identifier (e.g., `usdc`)
   - **Amount** — Token amount
 
 - **Get Balance** — Checks token balances for a wallet across one or more networks.
   - **Wallet** — Locator (`address`, `email`, `userId`, `phone`, `twitter`, `x`)
-  - **Chain Type** — Required for non-address locators (`evm` or `solana`)
-  - **Chains** — e.g., `ethereum-sepolia`, `polygon`, `base`
+  - **Chain Type** — Required for non-address locators (`solana`)
+  - **Chains** — e.g., `solana`
   - **Tokens** — Comma-separated list of token symbols
 
 - **Sign Transaction** — Signs a transaction with a private key and submits the signature to complete pending transactions.
@@ -133,7 +112,7 @@ Operations for managing blockchain wallets that can hold and transfer money (e.g
   - **Signer Private Key** — Private key to sign the transaction
   - **Wait for Completion** — Poll until final status
 
-### Resource: Checkout
+### Crossmint Checkout Node
 
 Operations to automate purchasing products using digital money (e.g., USDC). Two-step flow:
 
@@ -143,7 +122,7 @@ Operations to automate purchasing products using digital money (e.g., USDC). Two
   - **Recipient Email** — For order confirmation
   - **Recipient Name** — Full name for shipping
   - **Address Line 1/2**, **City**, **State** (optional), **Postal Code**, **Country**
-  - **Environment** — Staging/Testnet or Production/Mainnet
+  - **Environment** — Staging or Production
   - **Payment Method** — Blockchain network
   - **Payment Currency** — e.g., `usdc`
   - **Payer Address** — Wallet address that will pay
@@ -163,18 +142,17 @@ Wallet locators are used throughout Crossmint operations. They provide a flexibl
 
 | Type | Format | Example | Use Case |
 |------|--------|---------|----------|
-| **Wallet Address** | `0x...` | `0x1234567890123456789012345678901234567890` | Direct blockchain address reference |
-| **Email** | `email:{email}:{chainType}:smart` | `email:user@example.com:evm:smart` | User identification by email |
-| **User ID** | `userId:{id}:{chainType}:smart` | `userId:user-123:evm:smart` | Custom user identifier |
-| **Phone Number** | `phoneNumber:{phone}:{chainType}:smart` | `phoneNumber:+1234567890:evm:smart` | SMS-based identification |
-| **Twitter Handle** | `twitter:{handle}:{chainType}:smart` | `twitter:username:evm:smart` | Social media identification |
-| **X Handle** | `x:{handle}:{chainType}:smart` | `x:username:evm:smart` | X (formerly Twitter) identification |
+| **Wallet Address** | Solana address | `7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU` | Direct blockchain address reference |
+| **Email** | `email:{email}:{chainType}:smart` | `email:user@example.com:solana:smart` | User identification by email |
+| **User ID** | `userId:{id}:{chainType}:smart` | `userId:user-123:solana:smart` | Custom user identifier |
+| **Phone Number** | `phoneNumber:{phone}:{chainType}:smart` | `phoneNumber:+1234567890:solana:smart` | SMS-based identification |
+| **Twitter Handle** | `twitter:{handle}:{chainType}:smart` | `twitter:username:solana:smart` | Social media identification |
+| **X Handle** | `x:{handle}:{chainType}:smart` | `x:username:solana:smart` | X (formerly Twitter) identification |
 
 For more details, see <a href="https://docs.crossmint.com/api-reference/wallets/get-wallet-by-locator">Wallet Locators</a>.
 
 ### Chain Types
 
-- **EVM** — Ethereum-compatible chains (Ethereum, Polygon, Base, Arbitrum, etc.)
 - **Solana** — Solana blockchain
 
 ### Best Practices
@@ -195,12 +173,7 @@ The Admin Signer is the private key that acts as the “master key” for your s
 - Sign transfer approvals
 - Control wallet permissions and operations
 
-### Key Requirements by Blockchain
-
-**EVM (Ethereum, Polygon, Base, etc.)**
-- 32-byte hexadecimal string
-- Example: `0x1234567890123456789012345678901234567890123456789012345678901234`
-- With or without `0x` prefix
+### Key Requirements
 
 **Solana**
 - Base58 encoded string
@@ -211,23 +184,9 @@ The Admin Signer is the private key that acts as the “master key” for your s
 
 **Online Tools**
 - **Crossmint Generator**: <a href="https://crypto-address-generator.val.run/">https://crypto-address-generator.val.run/</a>
-- **MetaMask**: Export a private key from an existing wallet
 
 **Local/Terminal (recommended for production)**
 
-_EVM_
-```bash
-# Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-
-# OpenSSL
-openssl rand -hex 32
-
-# Python
-python3 -c "import secrets; print(secrets.token_hex(32))"
-```
-
-_Solana_
 1. Install Solana CLI — <a href="https://solana.com/docs/intro/installation">Installation guide</a>
 2. Generate a keypair:
 ```bash
@@ -236,7 +195,7 @@ cat ~/my-wallet.json
 ```
 
 **Hardware Wallets**
-- Export/derive keys securely from Ledger, Trezor, etc.
+- Export/derive keys securely from Ledger or other hardware wallets
 
 <Callout type="warning">
 <b>Security best practices</b>
@@ -262,7 +221,7 @@ Ready-to-use examples live in the `workflows-examples/` folder:
 
 - **`crossmint-nodes-examples.json`** — Full wallet flow (create wallet, get details, check balance) + checkout (create & pay order).
 
-  ![Crossmint nodes examples](/images/crossmint-nodes-examples.png)
+  ![Crossmint nodes examples](/images/buy-celsius.png)
 
 - **`buy-items-from-amazon.json`** — Advanced flow with AI-powered order parsing (Telegram input → OpenAI extraction → automatic Amazon purchase).
 
