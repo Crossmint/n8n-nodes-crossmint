@@ -3,13 +3,21 @@ import {
 	INodeTypeDescription,
 	INodeProperties,
 	NodeConnectionType,
+	IExecuteFunctions,
+	INodeExecutionData,
+	IDataObject,
+	NodeOperationError
 } from 'n8n-workflow';
+
+import { CrossmintApi } from '../../shared/transport/CrossmintApi';
+import { CrossmintCredentials } from '../../shared/transport/types';
+import { mintToken } from '../../shared/actions/token/mintToken';
 
 export class CrossmintTokens implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Crossmint Tokens',
 		name: 'crossmintTokens',
-		icon: 'file:token-2.svg',
+		icon: 'file:crossmint-tokens-img.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -40,7 +48,7 @@ export class CrossmintTokens implements INodeType {
 				options: [
 					{
 						name: 'Tokens',
-						value: 'Tokens',
+						value: 'tokens',
 						description: 'Crossmint tokens operations',
 					},
 				],
@@ -300,7 +308,47 @@ export class CrossmintTokens implements INodeType {
 		] as INodeProperties[],
 	};
 
-	/*async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		return ;
-	}*/
+	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+		const items = this.getInputData();
+		const returnData: INodeExecutionData[] = [];
+
+		const credentials = await this.getCredentials<CrossmintCredentials>('crossmintApi');
+		const api = new CrossmintApi(this, credentials);
+
+		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+			try {
+				const operation = this.getNodeParameter('operation', itemIndex) as string;
+				let result: IDataObject;
+
+				switch (operation) {
+					case 'mintToken':
+						result = await mintToken(this, api, itemIndex);
+						break;
+					default:
+						throw new NodeOperationError(this.getNode(), `Unknown wallet operation: ${operation}`, {
+							itemIndex,
+						});
+				}
+
+				const executionData: INodeExecutionData = {
+					json: result,
+					pairedItem: { item: itemIndex },
+				};
+
+				returnData.push(executionData);
+			} catch (error) {
+				if (this.continueOnFail()) {
+					const executionData: INodeExecutionData = {
+						json: { error: error.message },
+						pairedItem: { item: itemIndex },
+					};
+					returnData.push(executionData);
+					continue;
+				}
+				throw error;
+			}
+		}
+
+		return [returnData];
+	}
 }
