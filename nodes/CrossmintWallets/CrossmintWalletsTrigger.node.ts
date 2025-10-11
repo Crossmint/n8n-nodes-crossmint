@@ -13,7 +13,161 @@ import { buildWalletLocator } from '../../shared/utils/locators';
 
 interface WalletStaticData {
 	lastBalances?: { [key: string]: string };
+	lastTransactionHashes?: Set<string>;
 	lastTimeChecked?: number;
+}
+
+/**
+ * Poll for wallet balance changes
+ */
+async function pollBalanceChanges(
+	context: IPollFunctions,
+	api: CrossmintApi,
+	workflowStaticData: WalletStaticData,
+): Promise<INodeExecutionData[]> {
+	const responseData: INodeExecutionData[] = [];
+
+	const walletResource = context.getNodeParameter('walletLocator', 0) as any;
+	const chains = context.getNodeParameter('chains', 0) as string;
+	const tkn = context.getNodeParameter('tkn', 0) as string;
+	const chainType = context.getNodeParameter('balanceWalletChainType', 0) as string;
+
+	const walletLocator = buildWalletLocator(walletResource, chainType, context, 0);
+	const endpoint = `wallets/${walletLocator}/balances?chains=${encodeURIComponent(chains)}&tokens=${encodeURIComponent(tkn)}`;
+
+	const balanceResponse = await api.get(endpoint, API_VERSIONS.WALLETS);
+
+	const currentBalances: { [key: string]: string } = {};
+
+	// Process balance data - API returns an array of token balances
+	if (Array.isArray(balanceResponse)) {
+		for (const balanceInfo of balanceResponse) {
+			if (balanceInfo && typeof balanceInfo === 'object') {
+				const tokenData = balanceInfo as IDataObject;
+				const tokenSymbol = String(tokenData.symbol || '').toLowerCase();
+
+				// Use 'amount' field which contains the decimal representation
+				const currentBalance = tokenData.amount ? String(tokenData.amount) : '0';
+
+				currentBalances[tokenSymbol] = currentBalance;
+				const lastBalance = workflowStaticData.lastBalances?.[tokenSymbol];
+
+				// In manual mode, always return at least 1 result for testing
+				if (context.getMode() === 'manual') {
+					responseData.push({
+						json: {
+							wallet: walletLocator,
+							token: tokenSymbol,
+							balance: currentBalance,
+							previousBalance: lastBalance || '0',
+							changed: lastBalance !== undefined && lastBalance !== currentBalance,
+							timestamp: new Date().toISOString(),
+							...tokenData,
+						},
+					});
+					// In manual mode, only return first result
+					break;
+				}
+
+				// In automatic mode, only add if balance changed
+				if (lastBalance !== undefined && lastBalance !== currentBalance) {
+					responseData.push({
+						json: {
+							wallet: walletLocator,
+							token: tokenSymbol,
+							balance: currentBalance,
+							previousBalance: lastBalance,
+							changed: true,
+							timestamp: new Date().toISOString(),
+							...tokenData,
+						},
+					});
+				}
+			}
+		}
+	}
+
+	// Update stored balances
+	workflowStaticData.lastBalances = currentBalances;
+
+	return responseData;
+}
+
+/**
+ * Poll for wallet transaction changes
+ */
+async function pollTransactionChanges(
+	context: IPollFunctions,
+	api: CrossmintApi,
+	workflowStaticData: WalletStaticData,
+): Promise<INodeExecutionData[]> {
+	const responseData: INodeExecutionData[] = [];
+
+	const walletResource = context.getNodeParameter('walletLocator', 0) as any;
+	const chainType = context.getNodeParameter('balanceWalletChainType', 0) as string;
+
+	const walletLocator = buildWalletLocator(walletResource, chainType, context, 0);
+	const endpoint = `wallets/${walletLocator}/activity?chain=${encodeURIComponent(chainType)}`;
+
+	const activityResponse = await api.get(endpoint, 'unstable');
+
+	// Initialize transaction hash set if not exists
+	if (!workflowStaticData.lastTransactionHashes) {
+		workflowStaticData.lastTransactionHashes = new Set<string>();
+	}
+
+	const currentTransactionHashes = new Set<string>();
+
+	// Process activity data - API returns an object with 'events' array
+	const activities = (activityResponse as IDataObject).events;
+
+	if (Array.isArray(activities)) {
+		for (const transaction of activities) {
+			if (transaction && typeof transaction === 'object') {
+				const txData = transaction as IDataObject;
+				const txHash = String(txData.transaction_hash || '');
+
+				if (txHash) {
+					currentTransactionHashes.add(txHash);
+
+					// In manual mode, always return at least 1 result for testing
+					if (context.getMode() === 'manual') {
+						responseData.push({
+							json: {
+								wallet: walletLocator,
+								transactionHash: txHash,
+								isNew: !workflowStaticData.lastTransactionHashes.has(txHash),
+								timestamp: new Date().toISOString(),
+								...txData,
+							},
+						});
+						// In manual mode, only return first result
+						break;
+					}
+
+					// In automatic mode, only add if transaction is new
+					if (!workflowStaticData.lastTransactionHashes.has(txHash)) {
+						responseData.push({
+							json: {
+								wallet: walletLocator,
+								transactionHash: txHash,
+								isNew: true,
+								timestamp: new Date().toISOString(),
+								...txData,
+							},
+						});
+					}
+				}
+			}
+		}
+	}
+
+	// Update stored transaction hashes add new hashes to the existing set
+	currentTransactionHashes.forEach((hash) => {      
+		workflowStaticData.lastTransactionHashes!.add(hash);
+	});
+
+	return responseData;
 }
 
 export class CrossmintWalletsTrigger implements INodeType {
@@ -23,7 +177,7 @@ export class CrossmintWalletsTrigger implements INodeType {
 		icon: 'file:crossmint-wallet.svg',
 		group: ['trigger'],
 		version: 1,
-		description: 'Triggers when wallet balance changes are detected',
+		description: 'Triggers when wallet balance or transaction changes are detected',
 		subtitle: '={{"Crossmint Wallets Trigger"}}',
 		defaults: {
 			name: 'Crossmint Wallets Trigger',
@@ -68,6 +222,11 @@ export class CrossmintWalletsTrigger implements INodeType {
 						value: 'walletBalance',
 						description: 'Trigger when wallet balance changes',
 					},
+					{
+						name: 'Wallet Transactions Change',
+						value: 'walletTransactions',
+						description: 'Trigger when wallet transactions occur',
+					},
 				],
 				required: true,
 				default: ['walletBalance'],
@@ -78,7 +237,7 @@ export class CrossmintWalletsTrigger implements INodeType {
 				type: 'resourceLocator',
 				default: { mode: 'address', value: '' },
 				description: 'Select the wallet to monitor',
-				displayOptions: { show: { updates: ['walletBalance', '*'] } },
+				displayOptions: { show: { updates: ['walletBalance', '*', 'walletTransactions'] } },
 				modes: [
 					{
 						displayName: 'Address',
@@ -155,7 +314,7 @@ export class CrossmintWalletsTrigger implements INodeType {
 				displayName: 'Chain Type',
 				name: 'balanceWalletChainType',
 				type: 'options',
-				displayOptions: { show: { updates: ['walletBalance', '*'] } },
+				displayOptions: { show: { updates: ['walletBalance', '*', 'walletTransactions'] } },
 				options: [
 					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
 				],
@@ -191,14 +350,18 @@ export class CrossmintWalletsTrigger implements INodeType {
 
 		const updates = this.getNodeParameter('updates', 0) as string[];
 		const shouldMonitorBalance = updates.includes('walletBalance') || updates.includes('*');
+		const shouldMonitorTransactions = updates.includes('walletTransactions') || updates.includes('*');
 
-		if (!shouldMonitorBalance) {
+		if (!shouldMonitorBalance && !shouldMonitorTransactions) {
 			return null;
 		}
 
 		// Initialize static data
 		if (!workflowStaticData.lastBalances) {
 			workflowStaticData.lastBalances = {};
+		}
+		if (!workflowStaticData.lastTransactionHashes) {
+			workflowStaticData.lastTransactionHashes = new Set<string>();
 		}
 
 		const now = Date.now();
@@ -208,68 +371,17 @@ export class CrossmintWalletsTrigger implements INodeType {
 			const credentials = await this.getCredentials<CrossmintCredentials>('crossmintApi');
 			const api = new CrossmintApi(this as any, credentials);
 
-			const walletResource = this.getNodeParameter('walletLocator', 0) as any;
-			const chains = this.getNodeParameter('chains', 0) as string;
-			const tkn = this.getNodeParameter('tkn', 0) as string;
-			const chainType = this.getNodeParameter('balanceWalletChainType', 0) as string;
-
-			const walletLocator = buildWalletLocator(walletResource, chainType, this, 0);
-			const endpoint = `wallets/${walletLocator}/balances?chains=${encodeURIComponent(chains)}&tokens=${encodeURIComponent(tkn)}`;
-
-			const balanceResponse = await api.get(endpoint, API_VERSIONS.WALLETS);
-
-			const currentBalances: { [key: string]: string } = {};
-
-			// Process balance data - API returns an array of token balances
-			if (Array.isArray(balanceResponse)) {
-				for (const balanceInfo of balanceResponse) {
-					if (balanceInfo && typeof balanceInfo === 'object') {
-						const tokenData = balanceInfo as IDataObject;
-						const tokenSymbol = String(tokenData.symbol || '').toLowerCase();
-
-						// Use 'amount' field which contains the decimal representation
-						const currentBalance = tokenData.amount ? String(tokenData.amount) : '0';
-
-						currentBalances[tokenSymbol] = currentBalance;
-						const lastBalance = workflowStaticData.lastBalances[tokenSymbol];
-
-						// In manual mode, always return at least 1 result for testing
-						if (this.getMode() === 'manual') {
-							responseData.push({
-								json: {
-									wallet: walletLocator,
-									token: tokenSymbol,
-									balance: currentBalance,
-									previousBalance: lastBalance || '0',
-									changed: lastBalance !== undefined && lastBalance !== currentBalance,
-									timestamp: new Date().toISOString(),
-									...tokenData,
-								},
-							});
-							// In manual mode, only return first result
-							break;
-						}
-
-						// In automatic mode, only add if balance changed
-						if (lastBalance !== undefined && lastBalance !== currentBalance) {
-							responseData.push({
-								json: {
-									wallet: walletLocator,
-									token: tokenSymbol,
-									balance: currentBalance,
-									previousBalance: lastBalance,
-									changed: true,
-									timestamp: new Date().toISOString(),
-									...tokenData,
-								},
-							});
-						}
-					}
-				}
+			// Route to appropriate polling method based on trigger type
+			if (shouldMonitorBalance) {
+				const balanceData = await pollBalanceChanges(this, api, workflowStaticData);
+				responseData.push(...balanceData);
 			}
 
-			// Update stored balances
-			workflowStaticData.lastBalances = currentBalances;
+			if (shouldMonitorTransactions) {
+				const transactionData = await pollTransactionChanges(this, api, workflowStaticData);
+				responseData.push(...transactionData);
+			}
+
 		} catch (error: unknown) {
 			if (this.getMode() === 'manual' || !workflowStaticData.lastTimeChecked) {
 				throw new NodeApiError(this.getNode(), error as object & { message?: string });
