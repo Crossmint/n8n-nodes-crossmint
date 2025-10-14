@@ -12,6 +12,8 @@ import {
 import { CrossmintApi } from '../../shared/transport/CrossmintApi';
 import { CrossmintCredentials } from '../../shared/transport/types';
 import { mintToken } from '../../shared/actions/token/mintToken';
+import { getMintStatus } from '../../shared/actions/token/getMintStatus';
+import { getTokensFromWallet } from '../../shared/actions/token/getTokensFromWallet';
 
 export class CrossmintTokens implements INodeType {
 	description: INodeTypeDescription = {
@@ -67,6 +69,18 @@ export class CrossmintTokens implements INodeType {
 						value: 'mintToken',
 						description: 'Mint a new token to a wallet',
 						action: 'Mint Token',
+					},
+					{
+						name: 'Get Mint Status',
+						value: 'getMintStatus',
+						description: 'Get the status and associated information for a mint operation',
+						action: 'Get Mint Status',
+					},
+					{
+						name: 'Get Tokens from Wallet',
+						value: 'getTokensFromWallet',
+						description: 'Fetch the tokens in a provided wallet',
+						action: 'Get Tokens from Wallet',
 					},
 				],
 				default: 'mintToken',
@@ -282,9 +296,21 @@ export class CrossmintTokens implements INodeType {
 				displayOptions: { show: { resource: ['tokens'], operation: ['mintToken'] } },
 				options: [
 					{ name: 'English (US)', value: 'en-US' },
-					{ name: 'Spanish', value: 'es' },
-					{ name: 'French', value: 'fr' },
-					{ name: 'German', value: 'de' },
+					{ name: 'Spanish (Spain)', value: 'es-ES' },
+					{ name: 'French (France)', value: 'fr-FR' },
+					{ name: 'Italian (Italy)', value: 'it-IT' },
+					{ name: 'Korean (Korea)', value: 'ko-KR' },
+					{ name: 'Portuguese (Portugal)', value: 'pt-PT' },
+					{ name: 'Japanese (Japan)', value: 'ja-JP' },
+					{ name: 'Chinese (Simplified)', value: 'zh-CN' },
+					{ name: 'Chinese (Traditional)', value: 'zh-TW' },
+					{ name: 'German (Germany)', value: 'de-DE' },
+					{ name: 'Russian (Russia)', value: 'ru-RU' },
+					{ name: 'Turkish (Turkey)', value: 'tr-TR' },
+					{ name: 'Ukrainian (Ukraine)', value: 'uk-UA' },
+					{ name: 'Thai (Thailand)', value: 'th-TH' },
+					{ name: 'Vietnamese (Vietnam)', value: 'vi-VN' },
+					{ name: 'Klingon', value: 'Klingon' },
 				],
 				default: 'en-US',
 				description: 'Locale for email content',
@@ -305,6 +331,173 @@ export class CrossmintTokens implements INodeType {
 				default: true,
 				description: 'Use token compression for cheaper mint costs (Solana only)',
 			},
+			// ---- Get Mint Status fields
+			{
+				displayName: 'Collection ID',
+				name: 'statusCollectionId',
+				type: 'string',
+				displayOptions: { show: { resource: ['tokens'], operation: ['getMintStatus'] } },
+				default: '',
+				placeholder: 'default-polygon or 9c82ef99-617f-497d-9abb-fd355291681b',
+				description: 'Collection identifier (default collections: default-solana, default-polygon)',
+				required: true,
+			},
+			{
+				displayName: 'Token ID',
+				name: 'tokenId',
+				type: 'string',
+				displayOptions: { show: { resource: ['tokens'], operation: ['getMintStatus'] } },
+				default: '',
+				placeholder: 'abc123-def456-ghi789',
+				description: 'Unique ID of the minted token returned in the mint response',
+				required: true,
+			},
+			// ---- Get Tokens from Wallet fields
+			{
+				displayName: 'Wallet',
+				name: 'walletIdentifier',
+				type: 'resourceLocator',
+				default: { mode: 'address', value: '' },
+				description: 'Select the wallet to get tokens from',
+				displayOptions: { show: { resource: ['tokens'], operation: ['getTokensFromWallet'] } },
+				modes: [
+					{
+						displayName: 'Address',
+						name: 'address',
+						type: 'string',
+						hint: 'Enter wallet address',
+						placeholder: '0x1234567890123456789012345678901234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
+									errorMessage: 'Please enter a valid wallet address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						hint: 'Enter email address',
+						placeholder: 'user@example.com',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[^@]+@[^@]+\\.[^@]+$',
+									errorMessage: 'Please enter a valid email address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'User ID',
+						name: 'userId',
+						type: 'string',
+						hint: 'Enter user ID',
+						placeholder: 'user-123',
+					},
+					{
+						displayName: 'Phone',
+						name: 'phoneNumber',
+						type: 'string',
+						hint: 'Enter phone number with country code',
+						placeholder: '+1234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^\\+[1-9]\\d{1,14}$',
+									errorMessage: 'Please enter a valid phone number with country code',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Twitter',
+						name: 'twitter',
+						type: 'string',
+						hint: 'Enter Twitter handle (without @)',
+						placeholder: 'username',
+					},
+					{
+						displayName: 'X',
+						name: 'x',
+						type: 'string',
+						hint: 'Enter X handle (without @)',
+						placeholder: 'username',
+					},
+				],
+			},
+			{
+				displayName: 'Chain',
+				name: 'walletChain',
+				type: 'options',
+				displayOptions: { show: { resource: ['tokens'], operation: ['getTokensFromWallet'] } },
+				options: [
+					{ name: 'Polygon', value: 'polygon' },
+					{ name: 'Ethereum', value: 'ethereum' },
+					{ name: 'Base', value: 'base' },
+					{ name: 'Arbitrum', value: 'arbitrum' },
+					{ name: 'Optimism', value: 'optimism' },
+					{ name: 'Solana', value: 'solana' },
+					{ name: 'Avalanche', value: 'avalanche' },
+					{ name: 'BSC', value: 'bsc' },
+				],
+				default: 'polygon',
+				description: 'Blockchain network (only needed for email, userId, phoneNumber, twitter, x modes)',
+				required: true,
+			},
+			{
+				displayName: 'Options',
+				name: 'walletTokensOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: { show: { resource: ['tokens'], operation: ['getTokensFromWallet'] } },
+				options: [
+					{
+						displayName: 'Page',
+						name: 'page',
+						type: 'number',
+						default: 1,
+						description: 'Page index',
+						typeOptions: {
+							minValue: 1,
+						},
+					},
+					{
+						displayName: 'Per Page',
+						name: 'perPage',
+						type: 'number',
+						default: 20,
+						description: 'Number of items to display per page',
+						typeOptions: {
+							minValue: 1,
+							maxValue: 100,
+						},
+					},
+					{
+						displayName: 'Contract Address',
+						name: 'contractAddress',
+						type: 'string',
+						default: '',
+						placeholder: '0x1234567890123456789012345678901234567890',
+						description: 'Filter tokens by contract address (comma-separated for multiple)',
+					},
+					{
+						displayName: 'Token ID',
+						name: 'tokenId',
+						type: 'string',
+						default: '',
+						placeholder: '123',
+						description: 'Filter tokens by token ID',
+					},
+				],
+			},
 		] as INodeProperties[],
 	};
 
@@ -324,8 +517,14 @@ export class CrossmintTokens implements INodeType {
 					case 'mintToken':
 						result = await mintToken(this, api, itemIndex);
 						break;
+					case 'getMintStatus':
+						result = await getMintStatus(this, api, itemIndex);
+						break;
+					case 'getTokensFromWallet':
+						result = await getTokensFromWallet(this, api, itemIndex);
+						break;
 					default:
-						throw new NodeOperationError(this.getNode(), `Unknown wallet operation: ${operation}`, {
+						throw new NodeOperationError(this.getNode(), `Unknown token operation: ${operation}`, {
 							itemIndex,
 						});
 				}
