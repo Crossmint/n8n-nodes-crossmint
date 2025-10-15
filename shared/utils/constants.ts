@@ -24,3 +24,7 @@ export const PAGINATION = {
 	MAX_ATTEMPTS: 60,
 	POLL_INTERVAL: 5000,
 } as const;
+
+export const TOKEN_TRANSFER = {
+	SINGLE_TOKEN_AMOUNT: '1',
+} as const;

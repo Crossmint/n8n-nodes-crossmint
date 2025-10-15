@@ -25,8 +25,9 @@ export interface WalletCreateRequest {
 
 export interface TransferTokenRequest {
 	recipient: string;
-	amount: string;
+	amount?: string;
 }
+
 
 export interface ApprovalRequest {
 	approvals: Array<{

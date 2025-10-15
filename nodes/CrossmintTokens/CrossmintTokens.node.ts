@@ -14,6 +14,8 @@ import { CrossmintCredentials } from '../../shared/transport/types';
 import { mintToken } from '../../shared/actions/token/mintToken';
 import { getMintStatus } from '../../shared/actions/token/getMintStatus';
 import { getTokensFromWallet } from '../../shared/actions/token/getTokensFromWallet';
+import { transferToken } from '../../shared/actions/token/transferToken.operation';
+import { signTransaction } from '../../shared/actions/token/signTransaction.operation';
 
 export class CrossmintTokens implements INodeType {
 	description: INodeTypeDescription = {
@@ -81,6 +83,18 @@ export class CrossmintTokens implements INodeType {
 						value: 'getTokensFromWallet',
 						description: 'Fetch the tokens in a provided wallet',
 						action: 'Get Tokens from Wallet',
+					},
+					{
+						name: 'Transfer Token',
+						value: 'createTransfer',
+						description: 'Transfer tokens from Crossmint wallet to any address',
+						action: 'Transfer Token',
+					},
+					{
+						name: 'Sign Transaction',
+						value: 'signTransaction',
+						description: 'Sign transaction with private key and submit signature in one step',
+						action: 'Sign transaction',
 					},
 				],
 				default: 'mintToken',
@@ -498,6 +512,269 @@ export class CrossmintTokens implements INodeType {
 					},
 				],
 			},
+			// ---- Create Transfer fields
+			{
+				displayName: 'Blockchain Type',
+				name: 'blockchainType',
+				type: 'options',
+				displayOptions: { show: { resource: ['tokens'], operation: ['createTransfer'] } },
+				options: [
+					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
+				],
+				default: 'solana',
+				description: 'Blockchain type for both origin and recipient wallets',
+				required: true,
+			},
+			{
+				displayName: 'Origin Wallet',
+				name: 'originWallet',
+				type: 'resourceLocator',
+				default: { mode: 'address', value: '' },
+				description: 'Select the origin wallet for the transfer',
+				displayOptions: { show: { resource: ['tokens'], operation: ['createTransfer'] } },
+				modes: [
+					{
+						displayName: 'Address',
+						name: 'address',
+						type: 'string',
+						hint: 'Enter wallet address',
+						placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[1-9A-HJ-NP-Za-km-z]{32,44}$',
+									errorMessage: 'Please enter a valid Solana wallet address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						hint: 'Enter email address',
+						placeholder: 'user@example.com',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[^@]+@[^@]+\\.[^@]+$',
+									errorMessage: 'Please enter a valid email address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'User ID',
+						name: 'userId',
+						type: 'string',
+						hint: 'Enter user ID',
+						placeholder: 'user-123',
+					},
+					{
+						displayName: 'Phone',
+						name: 'phoneNumber',
+						type: 'string',
+						hint: 'Enter phone number with country code',
+						placeholder: '+1234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^\\+[1-9]\\d{1,14}$',
+									errorMessage: 'Please enter a valid phone number with country code',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Twitter',
+						name: 'twitter',
+						type: 'string',
+						hint: 'Enter Twitter handle (without @)',
+						placeholder: 'username',
+					},
+					{
+						displayName: 'X',
+						name: 'x',
+						type: 'string',
+						hint: 'Enter X handle (without @)',
+						placeholder: 'username',
+					},
+				],
+			},
+			{
+				displayName: 'Recipient Wallet',
+				name: 'recipientWallet',
+				type: 'resourceLocator',
+				default: { mode: 'address', value: '' },
+				description: 'Select the recipient wallet for the transfer',
+				displayOptions: { show: { resource: ['tokens'], operation: ['createTransfer'] } },
+				modes: [
+					{
+						displayName: 'Address',
+						name: 'address',
+						type: 'string',
+						hint: 'Enter wallet address',
+						placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[1-9A-HJ-NP-Za-km-z]{32,44}$',
+									errorMessage: 'Please enter a valid Solana wallet address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						hint: 'Enter email address',
+						placeholder: 'user@example.com',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[^@]+@[^@]+\\.[^@]+$',
+									errorMessage: 'Please enter a valid email address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'User ID',
+						name: 'userId',
+						type: 'string',
+						hint: 'Enter user ID',
+						placeholder: 'user-123',
+					},
+					{
+						displayName: 'Phone',
+						name: 'phoneNumber',
+						type: 'string',
+						hint: 'Enter phone number with country code',
+						placeholder: '+1234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^\\+[1-9]\\d{1,14}$',
+									errorMessage: 'Please enter a valid phone number with country code',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Twitter',
+						name: 'twitter',
+						type: 'string',
+						hint: 'Enter Twitter handle (without @)',
+						placeholder: 'username',
+					},
+					{
+						displayName: 'X',
+						name: 'x',
+						type: 'string',
+						hint: 'Enter X handle (without @)',
+						placeholder: 'username',
+					},
+				],
+			},
+			{
+				displayName: 'Chain',
+				name: 'tknChain',
+				type: 'string',
+				displayOptions: { show: { resource: ['tokens'], operation: ['createTransfer'] } },
+				default: '',
+				placeholder: 'solana or solana-devnet',
+				description: 'Blockchain network for the token',
+				required: true,
+			},
+			{
+				displayName: 'Token Name (Locator ID)',
+				name: 'tknName',
+				type: 'string',
+				displayOptions: { show: { resource: ['tokens'], operation: ['createTransfer'] } },
+				default: '',
+				placeholder: 'sol or usdc',
+				description: 'Token symbol or name',
+				required: true,
+			},
+			// Sign Transaction fields
+			{
+				displayName: 'Chain',
+				name: 'signSubmitChain',
+				type: 'options',
+				displayOptions: { show: { resource: ['tokens'], operation: ['signTransaction'] } },
+				options: [
+					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
+				],
+				default: 'solana',
+				description: 'Blockchain network for transaction signing',
+				required: true,
+			},
+			{
+				displayName: 'Origin Wallet Address',
+				name: 'signSubmitWalletAddress',
+				type: 'string',
+				displayOptions: { show: { resource: ['tokens'], operation: ['signTransaction'] } },
+				default: '',
+				placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+				description: 'Wallet address for the API endpoint (from Create Transfer response)',
+				required: true,
+			},
+			{
+				displayName: 'Transaction ID',
+				name: 'signSubmitTransactionId',
+				type: 'string',
+				displayOptions: { show: { resource: ['tokens'], operation: ['signTransaction'] } },
+				default: '',
+				placeholder: '782ffd15-4946-4e0d-8e21-023134b3d243',
+				description: 'The transaction ID that needs approval (from Create Transfer response)',
+				required: true,
+			},
+			{
+				displayName: 'Transaction Data',
+				name: 'signSubmitTransactionData',
+				type: 'string',
+				displayOptions: { show: { resource: ['tokens'], operation: ['signTransaction'] } },
+				default: '',
+				placeholder: 'Hash or message to sign from Create Transfer response',
+				description: 'Transaction message/hash to sign (from Create Transfer approvals.pending[0].message)',
+				required: true,
+			},
+			{
+				displayName: 'Signer Address',
+				name: 'signSubmitSignerAddress',
+				type: 'string',
+				displayOptions: { show: { resource: ['tokens'], operation: ['signTransaction'] } },
+				default: '',
+				placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+				description: 'Address of the external signer (from Create Transfer response)',
+				required: true,
+			},
+			{
+				displayName: 'Signer Private Key',
+				name: 'signSubmitPrivateKey',
+				type: 'string',
+				typeOptions: { password: true },
+				displayOptions: { show: { resource: ['tokens'], operation: ['signTransaction'] } },
+				default: '',
+				placeholder: 'base58 encoded private key',
+				description: 'Private key to sign with (base58 for Solana)',
+				required: true,
+			},
+			{
+				displayName: 'Wait Until Transaction Is Completed',
+				name: 'waitForCompletion',
+				type: 'boolean',
+				displayOptions: { show: { resource: ['tokens'], operation: ['signTransaction'] } },
+				default: false,
+				description: 'Whether to wait until the transaction reaches final status (success or failed) before completing the node execution',
+			},
 		] as INodeProperties[],
 	};
 
@@ -522,6 +799,12 @@ export class CrossmintTokens implements INodeType {
 						break;
 					case 'getTokensFromWallet':
 						result = await getTokensFromWallet(this, api, itemIndex);
+						break;
+					case 'createTransfer':
+						result = await transferToken(this, api, itemIndex);
+						break;
+					case 'signTransaction':
+						result = await signTransaction(this, api, itemIndex);
 						break;
 					default:
 						throw new NodeOperationError(this.getNode(), `Unknown token operation: ${operation}`, {
