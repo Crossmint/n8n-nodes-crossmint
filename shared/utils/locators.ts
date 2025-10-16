@@ -93,3 +93,63 @@ export function buildProductLocator(platform: string, productIdentifier: string)
 		return `url:${productIdentifier}`;
 	}
 }
+
+export function buildTokenRecipient(
+	recipientData: WalletLocatorData,
+	chain?: string,
+	context?: any,
+	itemIndex?: number
+): string {
+	if (recipientData.mode === 'address') {
+		const address = recipientData.value;
+		if (!address || address.trim() === '') {
+			throw new NodeOperationError(context?.getNode(), 'Wallet address is required', {
+				itemIndex,
+			});
+		}
+
+		if (address.startsWith('0x')) {
+			return `polygon:${address}`;
+		} else {
+			return `solana:${address}`;
+		}
+	} else {
+		const value = recipientData.value;
+		if (!value || value.trim() === '') {
+			throw new NodeOperationError(context?.getNode(), 'Recipient value is required', {
+				itemIndex,
+			});
+		}
+		return `${recipientData.mode}:${value}:${chain}`;
+	}
+}
+
+export function buildTokenWalletIdentifier(
+	walletIdentifierData: WalletLocatorData,
+	chain?: string,
+	context?: any,
+	itemIndex?: number
+): string {
+	if (walletIdentifierData.mode === 'address') {
+		const address = walletIdentifierData.value;
+		if (!address || address.trim() === '') {
+			throw new NodeOperationError(context?.getNode(), 'Wallet address is required', {
+				itemIndex,
+			});
+		}
+
+		if (address.startsWith('0x')) {
+			return `polygon:${address}`;
+		} else {
+			return `solana:${address}`;
+		}
+	} else {
+		const value = walletIdentifierData.value;
+		if (!value || value.trim() === '') {
+			throw new NodeOperationError(context?.getNode(), 'Wallet identifier value is required', {
+				itemIndex,
+			});
+		}
+		return `${walletIdentifierData.mode}:${value}:${chain}`;
+	}
+}

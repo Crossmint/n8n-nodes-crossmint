@@ -25,8 +25,9 @@ export interface WalletCreateRequest {
 
 export interface TransferTokenRequest {
 	recipient: string;
-	amount: string;
+	amount?: string;
 }
+
 
 export interface ApprovalRequest {
 	approvals: Array<{
@@ -73,6 +74,26 @@ export interface TransactionCreateRequest {
 export interface WalletLocatorData {
 	mode: string;
 	value: string;
+}
+
+export interface TokenMintRequest {
+	recipient: string;
+	sendNotification: boolean;
+	locale: string;
+	reuploadLinkedFiles: boolean;
+	compressed: boolean;
+	templateId?: string;
+	metadata?: string | {
+		name: string;
+		image: string;
+		description: string;
+		animation_url?: string;
+		symbol?: string;
+		attributes?: Array<{
+			trait_type: string;
+			value: string | number;
+		}>;
+	};
 }
 
 // API Response types

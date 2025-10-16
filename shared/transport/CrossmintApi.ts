@@ -61,6 +61,15 @@ export class CrossmintApi {
 		});
 	}
 
+	async delete(endpoint: string, version?: string, headers?: Record<string, string>): Promise<ApiResponse> {
+		return this.request({
+			method: 'DELETE',
+			endpoint,
+			version,
+			headers,
+		});
+	}
+
 	getBaseUrl(): string {
 		return this.baseUrl;
 	}
