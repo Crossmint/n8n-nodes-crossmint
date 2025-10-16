@@ -91,10 +91,10 @@ export class CrossmintTokens implements INodeType {
 						action: 'Transfer Token',
 					},
 					{
-						name: 'Sign Transaction',
+						name: 'Approve Transfer',
 						value: 'signTransaction',
 						description: 'Sign transaction with private key and submit signature in one step',
-						action: 'Sign transaction',
+						action: 'Approve transfer',
 					},
 				],
 				default: 'mintToken',
@@ -703,7 +703,7 @@ export class CrossmintTokens implements INodeType {
 				description: 'Token symbol or name',
 				required: true,
 			},
-			// Sign Transaction fields
+			// Approve Transfer fields
 			{
 				displayName: 'Chain',
 				name: 'signSubmitChain',
