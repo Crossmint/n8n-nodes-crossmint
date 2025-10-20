@@ -6,7 +6,7 @@ import {
 	INodeExecutionData,
 	INodeProperties,
 	NodeOperationError,
-	NodeConnectionType,
+	NodeConnectionTypes,
 } from 'n8n-workflow';
 import { CrossmintApi } from '../../shared/transport/CrossmintApi';
 import { CrossmintCredentials } from '../../shared/transport/types';
@@ -25,8 +25,8 @@ export class CrossmintCheckout implements INodeType {
 		defaults: {
 			name: 'Crossmint Checkout',
 		},
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
 		credentials: [
 			{
 				name: 'crossmintApi',
