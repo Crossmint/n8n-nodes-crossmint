@@ -46,7 +46,9 @@
         "typescript": "5.9.2"
     },
     "peerDependencies": {
-        "n8n-workflow": "*"
+        "n8n-workflow": "^1.114.0"
     },
-    "dependencies": {}
+    "overrides": {
+        "form-data": "4.0.4"
+    }
 }
