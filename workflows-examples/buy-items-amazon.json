@@ -11,7 +11,7 @@
         0,
         0
       ],
-      "id": "32a8b389-a7b3-4a96-a5e9-84722ddcbf18",
+      "id": "69423228-f601-4222-8d1b-3cab4ca84eda",
       "name": "When chat message received",
       "webhookId": "00000000-0000-0000-0000-000000000000"
     },
@@ -23,7 +23,7 @@
           "parameters": [
             {
               "name": "api_key",
-              "value": "8F00DC30B90740189007CC9DC7B16498"
+              "value": "123412341234123412341234"
             },
             {
               "name": "type",
@@ -53,7 +53,7 @@
         592,
         0
       ],
-      "id": "f2584c9f-3489-4c78-aaf2-758bf856ddac",
+      "id": "e13f86a2-8337-4091-b86d-ca91f969b9d7",
       "name": "HTTP Request"
     },
     {
@@ -71,7 +71,7 @@
         1008,
         0
       ],
-      "id": "b705bd74-421b-408d-8a53-04ed9624045f",
+      "id": "d4a537f3-a5c2-43ad-84eb-d7e928bbfa71",
       "name": "AI Agent",
       "retryOnFail": true
     },
@@ -85,7 +85,7 @@
         1152,
         208
       ],
-      "id": "0889ccfc-86e0-4f41-92e1-fcc78de5e9dc",
+      "id": "5d00d11b-0929-4d59-b31b-8083a982897e",
       "name": "Structured Output Parser"
     },
     {
@@ -103,7 +103,7 @@
         208,
         0
       ],
-      "id": "46265b9e-b177-48f6-9f82-ffb3c635d6b4",
+      "id": "1b6414bb-5c69-469f-b8a7-36b599eaca8a",
       "name": "AI Agent1"
     },
     {
@@ -116,7 +116,7 @@
         384,
         192
       ],
-      "id": "ed6f6742-c407-46a0-85eb-8a0f5aa8e758",
+      "id": "02a14f8a-225a-43df-903b-5ea6eeb952d9",
       "name": "Structured Output Parser1"
     },
     {
@@ -134,11 +134,11 @@
         192,
         192
       ],
-      "id": "800499ed-5483-43c4-b283-63bdcaab05b9",
+      "id": "369e8a01-2e41-4bb4-966d-dcef13430005",
       "name": "OpenAI Chat Model1",
       "credentials": {
         "openAiApi": {
-          "id": "iVq1dShqwiiMV3um",
+          "id": "GhhYLl73NZEDEiDm",
           "name": "OpenAi account"
         }
       }
@@ -158,11 +158,11 @@
         944,
         208
       ],
-      "id": "b747ac19-856a-44df-b994-ce38ccfe53fa",
+      "id": "eb6a38c3-dc07-4cc1-a5d2-6d769c521fbb",
       "name": "OpenAI Chat Model",
       "credentials": {
         "openAiApi": {
-          "id": "iVq1dShqwiiMV3um",
+          "id": "GhhYLl73NZEDEiDm",
           "name": "OpenAi account"
         }
       }
@@ -177,7 +177,7 @@
         800,
         0
       ],
-      "id": "976b593e-acce-4fc5-87b5-551d19c16506",
+      "id": "88fb0d88-8feb-434e-908a-f074556d5379",
       "name": "Parse JSON"
     },
     {
@@ -185,73 +185,24 @@
         "operation": "getWallet",
         "getWalletLocator": {
           "__rl": true,
-          "value": "user@example.com",
+          "value": "user@crossmint.com",
           "mode": "email"
         }
       },
-      "type": "CUSTOM.crossmintWallets",
+      "type": "n8n-nodes-crossmint.crossmintWallets",
       "typeVersion": 1,
       "position": [
         1360,
         0
       ],
-      "id": "5cefafb8-9efd-4dd8-803d-69c0f3df8245",
-      "name": "Get Wallet",
+      "id": "eee03e5e-d9aa-4c54-99d7-e028bd035a4b",
+      "name": "Get wallet",
       "credentials": {
         "crossmintApi": {
-          "id": "ls4eMMn5LGvpxx2X",
+          "id": "cladul3IbEeBEPoH",
           "name": "Crossmint account"
         }
-      },
-      "disabled": true
-    },
-    {
-      "parameters": {
-        "productIdentifier": "={{ $('AI Agent').item.json.output.asin }}",
-        "recipientEmail": "buyer@example.com",
-        "recipientName": "Jane Smith",
-        "addressLine1": "123 Main St",
-        "city": "Anytown",
-        "state": "CA",
-        "postalCode": "94016",
-        "paymentMethod": "solana-devnet",
-        "payerAddress": "={{ $('Get Wallet').item.json.address }}"
-      },
-      "type": "CUSTOM.crossmintCheckout",
-      "typeVersion": 1,
-      "position": [
-        1712,
-        0
-      ],
-      "id": "45cbed39-cdbc-4fe9-9c84-4f39cd627406",
-      "name": "Create Order",
-      "credentials": {
-        "crossmintApi": {
-          "id": "ls4eMMn5LGvpxx2X",
-          "name": "Crossmint account"
-        }
-      },
-      "disabled": true
-    },
-    {
-      "parameters": {
-        "operation": "purchaseProduct"
-      },
-      "type": "CUSTOM.crossmintCheckout",
-      "typeVersion": 1,
-      "position": [
-        1920,
-        0
-      ],
-      "id": "7dad7d4f-5c06-4942-a191-685e9438d1fa",
-      "name": "Pay Order",
-      "credentials": {
-        "crossmintApi": {
-          "id": "ls4eMMn5LGvpxx2X",
-          "name": "Crossmint account"
-        }
-      },
-      "disabled": true
+      }
     },
     {
       "parameters": {
@@ -262,21 +213,68 @@
           "mode": "address"
         }
       },
-      "type": "CUSTOM.crossmintWallets",
+      "type": "n8n-nodes-crossmint.crossmintWallets",
       "typeVersion": 1,
       "position": [
-        1536,
+        1568,
         0
       ],
-      "id": "365f86a5-94c3-45cd-817f-4d1a5979608e",
+      "id": "90275b14-a842-4ed1-8efa-e025ad717692",
       "name": "Get balance",
       "credentials": {
         "crossmintApi": {
-          "id": "ls4eMMn5LGvpxx2X",
+          "id": "cladul3IbEeBEPoH",
           "name": "Crossmint account"
         }
+      }
+    },
+    {
+      "parameters": {
+        "productIdentifier": "={{ $('AI Agent').item.json.output.asin }}",
+        "recipientEmail": "user@crossmint.com",
+        "recipientName": "User Paella",
+        "addressLine1": "744 SW 10th St",
+        "city": "Miami",
+        "state": "FL",
+        "postalCode": "33132",
+        "payerAddress": "={{ $('Get wallet').item.json.address }}"
       },
-      "disabled": true
+      "type": "n8n-nodes-crossmint.crossmintCheckout",
+      "typeVersion": 1,
+      "position": [
+        1776,
+        0
+      ],
+      "id": "10af281d-d32f-4e96-a0a1-6d26d35fee0f",
+      "name": "Create order",
+      "credentials": {
+        "crossmintApi": {
+          "id": "cladul3IbEeBEPoH",
+          "name": "Crossmint account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "purchaseProduct",
+        "serializedTransaction": "={{ $json.order.payment.preparation.serializedTransaction }}",
+        "payerAddress": "={{ $('Get wallet').item.json.address }}",
+        "purchasePrivateKey": "your_key"
+      },
+      "type": "n8n-nodes-crossmint.crossmintCheckout",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        0
+      ],
+      "id": "33516247-0dc0-479f-a6dd-3f128b62ab60",
+      "name": "Pay order",
+      "credentials": {
+        "crossmintApi": {
+          "id": "cladul3IbEeBEPoH",
+          "name": "Crossmint account"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -373,14 +371,14 @@
       "main": [
         [
           {
-            "node": "Get Wallet",
+            "node": "Get wallet",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Wallet": {
+    "Get wallet": {
       "main": [
         [
           {
@@ -391,27 +389,22 @@
         ]
       ]
     },
-    "Create Order": {
+    "Get balance": {
       "main": [
         [
           {
-            "node": "Pay Order",
+            "node": "Create order",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Pay Order": {
-      "main": [
-        []
-      ]
-    },
-    "Get balance": {
+    "Create order": {
       "main": [
         [
           {
-            "node": "Create Order",
+            "node": "Pay order",
             "type": "main",
             "index": 0
           }
@@ -423,11 +416,11 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "84c2b6ac-9d9b-40f1-a3a3-20002b2f26e8",
+  "versionId": "bc298548-87df-4a22-8b61-623846b603fc",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "9fdc99c284b0bd3a8affd2a4327edb883b9f65f50d987bd1a76179a598e91f8d"
+    "instanceId": "fc50d9ee62f6a77e3dab561e3a87cbe7b6a062db2aad99602ae867f9c88d4509"
   },
-  "id": "6VKnOYgXXTqNU6gv",
+  "id": "55HjLFsYHRi8Scdw",
   "tags": []
 }
