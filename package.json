@@ -30,11 +30,13 @@
     "n8n": {
         "n8nNodesApiVersion": 1,
         "credentials": [
-            "dist/credentials/CrossmintApi.credentials.js"
+            "dist/credentials/CrossmintApi.credentials.js",
+            "dist/credentials/CoinbaseApi.credentials.js"
         ],
         "nodes": [
             "dist/nodes/CrossmintWallets/CrossmintWallets.node.js",
-            "dist/nodes/CrossmintCheckout/CrossmintCheckout.node.js"
+            "dist/nodes/CrossmintCheckout/CrossmintCheckout.node.js",
+            "dist/nodes/webhooks/CrossmintWebhooks.node.js"
         ]
     },
     "devDependencies": {
