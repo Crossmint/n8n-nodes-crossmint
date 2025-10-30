@@ -40,11 +40,7 @@ export class CrossmintWebhooks implements INodeType {
 			{
 				name: 'crossmintApi',
 				required: true,
-			},
-			{
-				name: 'coinbaseApi',
-				required: false,
-			},
+			}
 		],
 		supportsCORS: true,
 		triggerPanel: {
@@ -187,7 +183,7 @@ export class CrossmintWebhooks implements INodeType {
 			},
 		],
 	};
-
+	
 	async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
 		return webhookTrigger.call(this);
 	}

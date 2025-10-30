@@ -7,7 +7,6 @@ import {
 import { setupOutputConnection } from '../utils/webhookUtils';
 // import { rm, } from 'fs/promises';
 import type * as express from 'express';
-import { createPrivateKey, sign as cryptoSign } from 'crypto';
 
 export interface IPaymentPayload {
 	x402Version: number;
@@ -88,7 +87,27 @@ async function handleX402Webhook(
 		return { noWebhookResponse: true };
 	}
 
-	const supportedTokens = getSupportedTokens();
+	// TODO: Extract this out of file
+	const supportedTokens = {
+		kinds: [
+			{
+				scheme: 'eip3009',
+				network: 'solana',
+				tokens: [
+					{
+						name: 'USDC',
+						contractAddress: 'usdc',
+						version: '1',
+					},
+					{
+						name: 'SOL',
+						contractAddress: 'sol',
+						version: '1',
+					},
+				],
+			},
+		],
+	};
 
 	// We need to figure out which of the tokens have been configured for this node
 	const configuredTokens = this.getNodeParameter('tokens') as {
@@ -107,26 +126,71 @@ async function handleX402Webhook(
 		return { noWebhookResponse: true };
 	}
 
-	// Build normalized payment requirements, enforcing uniqueness per network
-	const paymentRequirements = buildPaymentRequirements(
-		configuredTokens.paymentToken,
-		supportedTokens,
-		webhookUrl,
-		resourceDescription,
-		mimeType,
-		resp,
-	);
-	if (paymentRequirements == null) return { noWebhookResponse: true };
+	// We are going to loop over the configured tokens- only those are the supported ones.
+	const paymentRequirements = new Array<PaymentRequirements>();
+	const configuredKinds = new Array<string>();
+
+	for (const configuredToken of configuredTokens.paymentToken) {
+		// Find the supported token that matches the configured token
+		// We need to split up the paymentToken string into the network and contract address.
+		const [network, contractAddress] = configuredToken.paymentToken.split(':');
+
+		// If the kind already has a configuration, that's an error- you can only configure one token per network.
+		if (configuredKinds.includes(network)) {
+			resp.writeHead(403);
+			resp.end(
+				`Misconfiguration: Network ${network} has multiple configured tokens. You may only have one payment token per network.`,
+			);
+			return { noWebhookResponse: true };
+		}
+		configuredKinds.push(network);
+
+		// First we find the "kind" that matches the network.
+		const kind = supportedTokens.kinds.find((kind) => kind.network === network);
+		if (kind == null) {
+			throw new Error(`Supported network ${network} not found`);
+		}
+
+		// Now we find the token that matches the contract address.
+		const supportedToken = kind.tokens.find((token) => token.contractAddress === contractAddress);
+		if (supportedToken == null) {
+			throw new Error(`Supported token ${contractAddress} not found`);
+		}
+
+		// Now we create the payment config.
+		paymentRequirements.push(
+			new PaymentRequirements(
+				kind.scheme,
+				kind.network,
+				configuredToken.paymentAmount.toString(),
+				webhookUrl,
+				resourceDescription,
+				mimeType,
+				{},
+				configuredToken.payToAddress,
+				60,
+				supportedToken.contractAddress,
+				{
+					name: supportedToken.name,
+					version: supportedToken.version,
+				},
+			),
+		);
+	}
 
 	// If there's no x-payment header, return a 402 error with payment details
 	const xPaymentHeader = headers['x-payment'];
-	if (xPaymentHeader == null || typeof xPaymentHeader !== 'string') {
+	if (!xPaymentHeader == null || typeof xPaymentHeader !== 'string') {
 		return generateX402Error(resp, 'No x-payment header provided', paymentRequirements);
 	}
 
 	// try to decode the x-payment header if it exists
 	try {
-		const decodedXPaymentJson = parseXPaymentHeader(xPaymentHeader);
+		// Decode the x-payment header from base64
+		const decodedXPayment = Buffer.from(xPaymentHeader, 'base64').toString('utf-8');
+
+		// Parse the decoded value into a JSON object
+		const decodedXPaymentJson = JSON.parse(decodedXPayment) as IPaymentPayload;
 
 		const validation = validateXPayment(decodedXPaymentJson);
 		if (validation != 'valid') {
@@ -157,12 +221,14 @@ async function handleX402Webhook(
 		// So we need to find the config that matches the network, there should be only 1,
 		// and we use that.
 
-		const verifyResponse = await verifyX402Payment(
-			coinbaseKeyId!,
-			coinbaseKeySecret!,
-			decodedXPaymentJson,
-			verification.paymentRequirements!,
-		);
+		// TODO: Replace with Crossmint API call
+		// const verifyResponse = await verifyX402Payment(
+		// 	this,
+		// 	decodedXPaymentJson.x402Version,
+		// 	decodedXPaymentJson,
+		// 	verification.paymentRequirements!,
+		// );
+		const verifyResponse = { isValid: true, invalidReason: '' };
 
 		if (!verifyResponse.isValid) {
 			return generateX402Error(
@@ -176,12 +242,15 @@ async function handleX402Webhook(
 		// (such as from a Cloudflare 502), we'll move on and assume it's successful.
 
 		try {
-			const settleResponse = await settleX402Payment(
-				coinbaseKeyId!,
-				coinbaseKeySecret!,
-				decodedXPaymentJson,
-				verification.paymentRequirements!,
-			);
+			// Payment is verified, now we need to settle it!
+			// TODO: Replace with Crossmint API call
+			// const settleResponse = await settleX402Payment(
+			// 	this,
+			// 	decodedXPaymentJson.x402Version,
+			// 	decodedXPaymentJson,
+			// 	verification.paymentRequirements!,
+			// );
+			const settleResponse = { success: true, txHash: 'MOCK_TX_HASH_PLACEHOLDER', error: '' };
 
 			if (!settleResponse.success) {
 				resp.writeHead(402, { 'Content-Type': 'application/json' });
@@ -201,7 +270,7 @@ async function handleX402Webhook(
 				req,
 				responseMode,
 				responseData,
-				settleResponse.txHash ?? 'UNKNOWN_TX',
+				settleResponse.txHash,
 				prepareOutput,
 			);
 		} catch (error) {
@@ -277,207 +346,6 @@ function generateX402Error(
 		}),
 	);
 	return { noWebhookResponse: true };
-}
-
-// Helpers
-
-// (Intentionally inlined credential checks above to preserve original logic)
-
-function getSupportedTokens(): {
-	kinds: Array<{
-		scheme: string;
-		network: string;
-		tokens: Array<{ name: string; contractAddress: string; version: string }>;
-	}>;
-} {
-	return {
-		kinds: [
-			{
-				scheme: 'eip3009',
-				network: 'solana',
-				tokens: [
-					{ name: 'USDC', contractAddress: 'usdc', version: '1' },
-					{ name: 'SOL', contractAddress: 'sol', version: '1' },
-				],
-			},
-		],
-	};
-}
-
-function buildPaymentRequirements(
-	configured:
-		| { paymentToken: string; payToAddress: string; paymentAmount: number }[]
-		| undefined,
-	supportedTokens: ReturnType<typeof getSupportedTokens>,
-	webhookUrl: string,
-	resourceDescription: string,
-	mimeType: string,
-	resp: express.Response,
-): PaymentRequirements[] | null {
-	const requirements: PaymentRequirements[] = [];
-	const configuredNetworks: string[] = [];
-
-	for (const configuredToken of configured ?? []) {
-		const [network, contractAddress] = (configuredToken.paymentToken || '').split(':');
-
-		if (!network || !contractAddress) {
-			resp.writeHead(403);
-			resp.end('Misconfiguration: paymentToken must be in the form "network:contractAddress"');
-			return null;
-		}
-
-		if (configuredNetworks.includes(network)) {
-			resp.writeHead(403);
-			resp.end(
-				`Misconfiguration: Network ${network} has multiple configured tokens. You may only have one payment token per network.`,
-			);
-			return null;
-		}
-		configuredNetworks.push(network);
-
-		const kind = supportedTokens.kinds.find((k) => k.network === network);
-		if (kind == null) throw new Error(`Supported network ${network} not found`);
-
-		const supportedToken = kind.tokens.find((t) => t.contractAddress === contractAddress);
-		if (supportedToken == null) throw new Error(`Supported token ${contractAddress} not found`);
-
-		requirements.push(
-			new PaymentRequirements(
-				kind.scheme,
-				kind.network,
-				String(configuredToken.paymentAmount),
-				webhookUrl,
-				resourceDescription,
-				mimeType,
-				{},
-				configuredToken.payToAddress,
-				60,
-				supportedToken.contractAddress,
-				{ name: supportedToken.name, version: supportedToken.version },
-			),
-		);
-	}
-
-	return requirements;
-}
-
-function parseXPaymentHeader(xPaymentHeader: string): IPaymentPayload {
-	const decoded = Buffer.from(xPaymentHeader, 'base64').toString('utf-8');
-	return JSON.parse(decoded) as IPaymentPayload;
-}
-
-// Coinbase CDP facilitator integration
-const CDP_HOST = 'api.cdp.coinbase.com';
-const FACILITATOR_VERIFY_PATH = '/platform/v2/x402/verify';
-const FACILITATOR_SETTLE_PATH = '/platform/v2/x402/settle';
-
-function base64UrlEncode(input: Buffer | string): string {
-	const buf = Buffer.isBuffer(input) ? input : Buffer.from(input);
-	return buf
-		.toString('base64')
-		.replace(/=/g, '')
-		.replace(/\+/g, '-')
-		.replace(/\//g, '_');
-}
-
-function toKeyObjectFromSecret(secret: string) {
-	if (secret.startsWith('-----BEGIN')) {
-		return createPrivateKey({ key: secret });
-	}
-	return createPrivateKey({ key: Buffer.from(secret, 'base64'), format: 'der', type: 'pkcs8' });
-}
-
-function detectSigningAlg(keyObj: ReturnType<typeof createPrivateKey>): {
-	algHeader: 'EdDSA' | 'ES256';
-	signAlg: null | 'sha256';
-} {
-	const type = (keyObj as any).asymmetricKeyType as string;
-	if (type === 'ed25519') return { algHeader: 'EdDSA', signAlg: null };
-	if (type === 'ec') return { algHeader: 'ES256', signAlg: 'sha256' };
-	throw new Error(`Unsupported key type: ${type}. Use Ed25519 or EC P-256.`);
-}
-
-function buildCdpJwt(params: {
-	apiKeyId: string;
-	apiKeySecret: string;
-	method: string;
-	host: string;
-	path: string;
-	expiresInSec?: number;
-	audience?: string[];
-}): string {
-	const { apiKeyId, apiKeySecret, method, host, path, expiresInSec = 120, audience = ['cdp-api'] } = params;
-	const keyObj = toKeyObjectFromSecret(apiKeySecret);
-	const { algHeader, signAlg } = detectSigningAlg(keyObj);
-
-	const now = Math.floor(Date.now() / 1000);
-	const header = { alg: algHeader, typ: 'JWT', kid: apiKeyId } as const;
-	const payload = {
-		iss: 'coinbase-cloud',
-		sub: apiKeyId,
-		iat: now,
-		nbf: now,
-		exp: now + expiresInSec,
-		audience: undefined,
-		aud: audience,
-		uris: [`${method.toUpperCase()} ${host}${path}`],
-	};
-
-	const encHeader = base64UrlEncode(JSON.stringify(header));
-	const encPayload = base64UrlEncode(JSON.stringify(payload));
-	const signingInput = Buffer.from(`${encHeader}.${encPayload}`);
-	const signature = cryptoSign(signAlg as any, signingInput, keyObj);
-	const encSig = base64UrlEncode(signature);
-	return `${encHeader}.${encPayload}.${encSig}`;
-}
-
-async function verifyX402Payment(
-	apiKeyId: string,
-	apiKeySecret: string,
-	paymentPayload: IPaymentPayload,
-	paymentRequirements: PaymentRequirements,
-): Promise<{ isValid: boolean; invalidReason?: string }>
-{
-	const token = buildCdpJwt({ apiKeyId, apiKeySecret, method: 'POST', host: CDP_HOST, path: FACILITATOR_VERIFY_PATH });
-	const res = await fetch(`https://${CDP_HOST}${FACILITATOR_VERIFY_PATH}`, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${token}`,
-			'Content-Type': 'application/json',
-			Accept: 'application/json',
-		},
-		body: JSON.stringify({ x402Version: paymentPayload.x402Version ?? 1, paymentPayload, paymentRequirements }),
-	});
-	if (!res.ok) {
-		const text = await res.text();
-		throw new Error(`/verify ${res.status}: ${text}`);
-	}
-	return (await res.json()) as { isValid: boolean; invalidReason?: string };
-}
-
-async function settleX402Payment(
-	apiKeyId: string,
-	apiKeySecret: string,
-	paymentPayload: IPaymentPayload,
-	paymentRequirements: PaymentRequirements,
-): Promise<{ success: boolean; txHash?: string; error?: string }>
-{
-	const token = buildCdpJwt({ apiKeyId, apiKeySecret, method: 'POST', host: CDP_HOST, path: FACILITATOR_SETTLE_PATH });
-	const res = await fetch(`https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${token}`,
-			'Content-Type': 'application/json',
-			Accept: 'application/json',
-		},
-		body: JSON.stringify({ x402Version: paymentPayload.x402Version ?? 1, paymentPayload, paymentRequirements }),
-	});
-	if (!res.ok) {
-		const text = await res.text();
-		throw new Error(`/settle ${res.status}: ${text}`);
-	}
-	const data = (await res.json()) as { success: boolean; transaction?: { hash?: string } } & Record<string, any>;
-	return { success: data.success, txHash: data.transaction?.hash, error: data['errorReason'] };
 }
 
 // ED-25519 signature verification
