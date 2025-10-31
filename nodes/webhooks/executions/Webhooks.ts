@@ -7,7 +7,8 @@ import {
 import { setupOutputConnection } from '../utils/webhookUtils';
 // import { rm, } from 'fs/promises';
 import type * as express from 'express';
-import { createPrivateKey, sign as cryptoSign } from 'crypto';
+import { createPrivateKey, sign as cryptoSign, randomBytes } from 'crypto';
+import { signAsync as ed25519SignAsync } from './crypto/ED25519';
 
 export interface IPaymentPayload {
 	x402Version: number;
@@ -45,14 +46,8 @@ export interface IPaymentRequirements {
 
 
 export async function webhookTrigger(this: IWebhookFunctions): Promise<IWebhookResponseData> {
-	const webhookType = this.getNodeParameter('webhookType') as string;
 	const body = this.getBodyData();
-
-	if (webhookType === 'x402') {
-		return await handleX402Webhook.call(this, body);
-	} else {
-		throw new Error(`Unsupported webhook type: ${webhookType}`);
-	}
+	return await handleX402Webhook.call(this, body);
 }
 
 async function handleX402Webhook(
@@ -397,36 +392,64 @@ function detectSigningAlg(keyObj: ReturnType<typeof createPrivateKey>): {
 	throw new Error(`Unsupported key type: ${type}. Use Ed25519 or EC P-256.`);
 }
 
-function buildCdpJwt(params: {
+async function buildCdpJwtAsync(params: {
 	apiKeyId: string;
 	apiKeySecret: string;
 	method: string;
 	host: string;
 	path: string;
 	expiresInSec?: number;
-	audience?: string[];
-}): string {
-	const { apiKeyId, apiKeySecret, method, host, path, expiresInSec = 120, audience = ['cdp-api'] } = params;
-	const keyObj = toKeyObjectFromSecret(apiKeySecret);
-	const { algHeader, signAlg } = detectSigningAlg(keyObj);
+}): Promise<string> {
+	const { apiKeyId, apiKeySecret, method, host, path, expiresInSec = 120 } = params;
+
+	let algHeader: 'EdDSA' | 'ES256';
+	let signAlg: null | 'sha256' = null;
+	let keyObj: ReturnType<typeof createPrivateKey> | undefined;
+	let useEd25519Noble = false;
+
+	if (apiKeySecret.startsWith('-----BEGIN')) {
+		keyObj = toKeyObjectFromSecret(apiKeySecret);
+		const det = detectSigningAlg(keyObj);
+		algHeader = det.algHeader;
+		signAlg = det.signAlg;
+	} else {
+		// Sign exactly like our ED25519.ts usage: expect base64-encoded 32-byte Ed25519 secret
+		useEd25519Noble = true;
+		algHeader = 'EdDSA';
+	}
 
 	const now = Math.floor(Date.now() / 1000);
-	const header = { alg: algHeader, typ: 'JWT', kid: apiKeyId } as const;
+	const header = {
+		alg: algHeader,
+		typ: 'JWT',
+		kid: apiKeyId,
+		nonce: randomBytes(16).toString('hex'),
+	} as const;
 	const payload = {
-		iss: 'coinbase-cloud',
+		iss: 'cdp',
 		sub: apiKeyId,
-		iat: now,
 		nbf: now,
 		exp: now + expiresInSec,
-		audience: undefined,
-		aud: audience,
-		uris: [`${method.toUpperCase()} ${host}${path}`],
+		uri: `${method.toUpperCase()} ${host}${path}`,
 	};
 
 	const encHeader = base64UrlEncode(JSON.stringify(header));
 	const encPayload = base64UrlEncode(JSON.stringify(payload));
 	const signingInput = Buffer.from(`${encHeader}.${encPayload}`);
-	const signature = cryptoSign(signAlg as any, signingInput, keyObj);
+
+	let signature: Buffer;
+	if (useEd25519Noble) {
+		// Expect raw 32-byte Ed25519 secret in base64
+		const raw = Buffer.from(apiKeySecret, 'base64');
+		if (raw.length !== 32) {
+			throw new Error('Invalid Ed25519 secret: expected base64-encoded 32-byte key');
+		}
+		const sig = await ed25519SignAsync(signingInput, raw);
+		signature = Buffer.from(sig);
+	} else {
+		// Use Node crypto with either Ed25519 (signAlg null) or ES256
+		signature = cryptoSign(signAlg as any, signingInput, keyObj!);
+	}
 	const encSig = base64UrlEncode(signature);
 	return `${encHeader}.${encPayload}.${encSig}`;
 }
@@ -438,7 +461,7 @@ async function verifyX402Payment(
 	paymentRequirements: PaymentRequirements,
 ): Promise<{ isValid: boolean; invalidReason?: string }>
 {
-	const token = buildCdpJwt({ apiKeyId, apiKeySecret, method: 'POST', host: CDP_HOST, path: FACILITATOR_VERIFY_PATH });
+const token = await buildCdpJwtAsync({ apiKeyId, apiKeySecret, method: 'POST', host: CDP_HOST, path: FACILITATOR_VERIFY_PATH });
 	const res = await fetch(`https://${CDP_HOST}${FACILITATOR_VERIFY_PATH}`, {
 		method: 'POST',
 		headers: {
@@ -462,7 +485,7 @@ async function settleX402Payment(
 	paymentRequirements: PaymentRequirements,
 ): Promise<{ success: boolean; txHash?: string; error?: string }>
 {
-	const token = buildCdpJwt({ apiKeyId, apiKeySecret, method: 'POST', host: CDP_HOST, path: FACILITATOR_SETTLE_PATH });
+const token = await buildCdpJwtAsync({ apiKeyId, apiKeySecret, method: 'POST', host: CDP_HOST, path: FACILITATOR_SETTLE_PATH });
 	const res = await fetch(`https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`, {
 		method: 'POST',
 		headers: {

@@ -175,7 +175,7 @@ export class CrossmintWebhooks implements INodeType {
 								required: true,
 								default: 1000000,
 								description:
-									'The minimum payment amount required to trigger the workflow. This is in Wei for the token specified. For example, USDC has 6 decimals, so for $1.00 payment enter 1000000.',
+									'The minimum payment amount required in atomic units (must be an integer). Examples: SOL uses lamports (9 decimals) - 0.006 SOL = 6000000 lamports. USDC uses 6 decimals - $1.00 = 1000000. No decimal points allowed.',
 							},
 						],
 					},
