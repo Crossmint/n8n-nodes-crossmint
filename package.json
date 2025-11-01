@@ -34,11 +34,13 @@
         ],
         "nodes": [
             "dist/nodes/CrossmintWallets/CrossmintWallets.node.js",
-            "dist/nodes/CrossmintCheckout/CrossmintCheckout.node.js"
+            "dist/nodes/CrossmintCheckout/CrossmintCheckout.node.js",
+            "dist/nodes/webhooks/CrossmintWebhooks.node.js"
         ]
     },
     "devDependencies": {
         "@n8n/node-cli": "*",
+        "@types/express": "^5.0.3",
         "@types/node": "*",
         "eslint": "9.32.0",
         "prettier": "3.6.2",
