@@ -35,12 +35,15 @@ export async function verifyX402Payment(
 		asset: paymentRequirements.asset,
 		extra: paymentRequirements.extra,
 	};
+	const normalizedNetwork = paymentPayload.network === 'solana-devnet' ? 'solana' : paymentPayload.network;
+	const normalizedRequirementsNetwork = paymentRequirementsObj.network === 'solana-devnet' ? 'solana' : paymentRequirementsObj.network;
+	
 	// For verify, paymentPayload.x402Version should be a string (same as settle)
 	// IMPORTANT: Preserve all fields including value exactly as received - do not modify
 	const paymentPayloadForVerify = {
 		x402Version: String(paymentPayload.x402Version),
 		scheme: paymentPayload.scheme,
-		network: paymentPayload.network,
+		network: normalizedNetwork,
 		payload: {
 			authorization: {
 				from: paymentPayload.payload.authorization.from,
@@ -53,10 +56,16 @@ export async function verifyX402Payment(
 			signature: paymentPayload.payload.signature,
 		},
 	};
+	const trimmedPaymentRequirements = {
+		scheme: paymentRequirementsObj.scheme,
+		network: normalizedRequirementsNetwork,
+		payTo: paymentRequirementsObj.payTo,
+		maxAmountRequired: paymentRequirementsObj.maxAmountRequired,
+		asset: paymentRequirementsObj.asset,
+	};
 	const requestBody = {
-		x402Version: String(paymentPayload.x402Version ?? 1),
 		paymentPayload: paymentPayloadForVerify,
-		paymentRequirements: paymentRequirementsObj,
+		paymentRequirements: trimmedPaymentRequirements,
 	};
 	const requestDataStr = JSON.stringify(requestBody, null, 2);
 
@@ -120,12 +129,15 @@ export async function settleX402Payment(
 		asset: paymentRequirements.asset,
 		extra: paymentRequirements.extra,
 	};
+	const normalizedNetworkSettle = paymentPayload.network === 'solana-devnet' ? 'solana' : paymentPayload.network;
+	const normalizedRequirementsNetworkSettle = paymentRequirementsObj.network === 'solana-devnet' ? 'solana' : paymentRequirementsObj.network;
+	
 	// For settle, paymentPayload.x402Version should be a string (verify uses number)
 	// IMPORTANT: Preserve all fields including value exactly as received - do not modify
 	const paymentPayloadForSettle = {
 		x402Version: String(paymentPayload.x402Version),
 		scheme: paymentPayload.scheme,
-		network: paymentPayload.network,
+		network: normalizedNetworkSettle,
 		payload: {
 			authorization: {
 				from: paymentPayload.payload.authorization.from,
@@ -138,10 +150,16 @@ export async function settleX402Payment(
 			signature: paymentPayload.payload.signature,
 		},
 	};
+	const trimmedPaymentRequirementsSettle = {
+		scheme: paymentRequirementsObj.scheme,
+		network: normalizedRequirementsNetworkSettle,
+		payTo: paymentRequirementsObj.payTo,
+		maxAmountRequired: paymentRequirementsObj.maxAmountRequired,
+		asset: paymentRequirementsObj.asset,
+	};
 	const requestBody = {
-		x402Version: String(paymentPayload.x402Version ?? 1),
 		paymentPayload: paymentPayloadForSettle,
-		paymentRequirements: paymentRequirementsObj,
+		paymentRequirements: trimmedPaymentRequirementsSettle,
 	};
 	const requestDataStr = JSON.stringify(requestBody, null, 2);
 

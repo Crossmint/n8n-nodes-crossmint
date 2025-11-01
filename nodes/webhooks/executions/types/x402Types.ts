@@ -1,5 +1,5 @@
 export interface IPaymentPayload {
-	x402Version: string;
+	x402Version: number;
 	scheme: string;
 	network: string;
 	payload: {
