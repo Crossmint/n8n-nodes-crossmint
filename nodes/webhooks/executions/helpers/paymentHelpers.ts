@@ -8,17 +8,23 @@ export function getSupportedTokens(environment?: string): {
 		tokens: Array<{ name: string; contractAddress: string; version: string; normalizedName?: string }>;
 	}>;
 } {
-	// Use solana-devnet for staging, solana for production
-	const network = environment === 'staging' ? 'solana-devnet' : 'solana';
-	
+	// Use base-sepolia for staging, base for production
+	const network = environment === 'staging' ? 'base-sepolia' : 'base';
+
 	return {
 		kinds: [
 			{
 				scheme: 'exact',
 				network: network,
 				tokens: [
-					{ name: 'USDC', contractAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', version: '1', normalizedName: 'usdc' },
-					{ name: 'SOL', contractAddress: 'So11111111111111111111111111111111111111112', version: '1', normalizedName: 'sol' },
+					{
+						name: 'USDC',
+						contractAddress: environment === 'staging'
+							? '0x036CbD53842c5426634e7929541eC2318f3dCF7e' // Base Sepolia USDC
+							: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // Base Mainnet USDC
+						version: '2',
+						normalizedName: 'usdc'
+					},
 				],
 			},
 		],
@@ -50,8 +56,8 @@ export function buildPaymentRequirements(
 			return null;
 		}
 
-		// Map 'solana' to the expected network (solana or solana-devnet based on environment)
-		const normalizedNetwork = network === 'solana' ? expectedNetwork : network;
+		// Map 'base' to the expected network (base or base-sepolia based on environment)
+		const normalizedNetwork = network === 'base' ? expectedNetwork : network;
 
 		if (configuredNetworks.includes(normalizedNetwork)) {
 			resp.writeHead(403);
@@ -69,11 +75,18 @@ export function buildPaymentRequirements(
 		const supportedToken = kind.tokens.find((t) => t.normalizedName === contractAddress || t.contractAddress === contractAddress);
 		if (supportedToken == null) throw new Error(`Supported token ${contractAddress} not found`);
 
+		// Convert payment amount to atomic units (USDC has 6 decimals)
+		// If paymentAmount is already in atomic units (integer >= 1000000), use it as-is
+		// Otherwise, assume it's in dollars and multiply by 10^6
+		const paymentAmountInAtomicUnits = configuredToken.paymentAmount < 1000000
+			? Math.floor(configuredToken.paymentAmount * 1000000)
+			: configuredToken.paymentAmount;
+
 		requirements.push(
 			new PaymentRequirements(
 				kind.scheme,
 				kind.network,
-				String(configuredToken.paymentAmount),
+				String(paymentAmountInAtomicUnits),
 				webhookUrl,
 				resourceDescription,
 				mimeType,
@@ -81,7 +94,7 @@ export function buildPaymentRequirements(
 				configuredToken.payToAddress,
 				60,
 				supportedToken.contractAddress,
-				{ name: supportedToken.name, version: supportedToken.version },
+				{ gasLimit: '1000000' },
 			),
 		);
 	}

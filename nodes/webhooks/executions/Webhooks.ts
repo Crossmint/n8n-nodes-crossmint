@@ -10,7 +10,6 @@ import { verifyX402Payment, settleX402Payment } from './facilitator/coinbaseFaci
 import { generateX402Error, generateResponse } from './response/paymentResponse';
 
 export async function webhookTrigger(this: IWebhookFunctions): Promise<IWebhookResponseData> {
-	console.log("AAAAAAAA");
 	const body = this.getBodyData();
 	return await handleX402Webhook.call(this, body);
 }
@@ -42,13 +41,14 @@ async function handleX402Webhook(
 	// Coinbase credentials (apiKeyId/apiKeySecret) are required for x402 processing
 	const coinbaseKeyId = (credentials as any).apiKeyId as string | undefined;
 	const coinbaseKeySecret = (credentials as any).apiKeySecret as string | undefined;
+
 	if (!coinbaseKeyId || !coinbaseKeySecret) {
 		resp.writeHead(403);
 		resp.end('crossmintApi credential missing Coinbase apiKeyId or apiKeySecret');
 		return { noWebhookResponse: true };
 	}
 
-	// Get environment to determine network (staging uses solana-devnet, production uses solana)
+	// Get environment to determine network (staging uses base-sepolia, production uses base)
 	const environment = (credentials as any).environment as string | undefined;
 
 	const supportedTokens = getSupportedTokens(environment);
@@ -58,7 +58,7 @@ async function handleX402Webhook(
 		paymentToken: { paymentToken: string; payToAddress: string; paymentAmount: number }[];
 	};
 
-	const resourceDescription = ''; // By default (No options in node)
+	const resourceDescription = 'n8n workflow webhook';
 	const mimeType = 'application/json'; // By default (No options in node)
 
 	const responseData = this.getNodeParameter('responseData') as string;

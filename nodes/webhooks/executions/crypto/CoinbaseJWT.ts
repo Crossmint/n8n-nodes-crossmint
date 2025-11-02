@@ -13,7 +13,7 @@ interface BuildCdpJwtParams {
   path: string;
 }
 
-function createCoinbaseJWT(credentials: CoinbaseCredentials, requestMethod: string, requestHost: string, requestPath: string): string {
+function createCoinbaseJWT(credentials: CoinbaseCredentials, requestMethod: string, requestPath: string): string {
   const { apiKey, privateKey } = credentials;
   
   const pemKey = privateKey
@@ -36,7 +36,7 @@ function createCoinbaseJWT(credentials: CoinbaseCredentials, requestMethod: stri
     nbf: now,
     exp: now + 120, // 2 minutes expiration
     aud: ['cdp_service'],
-    uri: `${requestMethod} ${requestHost}${requestPath}`
+    uri: `${requestMethod} api.cdp.coinbase.com${requestPath}`
   };
   
   const base64UrlEncode = (obj: any): string => {
@@ -98,12 +98,11 @@ function createCoinbaseJWT(credentials: CoinbaseCredentials, requestMethod: stri
 }
 
 export async function buildCdpJwtAsync(params: BuildCdpJwtParams): Promise<string> {
-  const { apiKeyId, apiKeySecret, method, host, path } = params;
+  const { apiKeyId, apiKeySecret, method, path } = params;
   
   return createCoinbaseJWT(
     { apiKey: apiKeyId, privateKey: apiKeySecret },
     method,
-    host,
     path
   );
 }

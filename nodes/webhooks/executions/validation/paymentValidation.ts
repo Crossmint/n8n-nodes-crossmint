@@ -6,12 +6,13 @@ export function parseXPaymentHeader(xPaymentHeader: string): IPaymentPayload {
 }
 
 export function validateXPayment(payment: IPaymentPayload): string {
-	// Define the expected structure and types
+	// Define the expected structure for EVM exact scheme (EIP-3009)
 	const requiredShape = {
-		x402Version: 'number',
+		x402Version: 'string',
 		scheme: 'string',
 		network: 'string',
 		payload: {
+			signature: 'string',
 			authorization: {
 				from: 'string',
 				to: 'string',
@@ -20,7 +21,6 @@ export function validateXPayment(payment: IPaymentPayload): string {
 				validBefore: 'string',
 				nonce: 'string',
 			},
-			signature: 'string',
 		},
 	};
 
@@ -89,9 +89,7 @@ export function verifyPaymentDetails(
 	if (configEntry) {
 		try {
 			const required = BigInt(configEntry.maxAmountRequired);
-			let actual;
-
-			actual = BigInt(header.payload.authorization.value);
+			const actual = BigInt(header.payload.authorization.value);
 			if (typeof actual !== 'undefined' && actual < required) {
 				errors.push(`Value too low: got ${actual}, requires at least ${required}`);
 			}

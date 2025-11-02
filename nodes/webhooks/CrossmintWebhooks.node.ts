@@ -147,16 +147,16 @@ export class CrossmintWebhooks implements INodeType {
 								type: 'options',
 								options: [
 									{
-										name: 'USDC (Solana)',
-										value: 'solana:usdc',
+										name: 'USDC (Base)',
+										value: 'base:usdc',
 									},
 									{
-										name: 'SOL (Solana)',
-										value: 'solana:sol',
+										name: 'USDC (Base Sepolia)',
+										value: 'base-sepolia:usdc',
 									},
 								],
 								required: true,
-								default: 'solana:usdc',
+								default: 'base-sepolia:usdc',
 								description: 'The token to accept for payment',
 							},
 							{
@@ -175,7 +175,7 @@ export class CrossmintWebhooks implements INodeType {
 								required: true,
 								default: 1000000,
 								description:
-									'The minimum payment amount required in atomic units (must be an integer). Examples: SOL uses lamports (9 decimals) - 0.006 SOL = 6000000 lamports. USDC uses 6 decimals - $1.00 = 1000000. No decimal points allowed.',
+									'The minimum payment amount required in atomic units (must be an integer). USDC uses 6 decimals - $1.00 = 1000000, $0.01 = 10000. No decimal points allowed.',
 							},
 						],
 					},

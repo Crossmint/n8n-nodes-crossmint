@@ -7,6 +7,21 @@ const CDP_HOST = 'api.cdp.coinbase.com';
 const FACILITATOR_VERIFY_PATH = '/platform/v2/x402/verify';
 const FACILITATOR_SETTLE_PATH = '/platform/v2/x402/settle';
 
+/**
+ * Creates correlation header for Coinbase API requests
+ */
+function createCorrelationHeader(): string {
+	const data: Record<string, string> = {
+		sdk_version: '1.29.0',
+		sdk_language: 'typescript',
+		source: 'x402',
+		source_version: '0.7.1',
+	};
+	return Object.keys(data)
+		.map(key => `${key}=${encodeURIComponent(data[key])}`)
+		.join(',');
+}
+
 export async function verifyX402Payment(
 	apiKeyId: string,
 	apiKeySecret: string,
@@ -35,44 +50,27 @@ export async function verifyX402Payment(
 		asset: paymentRequirements.asset,
 		extra: paymentRequirements.extra,
 	};
-	// For verify, paymentPayload.x402Version should be a string (same as settle)
-	// IMPORTANT: Preserve all fields including value exactly as received - do not modify
-	const paymentPayloadForVerify = {
-		x402Version: String(paymentPayload.x402Version),
-		scheme: paymentPayload.scheme,
-		network: paymentPayload.network,
-		payload: {
-			authorization: {
-				from: paymentPayload.payload.authorization.from,
-				to: paymentPayload.payload.authorization.to,
-				value: paymentPayload.payload.authorization.value, // Preserve exactly as-is (lamports for Solana)
-				validAfter: paymentPayload.payload.authorization.validAfter,
-				validBefore: paymentPayload.payload.authorization.validBefore,
-				nonce: paymentPayload.payload.authorization.nonce,
-			},
-			signature: paymentPayload.payload.signature,
-		},
-	};
 	const requestBody = {
-		x402Version: String(paymentPayload.x402Version ?? 1),
-		paymentPayload: paymentPayloadForVerify,
+		x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
+		paymentPayload: {
+			...paymentPayload,
+			x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
+		},
 		paymentRequirements: paymentRequirementsObj,
 	};
 	const requestDataStr = JSON.stringify(requestBody, null, 2);
 
 	// Log JSON being sent to Coinbase facilitator (verify)
 	const sendingLog = `=== SENDING TO COINBASE FACILITATOR (VERIFY) ===\nAuthorization: Bearer ${token}\n\n${requestDataStr}`;
-	if (logger) {
-		logger.info(sendingLog);
-	}
 	console.log(sendingLog);
 
+	const correlationHeader = createCorrelationHeader();
 	const res = await fetch(`https://${CDP_HOST}${FACILITATOR_VERIFY_PATH}`, {
 		method: 'POST',
 		headers: {
-			Authorization: `Bearer ${token}`,
 			'Content-Type': 'application/json',
-			Accept: 'application/json',
+			Authorization: `Bearer ${token}`,
+			'Correlation-Context': correlationHeader,
 		},
 		body: JSON.stringify(requestBody),
 	});
@@ -81,9 +79,6 @@ export async function verifyX402Payment(
 
 	// Log JSON received from Coinbase facilitator (verify)
 	const receivedLog = `=== RECEIVED FROM COINBASE FACILITATOR (VERIFY) ===\nStatus: ${res.status} ${res.statusText}\nResponse: ${responseText}`;
-	if (logger) {
-		logger.info(receivedLog);
-	}
 	console.log(receivedLog);
 
 	if (!res.ok) {
@@ -120,44 +115,27 @@ export async function settleX402Payment(
 		asset: paymentRequirements.asset,
 		extra: paymentRequirements.extra,
 	};
-	// For settle, paymentPayload.x402Version should be a string (verify uses number)
-	// IMPORTANT: Preserve all fields including value exactly as received - do not modify
-	const paymentPayloadForSettle = {
-		x402Version: String(paymentPayload.x402Version),
-		scheme: paymentPayload.scheme,
-		network: paymentPayload.network,
-		payload: {
-			authorization: {
-				from: paymentPayload.payload.authorization.from,
-				to: paymentPayload.payload.authorization.to,
-				value: paymentPayload.payload.authorization.value, // Preserve exactly as-is (lamports for Solana)
-				validAfter: paymentPayload.payload.authorization.validAfter,
-				validBefore: paymentPayload.payload.authorization.validBefore,
-				nonce: paymentPayload.payload.authorization.nonce,
-			},
-			signature: paymentPayload.payload.signature,
-		},
-	};
 	const requestBody = {
-		x402Version: String(paymentPayload.x402Version ?? 1),
-		paymentPayload: paymentPayloadForSettle,
+		x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
+		paymentPayload: {
+			...paymentPayload,
+			x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
+		},
 		paymentRequirements: paymentRequirementsObj,
 	};
 	const requestDataStr = JSON.stringify(requestBody, null, 2);
 
 	// Log JSON being sent to Coinbase facilitator (settle)
 	const sendingLog = `=== SENDING TO COINBASE FACILITATOR (SETTLE) ===\nAuthorization: Bearer ${token}\n\n${requestDataStr}`;
-	if (logger) {
-		logger.info(sendingLog);
-	}
 	console.log(sendingLog);
 
+	const correlationHeader = createCorrelationHeader();
 	const res = await fetch(`https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`, {
 		method: 'POST',
 		headers: {
-			Authorization: `Bearer ${token}`,
 			'Content-Type': 'application/json',
-			Accept: 'application/json',
+			Authorization: `Bearer ${token}`,
+			'Correlation-Context': correlationHeader,
 		},
 		body: JSON.stringify(requestBody),
 	});
@@ -166,9 +144,6 @@ export async function settleX402Payment(
 
 	// Log JSON received from Coinbase facilitator (settle)
 	const receivedLog = `=== RECEIVED FROM COINBASE FACILITATOR (SETTLE) ===\nStatus: ${res.status} ${res.statusText}\nResponse: ${responseText}`;
-	if (logger) {
-		logger.info(receivedLog);
-	}
 	console.log(receivedLog);
 
 	if (!res.ok) {

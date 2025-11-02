@@ -1,8 +1,10 @@
+// EVM exact scheme payload structure (EIP-3009)
 export interface IPaymentPayload {
 	x402Version: string;
 	scheme: string;
 	network: string;
 	payload: {
+		signature: string;
 		authorization: {
 			from: string;
 			to: string;
@@ -11,24 +13,22 @@ export interface IPaymentPayload {
 			validBefore: string;
 			nonce: string;
 		};
-		signature: string;
 	};
 }
 
 export interface IPaymentRequirements {
 	scheme: string;
 	network: string;
-	maxAmountRequired: string; // BigNumberString
+	maxAmountRequired: string; // Amount in smallest unit (e.g., wei for ERC20 tokens)
 	resource: string;
 	description: string;
 	mimeType: string;
 	outputSchema: any;
-	payTo: string; // EVM Account Address
+	payTo: string; // EVM wallet address (0x...)
 	maxTimeoutSeconds: number;
-	asset: string; // EVM Contract Address
+	asset: string; // ERC20 token contract address (0x...)
 	extra: {
-		name: string;
-		version: string;
+		gasLimit: string; // Gas limit for the transaction
 	};
 }
 
@@ -43,11 +43,10 @@ export class PaymentRequirements implements IPaymentRequirements {
 		public outputSchema: any,
 		public payTo: string,
 		public maxTimeoutSeconds: number,
-		public asset: string,
-		public extra: {
-			name: string;
-			version: string;
-		},
+	public asset: string,
+	public extra: {
+		gasLimit: string;
+	},
 	) {}
 }
 
