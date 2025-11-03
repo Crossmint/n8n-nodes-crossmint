@@ -96,10 +96,8 @@ async function handleX402Webhook(
 			resp.writeHead(402, { 'Content-Type': 'application/json' });
 			resp.end(
 				JSON.stringify({
-					error: {
-						errorMessage: 'x-payment header is not valid',
-						paymentConfigs: paymentRequirements,
-					},
+					x402Version: 1,
+					accepts: paymentRequirements,
 				}),
 			);
 			return { noWebhookResponse: true };
@@ -152,9 +150,8 @@ async function handleX402Webhook(
 				resp.writeHead(402, { 'Content-Type': 'application/json' });
 				resp.end(
 					JSON.stringify({
-						error: {
-							errorMessage: `x-payment settlement failed: ${settleResponse.error}`,
-						},
+						x402Version: 1,
+						accepts: paymentRequirements,
 					}),
 				);
 				return { noWebhookResponse: true };
@@ -168,10 +165,11 @@ async function handleX402Webhook(
 				responseData,
 				settleResponse.txHash ?? 'UNKNOWN_TX',
 				prepareOutput,
+				decodedXPaymentJson.network,
 			);
 		} catch (error) {
 			this.logger.error('Error in x402 webhook settlement, moving on...', error);
-			return generateResponse(this, req, responseMode, responseData, 'TBD', prepareOutput);
+			return generateResponse(this, req, responseMode, responseData, 'TBD', prepareOutput, decodedXPaymentJson?.network);
 		}
 	} catch (error) {
 		this.logger.error('Error in x402 webhook', error);

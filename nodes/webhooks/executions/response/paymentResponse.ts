@@ -13,6 +13,7 @@ export function generateResponse(
 	responseData: string,
 	txHash: string,
 	prepareOutput: (data: INodeExecutionData) => INodeExecutionData[][],
+	network?: string,
 ): IWebhookResponseData {
 	const response: INodeExecutionData = {
 		json: {
@@ -23,15 +24,25 @@ export function generateResponse(
 			txHash: txHash,
 		},
 	};
-	if (responseMode === 'streaming') {
-		const res = context.getResponseObject();
 
+	// Generate X-PAYMENT-RESPONSE header with Base64(JSON) settlement details
+	const paymentResponseData = {
+		success: true,
+		txHash: txHash,
+		networkId: network || 'base-sepolia',
+	};
+	const paymentResponseBase64 = Buffer.from(JSON.stringify(paymentResponseData)).toString('base64');
+
+	const res = context.getResponseObject();
+
+	if (responseMode === 'streaming') {
 		// Set up streaming response headers
 		res.writeHead(200, {
 			'Content-Type': 'application/json; charset=utf-8',
 			'Transfer-Encoding': 'chunked',
 			'Cache-Control': 'no-cache',
 			Connection: 'keep-alive',
+			'X-PAYMENT-RESPONSE': paymentResponseBase64,
 		});
 
 		// Flush headers immediately
@@ -42,6 +53,9 @@ export function generateResponse(
 			workflowData: prepareOutput(response),
 		};
 	}
+
+	// For non-streaming mode, set the header directly
+	res.setHeader('X-PAYMENT-RESPONSE', paymentResponseBase64);
 
 	return {
 		webhookResponse: responseData,
@@ -57,10 +71,8 @@ export function generateX402Error(
 	resp.writeHead(402, { 'Content-Type': 'application/json' });
 	resp.end(
 		JSON.stringify({
-			error: {
-				errorMessage,
-				paymentConfigs: paymentRequirements,
-			},
+			x402Version: 1,
+			accepts: paymentRequirements,
 		}),
 	);
 	return { noWebhookResponse: true };

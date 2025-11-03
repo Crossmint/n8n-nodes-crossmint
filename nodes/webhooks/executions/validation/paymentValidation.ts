@@ -8,7 +8,7 @@ export function parseXPaymentHeader(xPaymentHeader: string): IPaymentPayload {
 export function validateXPayment(payment: IPaymentPayload): string {
 	// Define the expected structure for EVM exact scheme (EIP-3009)
 	const requiredShape = {
-		x402Version: 'string',
+		x402Version: 'number',
 		scheme: 'string',
 		network: 'string',
 		payload: {

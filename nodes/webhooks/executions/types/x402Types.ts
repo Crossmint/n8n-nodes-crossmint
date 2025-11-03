@@ -28,7 +28,8 @@ export interface IPaymentRequirements {
 	maxTimeoutSeconds: number;
 	asset: string; // ERC20 token contract address (0x...)
 	extra: {
-		gasLimit: string; // Gas limit for the transaction
+		version: string; // EIP-712 domain version
+		name: string; // Token name (e.g., "USDC")
 	};
 }
 
@@ -45,7 +46,8 @@ export class PaymentRequirements implements IPaymentRequirements {
 		public maxTimeoutSeconds: number,
 	public asset: string,
 	public extra: {
-		gasLimit: string;
+		version: string;
+		name: string;
 	},
 	) {}
 }

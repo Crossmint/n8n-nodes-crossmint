@@ -77,6 +77,13 @@ export async function verifyX402Payment(
 
 	const responseText = await res.text();
 
+	// Log raw response from Coinbase facilitator (verify) - print immediately before any processing
+	console.log(`=== RAW RESPONSE FROM COINBASE FACILITATOR (VERIFY) ===`);
+	console.log(`Status Code: ${res.status}`);
+	console.log(`Status Text: ${res.statusText}`);
+	console.log(`Raw Response Body:`, responseText);
+	console.log(`Response Headers:`, JSON.stringify(Object.fromEntries(res.headers.entries()), null, 2));
+
 	// Log JSON received from Coinbase facilitator (verify)
 	const receivedLog = `=== RECEIVED FROM COINBASE FACILITATOR (VERIFY) ===\nStatus: ${res.status} ${res.statusText}\nResponse: ${responseText}`;
 	console.log(receivedLog);
@@ -141,6 +148,13 @@ export async function settleX402Payment(
 	});
 
 	const responseText = await res.text();
+
+	// Log raw response from Coinbase facilitator (settle) - print immediately before any processing
+	console.log(`=== RAW RESPONSE FROM COINBASE FACILITATOR (SETTLE) ===`);
+	console.log(`Status Code: ${res.status}`);
+	console.log(`Status Text: ${res.statusText}`);
+	console.log(`Raw Response Body:`, responseText);
+	console.log(`Response Headers:`, JSON.stringify(Object.fromEntries(res.headers.entries()), null, 2));
 
 	// Log JSON received from Coinbase facilitator (settle)
 	const receivedLog = `=== RECEIVED FROM COINBASE FACILITATOR (SETTLE) ===\nStatus: ${res.status} ${res.statusText}\nResponse: ${responseText}`;

@@ -94,7 +94,7 @@ export function buildPaymentRequirements(
 				configuredToken.payToAddress,
 				60,
 				supportedToken.contractAddress,
-				{ gasLimit: '1000000' },
+				{ version: supportedToken.version, name: supportedToken.name },
 			),
 		);
 	}
