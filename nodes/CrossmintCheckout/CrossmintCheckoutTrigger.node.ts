@@ -5,8 +5,8 @@ import {
 	IWebhookResponseData,
 	IWebhookDescription,
 } from 'n8n-workflow';
-import { webhookTrigger } from './executions/Webhooks';
-import { configuredOutputs, getResponseCode, getResponseData } from './utils/webhookUtils';
+import { webhookTrigger } from '../../shared/actions/checkout/PaywallWebhook.operation';
+import { configuredOutputs, getResponseCode, getResponseData } from '../../shared/utils/webhookUtils';
 
 const webhookDescription: IWebhookDescription = {
 	name: 'default',
@@ -22,11 +22,11 @@ const webhookDescription: IWebhookDescription = {
 	path: '={{$parameter["path"]}}',
 };
 
-export class CrossmintWebhooks implements INodeType {
+export class CrossmintCheckoutTrigger implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Crossmint Webhooks',
-		name: 'crossmintWebhook',
-		icon: { light: 'file:crossmint-wallet.svg', dark: 'file:crossmint-wallet.svg' },
+		displayName: 'Crossmint Checkout Trigger',
+		name: 'crossmintCheckoutTrigger',
+		icon: { light: 'file:crossmint-checkout.svg', dark: 'file:crossmint-checkout.svg' },
 		group: ['trigger'],
 		version: 1,
 		description: 'Starts the workflow when a Crossmint webhook is received and authenticated',
@@ -56,9 +56,29 @@ export class CrossmintWebhooks implements INodeType {
 		},
 		properties: [
 			{
+				displayName: 'Mode',
+				name: 'mode',
+				type: 'options',
+				options: [
+					{
+						name: 'Paywall',
+						value: 'paywall',
+						description:
+							'X402 Paywall',
+					},
+				],
+				default: 'paywall',
+				description: 'Webhook mode',
+			},
+			{
 				displayName: 'Path',
 				name: 'path',
 				type: 'string',
+				displayOptions: {
+					show: {
+						mode: ['paywall'],
+					},
+				},
 				default: '',
 				placeholder: 'webhook',
 				description:
@@ -68,6 +88,11 @@ export class CrossmintWebhooks implements INodeType {
 				displayName: 'Respond',
 				name: 'responseMode',
 				type: 'options',
+				displayOptions: {
+					show: {
+						mode: ['paywall'],
+					},
+				},
 				options: [
 					{
 						name: 'Immediately',
@@ -94,6 +119,7 @@ export class CrossmintWebhooks implements INodeType {
 				type: 'options',
 				displayOptions: {
 					show: {
+						mode: ['paywall'],
 						responseMode: ['lastNode'],
 					},
 				},
@@ -129,6 +155,11 @@ export class CrossmintWebhooks implements INodeType {
 				displayName: 'Tokens',
 				name: 'tokens',
 				type: 'fixedCollection',
+				displayOptions: {
+					show: {
+						mode: ['paywall'],
+					},
+				},
 				required: true,
 				default: [],
 				description: 'The tokens that will be accepted for payment',

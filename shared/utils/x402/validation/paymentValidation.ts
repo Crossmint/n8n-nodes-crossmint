@@ -1,4 +1,4 @@
-import type { IPaymentPayload, PaymentRequirements } from '../types/x402Types';
+import type { IPaymentPayload, PaymentRequirements } from '../../../transport/types';
 
 export function parseXPaymentHeader(xPaymentHeader: string): IPaymentPayload {
 	const decoded = Buffer.from(xPaymentHeader, 'base64').toString('utf-8');
@@ -73,7 +73,7 @@ export function verifyPaymentDetails(
 	header: IPaymentPayload,
 	paymentRequirements: PaymentRequirements[],
 ): { valid: boolean; errors: string; paymentRequirements: PaymentRequirements | undefined } {
-	const errors = [];
+	const errors: string[] = [];
 
 	// 1. Check that network exists in config
 	const network = header.network;

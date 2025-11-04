@@ -3,11 +3,11 @@ import {
 	IWebhookFunctions,
 	IWebhookResponseData,
 } from 'n8n-workflow';
-import { setupOutputConnection } from '../utils/webhookUtils';
-import { getSupportedTokens, buildPaymentRequirements } from './helpers/paymentHelpers';
-import { parseXPaymentHeader, validateXPayment, verifyPaymentDetails } from './validation/paymentValidation';
-import { verifyX402Payment, settleX402Payment } from './facilitator/coinbaseFacilitator';
-import { generateX402Error, generateResponse } from './response/paymentResponse';
+import { setupOutputConnection } from '../../utils/webhookUtils';
+import { getSupportedTokens, buildPaymentRequirements } from '../../utils/x402/helpers/paymentHelpers';
+import { parseXPaymentHeader, validateXPayment, verifyPaymentDetails } from '../../utils/x402/validation/paymentValidation';
+import { verifyX402Payment, settleX402Payment } from '../../utils/x402/coinbase/facilitator/coinbaseFacilitator';
+import { generateX402Error, generateResponse } from '../../utils/x402/response/paymentResponse';
 
 export async function webhookTrigger(this: IWebhookFunctions): Promise<IWebhookResponseData> {
 	const body = this.getBodyData();
@@ -25,20 +25,17 @@ async function handleX402Webhook(
 	const resp = this.getResponseObject();
 	const requestMethod = this.getRequestObject().method;
 
-	const prepareOutput = setupOutputConnection(this, requestMethod, {
-		// jwtPayload: validationData,
-	});
+	const prepareOutput = setupOutputConnection(this, requestMethod, {});
 
-	// Get the credential data (always available since it's required at node level)
+	// Get Crossmint API credentials
 	const credentials = await this.getCredentials('crossmintApi');
 	if (!credentials) {
-		// This is an example of direct response with Express
 		resp.writeHead(403);
 		resp.end('crossmintApi credential not found');
 		return { noWebhookResponse: true };
 	}
 
-	// Coinbase credentials (apiKeyId/apiKeySecret) are required for x402 processing
+	// Extract Coinbase credentials for x402 payment processing
 	const coinbaseKeyId = (credentials as any).apiKeyId as string | undefined;
 	const coinbaseKeySecret = (credentials as any).apiKeySecret as string | undefined;
 
@@ -48,18 +45,18 @@ async function handleX402Webhook(
 		return { noWebhookResponse: true };
 	}
 
-	// Get environment to determine network (staging uses base-sepolia, production uses base)
+	// Get environment to determine network (staging: base-sepolia, production: base)
 	const environment = (credentials as any).environment as string | undefined;
 
 	const supportedTokens = getSupportedTokens(environment);
 
-	// We need to figure out which of the tokens have been configured for this node
+	// Get configured payment tokens from node parameters
 	const configuredTokens = this.getNodeParameter('tokens') as {
 		paymentToken: { paymentToken: string; payToAddress: string; paymentAmount: number }[];
 	};
 
 	const resourceDescription = 'n8n workflow webhook';
-	const mimeType = 'application/json'; // By default (No options in node)
+	const mimeType = 'application/json';
 
 	const responseData = this.getNodeParameter('responseData') as string;
 
@@ -70,7 +67,7 @@ async function handleX402Webhook(
 		return { noWebhookResponse: true };
 	}
 
-	// Build normalized payment requirements, enforcing uniqueness per network
+	// Build payment requirements from configured tokens
 	const paymentRequirements = buildPaymentRequirements(
 		configuredTokens.paymentToken,
 		supportedTokens,
@@ -81,13 +78,13 @@ async function handleX402Webhook(
 	);
 	if (paymentRequirements == null) return { noWebhookResponse: true };
 
-	// If there's no x-payment header, return a 402 error with payment details
+	// Check for X-PAYMENT header
 	const xPaymentHeader = headers['x-payment'];
 	if (xPaymentHeader == null || typeof xPaymentHeader !== 'string') {
 		return generateX402Error(resp, 'No x-payment header provided', paymentRequirements);
 	}
 
-	// try to decode the x-payment header if it exists
+	// Process payment: decode, validate, verify, and settle
 	try {
 		const decodedXPaymentJson = parseXPaymentHeader(xPaymentHeader);
 
@@ -112,12 +109,7 @@ async function handleX402Webhook(
 			);
 		}
 
-		// Looks like everything is valid, now we'll verify the payment via Crossmint API.
-		// We need to get the actual payment config- there's only one per network.
-		// Problem with the x402 spec is that they don't send the actual token address.
-		// So we need to find the config that matches the network, there should be only 1,
-		// and we use that.
-
+		// Verify payment with Coinbase facilitator
 		const verifyResponse = await verifyX402Payment(
 			coinbaseKeyId!,
 			coinbaseKeySecret!,
@@ -134,9 +126,7 @@ async function handleX402Webhook(
 			);
 		}
 
-		// If the verification is valid, we are going to be a little optimistic about the settlement. Since this can take a while, if the method errors,
-		// (such as from a Cloudflare 502), we'll move on and assume it's successful.
-
+		// Settle payment with facilitator (continue on error to avoid blocking workflow)
 		try {
 			const settleResponse = await settleX402Payment(
 				coinbaseKeyId!,
@@ -157,7 +147,7 @@ async function handleX402Webhook(
 				return { noWebhookResponse: true };
 			}
 
-			// Payment is settled, now we need to return the workflow data
+			// Return workflow data with settlement details
 			return generateResponse(
 				this,
 				req,
@@ -173,9 +163,9 @@ async function handleX402Webhook(
 		}
 	} catch (error) {
 		this.logger.error('Error in x402 webhook', error);
-		// Return an error object if parsing/verification fails
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		// Check if it's a credential/JWT error (happens before payment verification)
+		
+		// Handle credential/JWT errors before payment processing
 		if (
 			errorMessage.includes('Ed25519') ||
 			errorMessage.includes('secret') ||

@@ -1,6 +1,6 @@
 import type { INodeProperties, IWebhookDescription } from 'n8n-workflow';
 
-import { getResponseCode, getResponseData } from '../utils/webhookUtils';
+import { getResponseCode, getResponseData } from '../../../shared/utils/webhookUtils';
 
 export const defaultWebhookDescription: IWebhookDescription = {
 	name: 'default',
@@ -201,34 +201,6 @@ export const webhookOptionsProperty: INodeProperties = {
 			description:
 				'The mime type of the resource. Leave blank for no mime type. For n8n, this is almost always application/JSON',
 		},
-		// {
-		// 	displayName: 'Binary File',
-		// 	name: 'binaryData',
-		// 	type: 'boolean',
-		// 	displayOptions: {
-		// 		show: {
-		// 			'/webhookType': ['x402'],
-		// 			'/httpMethod': ['PATCH', 'PUT', 'POST'],
-		// 		},
-		// 	},
-		// 	default: false,
-		// 	description: 'Whether the webhook will receive binary data',
-		// },
-		// {
-		// 	displayName: 'Put Output File in Field',
-		// 	name: 'binaryPropertyName',
-		// 	type: 'string',
-		// 	default: 'data',
-		// 	displayOptions: {
-		// 		show: {
-		// 			'/webhookType': ['x402'],
-		// 			binaryData: [true],
-		// 		},
-		// 	},
-		// 	hint: 'The name of the output binary field to put the file in',
-		// 	description:
-		// 		'If the data gets received via "Form-Data Multipart" it will be the prefix and a number starting with 0 will be attached to it',
-		// },
 		{
 			displayName: 'Ignore Bots',
 			name: 'ignoreBots',

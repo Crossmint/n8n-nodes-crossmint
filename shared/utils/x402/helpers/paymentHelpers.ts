@@ -1,4 +1,4 @@
-import { PaymentRequirements } from '../types/x402Types';
+import { PaymentRequirements } from '../../../../shared/transport/types';
 import type * as express from 'express';
 
 export function getSupportedTokens(environment?: string): {

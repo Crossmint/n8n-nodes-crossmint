@@ -3,7 +3,7 @@ import type {
 	INodeExecutionData,
 	IWebhookResponseData,
 } from 'n8n-workflow';
-import type { IPaymentRequirements } from '../types/x402Types';
+import type { IPaymentRequirements } from '../../../../shared/transport/types';
 import type * as express from 'express';
 
 export function generateResponse(

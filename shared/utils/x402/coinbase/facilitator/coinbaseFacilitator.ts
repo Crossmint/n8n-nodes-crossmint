@@ -1,6 +1,6 @@
 import type { IWebhookFunctions } from 'n8n-workflow';
-import { buildCdpJwtAsync } from '../crypto/CoinbaseJWT';
-import type { IPaymentPayload, IPaymentRequirements, PaymentRequirements } from '../types/x402Types';
+import { buildCdpJwtAsync } from '../CoinbaseJWT';
+import type { IPaymentPayload, IPaymentRequirements, PaymentRequirements } from '../../../../transport/types';
 
 // Coinbase CDP facilitator integration
 const CDP_HOST = 'api.cdp.coinbase.com';
