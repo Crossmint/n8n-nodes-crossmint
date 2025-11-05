@@ -31,7 +31,7 @@ export class CrossmintCheckoutTrigger implements INodeType {
 		version: 1,
 		description: 'Starts the workflow when a Crossmint webhook is received and authenticated',
 		defaults: {
-			name: 'Crossmint Webhook',
+			name: 'Crossmint Paywall',
 		},
 		inputs: [],
 		outputs: `={{(${configuredOutputs})($parameter)}}`,
