@@ -15,6 +15,7 @@ import { getWallet } from '../../shared/actions/wallet/getWallet.operation';
 import { getBalance } from '../../shared/actions/wallet/getBalance.operation';
 import { transferToken } from '../../shared/actions/wallet/transferToken.operation';
 import { signTransaction } from '../../shared/actions/wallet/signTransaction.operation';
+import { payoutRouter } from '../../shared/actions/wallet/payoutRouter.operation';
 
 export class CrossmintWallets implements INodeType {
 	description: INodeTypeDescription = {
@@ -97,6 +98,12 @@ export class CrossmintWallets implements INodeType {
 						value: 'signTransaction',
 						description: 'Sign transaction with private key and submit signature in one step',
 						action: 'Sign transaction',
+					},
+					{
+						name: 'Payout Router',
+						value: 'payoutRouter',
+						description: 'Split and pay automatically to multiple wallets (quantity or percentage)',
+						action: 'Payout router',
 					},
 				],
 				default: 'getOrCreateWallet',
@@ -670,6 +677,273 @@ export class CrossmintWallets implements INodeType {
 				default: false,
 				description: 'Whether to wait until the transaction reaches final status (success or failed) before completing the node execution',
 			},
+
+			// ---- Payout Router fields
+			{
+				displayName: 'Payout Mode',
+				name: 'payoutMode',
+				type: 'options',
+				displayOptions: { show: { resource: ['wallet'], operation: ['payoutRouter'] } },
+				options: [
+					{
+						name: 'Pay Quantity',
+						value: 'quantity',
+						description: 'Pay a specific quantity to each wallet. Checks balance first.',
+					},
+					{
+						name: 'Pay Percentage',
+						value: 'percentage',
+						description: 'Split a total quantity among wallets based on percentages',
+					},
+				],
+				default: 'quantity',
+				description: 'How to distribute payments to recipients',
+				required: true,
+			},
+			{
+				displayName: 'Source Wallet',
+				name: 'sourceWallet',
+				type: 'resourceLocator',
+				default: { mode: 'address', value: '' },
+				description: 'The wallet to pay from',
+				displayOptions: { show: { resource: ['wallet'], operation: ['payoutRouter'] } },
+				modes: [
+					{
+						displayName: 'Address',
+						name: 'address',
+						type: 'string',
+						hint: 'Enter wallet address',
+						placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[1-9A-HJ-NP-Za-km-z]{32,44}$',
+									errorMessage: 'Please enter a valid Solana wallet address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						hint: 'Enter email address',
+						placeholder: 'user@example.com',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^[^@]+@[^@]+\\.[^@]+$',
+									errorMessage: 'Please enter a valid email address',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'User ID',
+						name: 'userId',
+						type: 'string',
+						hint: 'Enter user ID',
+						placeholder: 'user-123',
+					},
+					{
+						displayName: 'Phone',
+						name: 'phoneNumber',
+						type: 'string',
+						hint: 'Enter phone number with country code',
+						placeholder: '+1234567890',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '^\\+[1-9]\\d{1,14}$',
+									errorMessage: 'Please enter a valid phone number with country code',
+								},
+							},
+						],
+					},
+				],
+				required: true,
+			},
+			{
+				displayName: 'Source Wallet Private Key',
+				name: 'sourcePrivateKey',
+				type: 'string',
+				typeOptions: { password: true },
+				displayOptions: { show: { resource: ['wallet'], operation: ['payoutRouter'] } },
+				default: '',
+				placeholder: 'Enter private key (base58 for Solana)',
+				description: 'Private key of the source wallet. Use this link to generate them: https://www.val.town/x/Crossmint/crypto-address-generator.',
+				required: true,
+			},
+			{
+				displayName: 'Blockchain Type',
+				name: 'payoutBlockchainType',
+				type: 'options',
+				displayOptions: { show: { resource: ['wallet'], operation: ['payoutRouter'] } },
+				options: [
+					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
+				],
+				default: 'solana',
+				description: 'Blockchain type for the source wallet',
+				required: true,
+			},
+			{
+				displayName: 'Chain',
+				name: 'payoutTknChain',
+				type: 'string',
+				displayOptions: { show: { resource: ['wallet'], operation: ['payoutRouter'] } },
+				default: '',
+				placeholder: 'solana or solana-devnet',
+				description: 'Blockchain network for the token',
+				required: true,
+			},
+			{
+				displayName: 'Token Name (Locator ID)',
+				name: 'payoutTknName',
+				type: 'string',
+				displayOptions: { show: { resource: ['wallet'], operation: ['payoutRouter'] } },
+				default: '',
+				placeholder: 'sol or usdc',
+				description: 'Token symbol or name',
+				required: true,
+			},
+			{
+				displayName: 'Destinations',
+				name: 'payoutDestinations',
+				placeholder: 'Add Destination',
+				type: 'fixedCollection',
+				default: {},
+				typeOptions: {
+					multipleValues: true,
+				},
+				description: 'Configure destination wallets and their amounts/percentages',
+				displayOptions: { show: { resource: ['wallet'], operation: ['payoutRouter'] } },
+				options: [
+					{
+						name: 'destinationValues',
+						displayName: 'Destination',
+						values: [
+							{
+								displayName: 'Wallet',
+								name: 'wallet',
+								type: 'resourceLocator',
+								default: { mode: 'address', value: '' },
+								description: 'Select the destination wallet',
+								modes: [
+									{
+										displayName: 'Address',
+										name: 'address',
+										type: 'string',
+										hint: 'Enter wallet address',
+										placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+										validation: [
+											{
+												type: 'regex',
+												properties: {
+													regex: '^[1-9A-HJ-NP-Za-km-z]{32,44}$',
+													errorMessage: 'Please enter a valid Solana wallet address',
+												},
+											},
+										],
+									},
+									{
+										displayName: 'Email',
+										name: 'email',
+										type: 'string',
+										hint: 'Enter email address',
+										placeholder: 'user@example.com',
+										validation: [
+											{
+												type: 'regex',
+												properties: {
+													regex: '^[^@]+@[^@]+\\.[^@]+$',
+													errorMessage: 'Please enter a valid email address',
+												},
+											},
+										],
+									},
+									{
+										displayName: 'User ID',
+										name: 'userId',
+										type: 'string',
+										hint: 'Enter user ID',
+										placeholder: 'user-123',
+									},
+									{
+										displayName: 'Phone',
+										name: 'phoneNumber',
+										type: 'string',
+										hint: 'Enter phone number with country code',
+										placeholder: '+1234567890',
+										validation: [
+											{
+												type: 'regex',
+												properties: {
+													regex: '^\\+[1-9]\\d{1,14}$',
+													errorMessage: 'Please enter a valid phone number with country code',
+												},
+											},
+										],
+									},
+									{
+										displayName: 'Twitter',
+										name: 'twitter',
+										type: 'string',
+										hint: 'Enter Twitter handle (without @)',
+										placeholder: 'username',
+									},
+									{
+										displayName: 'X',
+										name: 'x',
+										type: 'string',
+										hint: 'Enter X handle (without @)',
+										placeholder: 'username',
+									},
+								],
+								required: true,
+							},
+							{
+								displayName: 'Quantity',
+								name: 'quantity',
+								type: 'string',
+								displayOptions: { show: { '/payoutMode': ['quantity'] } },
+								default: '',
+								placeholder: '10.50',
+								description: 'Amount to pay to this wallet',
+								required: true,
+							},
+							{
+								displayName: 'Percentage',
+								name: 'percentage',
+								type: 'number',
+								displayOptions: { show: { '/payoutMode': ['percentage'] } },
+								default: 0,
+								placeholder: '25',
+								description: 'Percentage of total amount to pay to this wallet',
+								typeOptions: {
+									minValue: 0,
+									maxValue: 100,
+									numberStepSize: 0.01,
+								},
+								required: true,
+							},
+						],
+					},
+				],
+				required: true,
+			},
+			{
+				displayName: 'Total Quantity to Split',
+				name: 'payoutTotalQuantity',
+				type: 'string',
+				displayOptions: { show: { resource: ['wallet'], operation: ['payoutRouter'], payoutMode: ['percentage'] } },
+				default: '',
+				placeholder: '100.00',
+				description: 'Total amount to split among all wallets based on percentages',
+				required: true,
+			},
 		] as INodeProperties[],
 	};
 
@@ -700,6 +974,9 @@ export class CrossmintWallets implements INodeType {
 						break;
 					case 'signTransaction':
 						result = await signTransaction(this, api, itemIndex);
+						break;
+					case 'payoutRouter':
+						result = await payoutRouter(this, api, itemIndex);
 						break;
 					default:
 						throw new NodeOperationError(this.getNode(), `Unknown wallet operation: ${operation}`, {
