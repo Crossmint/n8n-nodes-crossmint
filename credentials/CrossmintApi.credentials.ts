@@ -38,22 +38,13 @@ export class CrossmintApi implements ICredentialType {
 			required: true,
 		},
 		{
-			displayName: 'Coinbase API Key ID',
-			name: 'apiKeyId',
-			type: 'string',
-			default: '',
-			required: false,
-			description: 'Your Coinbase CDP API Key ID (name)',
-		},
-		{
-			displayName: 'Coinbase API Key Secret',
-			name: 'apiKeySecret',
+			displayName: 'Facilitator API Key',
+			name: 'facilitatorApiKey',
 			type: 'string',
 			typeOptions: { password: true },
 			default: '',
 			required: false,
-			description:
-				'Your Coinbase CDP API Key private key. Supports Ed25519 (base64-encoded PKCS#8 DER string) or ES256 (PEM string starting with -----BEGIN EC PRIVATE KEY-----)',
+			description: 'Your x402 facilitator API key (e.g., Faremeter API key)',
 		},
 	];
 

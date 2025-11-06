@@ -6,17 +6,15 @@ import {
 import { setupOutputConnection } from '../utils/webhookUtils';
 import { getSupportedTokens, buildPaymentRequirements } from './helpers/paymentHelpers';
 import { parseXPaymentHeader, validateXPayment, verifyPaymentDetails } from './validation/paymentValidation';
-import { verifyX402Payment, settleX402Payment } from './facilitator/coinbaseFacilitator';
+import { FaremeterFacilitator } from './facilitator/faremeterFacilitator';
 import { generateX402Error, generateResponse } from './response/paymentResponse';
 
 export async function webhookTrigger(this: IWebhookFunctions): Promise<IWebhookResponseData> {
-	const body = this.getBodyData();
-	return await handleX402Webhook.call(this, body);
+	return await handleX402Webhook.call(this);
 }
 
 async function handleX402Webhook(
 	this: IWebhookFunctions,
-	_body: IDataObject,
 ): Promise<IWebhookResponseData> {
 	const responseMode = this.getNodeParameter('responseMode', 'onReceived') as string;
 
@@ -38,18 +36,19 @@ async function handleX402Webhook(
 		return { noWebhookResponse: true };
 	}
 
-	// Coinbase credentials (apiKeyId/apiKeySecret) are required for x402 processing
-	const coinbaseKeyId = (credentials as any).apiKeyId as string | undefined;
-	const coinbaseKeySecret = (credentials as any).apiKeySecret as string | undefined;
+	// Facilitator API key is required for x402 processing
+	const facilitatorApiKey = (credentials as IDataObject).facilitatorApiKey as string | undefined;
 
-	if (!coinbaseKeyId || !coinbaseKeySecret) {
+	if (!facilitatorApiKey) {
 		resp.writeHead(403);
-		resp.end('crossmintApi credential missing Coinbase apiKeyId or apiKeySecret');
+		resp.end('crossmintApi credential missing facilitatorApiKey');
 		return { noWebhookResponse: true };
 	}
 
+	const facilitator = new FaremeterFacilitator(facilitatorApiKey);
+
 	// Get environment to determine network (staging uses base-sepolia, production uses base)
-	const environment = (credentials as any).environment as string | undefined;
+	const environment = (credentials as IDataObject).environment as string | undefined;
 
 	const supportedTokens = getSupportedTokens(environment);
 
@@ -118,12 +117,9 @@ async function handleX402Webhook(
 		// So we need to find the config that matches the network, there should be only 1,
 		// and we use that.
 
-		const verifyResponse = await verifyX402Payment(
-			coinbaseKeyId!,
-			coinbaseKeySecret!,
+		const verifyResponse = await facilitator.verifyPayment(
 			decodedXPaymentJson,
 			verification.paymentRequirements!,
-			this.logger,
 		);
 
 		if (!verifyResponse.isValid) {
@@ -138,12 +134,9 @@ async function handleX402Webhook(
 		// (such as from a Cloudflare 502), we'll move on and assume it's successful.
 
 		try {
-			const settleResponse = await settleX402Payment(
-				coinbaseKeyId!,
-				coinbaseKeySecret!,
+			const settleResponse = await facilitator.settlePayment(
 				decodedXPaymentJson,
 				verification.paymentRequirements!,
-				this.logger,
 			);
 
 			if (!settleResponse.success) {
@@ -173,20 +166,16 @@ async function handleX402Webhook(
 		}
 	} catch (error) {
 		this.logger.error('Error in x402 webhook', error);
-		// Return an error object if parsing/verification fails
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		// Check if it's a credential/JWT error (happens before payment verification)
 		if (
-			errorMessage.includes('Ed25519') ||
 			errorMessage.includes('secret') ||
 			errorMessage.includes('key') ||
-			errorMessage.includes('DECODER') ||
-			errorMessage.includes('Invalid private key format') ||
-			errorMessage.includes('Failed to sign JWT')
+			errorMessage.includes('credential') ||
+			errorMessage.includes('authentication')
 		) {
 			resp.writeHead(500, { 'Content-Type': 'application/json' });
 			resp.end(
-				JSON.stringify({ error: { errorMessage: `Coinbase credential error: ${errorMessage}` } }),
+				JSON.stringify({ error: { errorMessage: `Facilitator credential error: ${errorMessage}` } }),
 			);
 			return { noWebhookResponse: true };
 		}
