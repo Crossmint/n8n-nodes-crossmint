@@ -6,9 +6,7 @@ const FACILITATOR_VERIFY_PATH = '/v1/x402/verify';
 const FACILITATOR_SETTLE_PATH = '/v1/x402/settle';
 
 export class FaremeterFacilitator implements IFacilitator {
-	constructor(
-		private readonly apiKey: string,
-	) {}
+	constructor() {}
 
 	async verifyPayment(
 		paymentPayload: IPaymentPayload,
@@ -45,7 +43,7 @@ export class FaremeterFacilitator implements IFacilitator {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
-				'Authorization': `Bearer ${this.apiKey}`,
+				'Accept': 'application/json',
 			},
 			body: JSON.stringify(requestBody),
 		});
@@ -103,7 +101,7 @@ export class FaremeterFacilitator implements IFacilitator {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
-				'Authorization': `Bearer ${this.apiKey}`,
+				'Accept': 'application/json',
 			},
 			body: JSON.stringify(requestBody),
 		});

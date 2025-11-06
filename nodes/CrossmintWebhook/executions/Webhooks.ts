@@ -36,16 +36,7 @@ async function handleX402Webhook(
 		return { noWebhookResponse: true };
 	}
 
-	// Facilitator API key is required for x402 processing
-	const facilitatorApiKey = (credentials as IDataObject).facilitatorApiKey as string | undefined;
-
-	if (!facilitatorApiKey) {
-		resp.writeHead(403);
-		resp.end('crossmintApi credential missing facilitatorApiKey');
-		return { noWebhookResponse: true };
-	}
-
-	const facilitator = new FaremeterFacilitator(facilitatorApiKey);
+	const facilitator = new FaremeterFacilitator();
 
 	// Get environment to determine network (staging uses base-sepolia, production uses base)
 	const environment = (credentials as IDataObject).environment as string | undefined;

@@ -37,15 +37,6 @@ export class CrossmintApi implements ICredentialType {
 			default: 'staging',
 			required: true,
 		},
-		{
-			displayName: 'Facilitator API Key',
-			name: 'facilitatorApiKey',
-			type: 'string',
-			typeOptions: { password: true },
-			default: '',
-			required: false,
-			description: 'Your x402 facilitator API key (e.g., Faremeter API key)',
-		},
 	];
 
 	authenticate: IAuthenticateGeneric = {
