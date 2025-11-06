@@ -35,7 +35,7 @@
         "nodes": [
             "dist/nodes/CrossmintWallets/CrossmintWallets.node.js",
             "dist/nodes/CrossmintCheckout/CrossmintCheckout.node.js",
-            "dist/nodes/webhooks/CrossmintWebhooks.node.js"
+            "dist/nodes/CrossmintWebhook/CrossmintWebhook.node.js"
         ]
     },
     "devDependencies": {
