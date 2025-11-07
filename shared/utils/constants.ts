@@ -9,10 +9,6 @@ export const API_VERSIONS = {
 	COLLECTIONS: '2022-06-09',
 } as const;
 
-export const CHAIN_TYPES = {
-	SOLANA: 'solana',
-} as const;
-
 export const VALIDATION_PATTERNS = {
 	EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
 	SOLANA_ADDRESS: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,

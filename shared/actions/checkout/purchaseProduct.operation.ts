@@ -4,6 +4,7 @@ import { API_VERSIONS } from '../../utils/constants';
 import { validateRequiredField } from '../../utils/validation';
 import { signMessage } from '../../utils/blockchain';
 import { TransactionCreateRequest, ApprovalRequest, ApiResponse } from '../../transport/types';
+import { CHAIN_FAMILIES } from '../../types/chains';
 
 export async function purchaseProduct(
 	context: IExecuteFunctions,
@@ -55,7 +56,7 @@ export async function purchaseProduct(
 		signature,
 		messageToSign,
 		signerAddress,
-		chainType: 'solana',
+		chainType: CHAIN_FAMILIES.SOLANA,
 		chain
 	};
 

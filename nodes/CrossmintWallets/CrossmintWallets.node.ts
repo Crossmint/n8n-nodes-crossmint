@@ -5,6 +5,8 @@ import {
 	INodeTypeDescription,
 	INodeExecutionData,
 	INodeProperties,
+	INodePropertyOptions,
+	ILoadOptionsFunctions,
 	NodeOperationError,
 	NodeConnectionTypes,
 } from 'n8n-workflow';
@@ -15,6 +17,16 @@ import { getWallet } from '../../shared/actions/wallet/getWallet.operation';
 import { getBalance } from '../../shared/actions/wallet/getBalance.operation';
 import { transferToken } from '../../shared/actions/wallet/transferToken.operation';
 import { signTransaction } from '../../shared/actions/wallet/signTransaction.operation';
+import {
+	CHAIN_FAMILIES,
+	DEFAULT_SOLANA_CHAIN_ID,
+	getChainFamilyOptions,
+	getAllChainOptions,
+	getMainnetChainOptions,
+	ChainOption,
+} from '../../shared/types/chains';
+
+const ALL_CHAIN_FAMILY_OPTIONS = getChainFamilyOptions();
 
 export class CrossmintWallets implements INodeType {
 	description: INodeTypeDescription = {
@@ -108,10 +120,8 @@ export class CrossmintWallets implements INodeType {
 				name: 'chainType',
 				type: 'options',
 				displayOptions: { show: { resource: ['wallet'], operation: ['getOrCreateWallet'] } },
-				options: [
-					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
-				],
-				default: 'solana',
+				options: ALL_CHAIN_FAMILY_OPTIONS,
+				default: CHAIN_FAMILIES.SOLANA,
 				description: 'Blockchain type',
 			},
 			{
@@ -187,7 +197,7 @@ export class CrossmintWallets implements INodeType {
 				typeOptions: { password: true },
 				displayOptions: { show: { resource: ['wallet'], operation: ['getOrCreateWallet'] } },
 				default: '',
-				placeholder: 'Enter private key (base58 for Solana)',
+				placeholder: 'Enter private key (base58 for Solana, hex for EVM)',
 				description: 'Private key that authorizes all transactions from this wallet. Use this link to generate them: https://www.val.town/x/Crossmint/crypto-address-generator.',
 				required: true,
 			},
@@ -277,10 +287,8 @@ export class CrossmintWallets implements INodeType {
 				name: 'getWalletChainType',
 				type: 'options',
 				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'] } },
-				options: [
-					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
-				],
-				default: 'solana',
+				options: ALL_CHAIN_FAMILY_OPTIONS,
+				default: CHAIN_FAMILIES.SOLANA,
 				description: 'Blockchain type for the wallet locator (only needed for email, userId, phoneNumber, twitter, x modes)',
 			},
 
@@ -290,10 +298,8 @@ export class CrossmintWallets implements INodeType {
 				name: 'blockchainType',
 				type: 'options',
 				displayOptions: { show: { resource: ['wallet'], operation: ['createTransfer'] } },
-				options: [
-					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
-				],
-				default: 'solana',
+				options: ALL_CHAIN_FAMILY_OPTIONS,
+				default: CHAIN_FAMILIES.SOLANA,
 				description: 'Blockchain type for both origin and recipient wallets',
 				required: true,
 			},
@@ -458,10 +464,12 @@ export class CrossmintWallets implements INodeType {
 			{
 				displayName: 'Chain',
 				name: 'tknChain',
-				type: 'string',
+				type: 'options',
 				displayOptions: { show: { resource: ['wallet'], operation: ['createTransfer'] } },
-				default: '',
-				placeholder: 'solana or solana-devnet',
+				typeOptions: {
+					loadOptionsMethod: 'getChainOptions',
+				},
+				default: DEFAULT_SOLANA_CHAIN_ID,
 				description: 'Blockchain network for the token',
 				required: true,
 			},
@@ -571,10 +579,8 @@ export class CrossmintWallets implements INodeType {
 				name: 'balanceWalletChainType',
 				type: 'options',
 				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
-				options: [
-					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
-				],
-				default: 'solana',
+				options: ALL_CHAIN_FAMILY_OPTIONS,
+				default: CHAIN_FAMILIES.SOLANA,
 				description: 'Blockchain type for the wallet locator (only needed for email, userId, phoneNumber, twitter, x modes)',
 
 			},
@@ -583,7 +589,7 @@ export class CrossmintWallets implements INodeType {
 				name: 'chains',
 				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
-				default: 'solana',
+				default: DEFAULT_SOLANA_CHAIN_ID,
 				placeholder: 'solana or solana-devnet',
 				description: 'Comma-separated list of blockchain chains to query',
 				required: true,
@@ -604,10 +610,10 @@ export class CrossmintWallets implements INodeType {
 				name: 'signSubmitChain',
 				type: 'options',
 				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'] } },
-				options: [
-					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
-				],
-				default: 'solana',
+				typeOptions: {
+					loadOptionsMethod: 'getChainOptions',
+				},
+				default: DEFAULT_SOLANA_CHAIN_ID,
 				description: 'Blockchain network for transaction signing',
 				required: true,
 			},
@@ -658,8 +664,8 @@ export class CrossmintWallets implements INodeType {
 				typeOptions: { password: true },
 				displayOptions: { show: { resource: ['wallet'], operation: ['signTransaction'] } },
 				default: '',
-				placeholder: 'base58 encoded private key',
-				description: 'Private key to sign with (base58 for Solana)',
+				placeholder: 'base58 for Solana, hex for EVM',
+				description: 'Private key to sign with (base58 for Solana, hex for EVM)',
 				required: true,
 			},
 			{
@@ -671,6 +677,23 @@ export class CrossmintWallets implements INodeType {
 				description: 'Whether to wait until the transaction reaches final status (success or failed) before completing the node execution',
 			},
 		] as INodeProperties[],
+	};
+
+	methods = {
+		loadOptions: {
+			async getChainOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const credentials = await this.getCredentials<CrossmintCredentials>('crossmintApi');
+				const chains = credentials.environment === 'production' 
+					? getMainnetChainOptions() 
+					: getAllChainOptions();
+				
+				return chains.map((chain: ChainOption) => ({
+					name: chain.name,
+					value: chain.value,
+					description: chain.description,
+				}));
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {

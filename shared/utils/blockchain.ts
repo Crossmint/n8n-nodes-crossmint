@@ -2,6 +2,7 @@ import { NodeOperationError, INode } from 'n8n-workflow';
 import { webcrypto } from 'node:crypto';
 import * as base58 from './base58';
 import { derivePublicKeyFromSecretKey, derivePublicKeyFromSeed } from './solana-key-derivation';
+import { CHAIN_FAMILIES } from '../types/chains';
 
 export interface KeyPairResult {
 	address: string;
@@ -40,7 +41,7 @@ export function deriveKeyPair(privateKeyStr: string, context: unknown, itemIndex
 		return {
 			address,
 			publicKey: address,
-			chainType: 'solana',
+			chainType: CHAIN_FAMILIES.SOLANA,
 		};
 	} catch (error: unknown) {
 		throw new NodeOperationError((context as { getNode: () => INode }).getNode(), `Failed to process private key: ${(error as Error).message}`, {
