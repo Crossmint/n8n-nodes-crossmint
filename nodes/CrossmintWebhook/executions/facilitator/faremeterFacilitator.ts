@@ -38,15 +38,27 @@ export class FaremeterFacilitator implements IFacilitator {
 		const requestDataStr = JSON.stringify(requestBody, null, 2);
 
 		console.log(`=== SENDING TO FAREMETER FACILITATOR (VERIFY) ===\n${requestDataStr}`);
+		const verifyUrl = `https://${FAREMETER_HOST}${FACILITATOR_VERIFY_PATH}`;
+		console.log(`=== Fetch URL: ${verifyUrl} ===`);
 
-		const res = await fetch(`https://${FAREMETER_HOST}${FACILITATOR_VERIFY_PATH}`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'Accept': 'application/json',
-			},
-			body: JSON.stringify(requestBody),
-		});
+		let res: Response;
+		try {
+			res = await fetch(verifyUrl, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Accept': 'application/json',
+				},
+				body: JSON.stringify(requestBody),
+			});
+		} catch (fetchError) {
+			console.log(`=== FETCH ERROR (VERIFY) ===`);
+			console.log('Error type:', fetchError?.constructor?.name);
+			console.log('Error message:', fetchError instanceof Error ? fetchError.message : String(fetchError));
+			console.log('Error stack:', fetchError instanceof Error ? fetchError.stack : 'No stack trace');
+			console.log('Error cause:', (fetchError as any)?.cause);
+			throw fetchError;
+		}
 
 		const responseText = await res.text();
 
@@ -63,7 +75,11 @@ export class FaremeterFacilitator implements IFacilitator {
 			throw new Error(`/verify ${res.status}: ${responseText}`);
 		}
 
-		return JSON.parse(responseText) as { isValid: boolean; invalidReason?: string };
+		const parsedResponse = JSON.parse(responseText) as { isValid: boolean; invalidReason?: string };
+		console.log(`=== PARSED RESPONSE FROM FAREMETER FACILITATOR (VERIFY) ===`);
+		console.log(JSON.stringify(parsedResponse, null, 2));
+		
+		return parsedResponse;
 	}
 
 	async settlePayment(
@@ -96,15 +112,27 @@ export class FaremeterFacilitator implements IFacilitator {
 		const requestDataStr = JSON.stringify(requestBody, null, 2);
 
 		console.log(`=== SENDING TO FAREMETER FACILITATOR (SETTLE) ===\n${requestDataStr}`);
+		const settleUrl = `https://${FAREMETER_HOST}${FACILITATOR_SETTLE_PATH}`;
+		console.log(`=== Fetch URL: ${settleUrl} ===`);
 
-		const res = await fetch(`https://${FAREMETER_HOST}${FACILITATOR_SETTLE_PATH}`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'Accept': 'application/json',
-			},
-			body: JSON.stringify(requestBody),
-		});
+		let res: Response;
+		try {
+			res = await fetch(settleUrl, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Accept': 'application/json',
+				},
+				body: JSON.stringify(requestBody),
+			});
+		} catch (fetchError) {
+			console.log(`=== FETCH ERROR (SETTLE) ===`);
+			console.log('Error type:', fetchError?.constructor?.name);
+			console.log('Error message:', fetchError instanceof Error ? fetchError.message : String(fetchError));
+			console.log('Error stack:', fetchError instanceof Error ? fetchError.stack : 'No stack trace');
+			console.log('Error cause:', (fetchError as any)?.cause);
+			throw fetchError;
+		}
 
 		const responseText = await res.text();
 
@@ -121,7 +149,14 @@ export class FaremeterFacilitator implements IFacilitator {
 			throw new Error(`/settle ${res.status}: ${responseText}`);
 		}
 
-		const data = JSON.parse(responseText) as { success: boolean; transaction?: { hash?: string }; errorReason?: string };
-		return { success: data.success, txHash: data.transaction?.hash, error: data.errorReason };
+		const parsedResponse = JSON.parse(responseText) as { success: boolean; transaction?: { hash?: string }; errorReason?: string };
+		console.log(`=== PARSED RESPONSE FROM FAREMETER FACILITATOR (SETTLE) ===`);
+		console.log(JSON.stringify(parsedResponse, null, 2));
+		
+		const result = { success: parsedResponse.success, txHash: parsedResponse.transaction?.hash, error: parsedResponse.errorReason };
+		console.log(`=== PROCESSED SETTLE RESULT ===`);
+		console.log(JSON.stringify(result, null, 2));
+		
+		return result;
 	}
 }

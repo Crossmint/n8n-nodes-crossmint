@@ -22,7 +22,7 @@ const webhookDescription: IWebhookDescription = {
 	path: '={{$parameter["path"]}}',
 };
 
-export class CrossmintWebhooks implements INodeType {
+export class CrossmintWebhook implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Crossmint Webhooks',
 		name: 'crossmintWebhook',
