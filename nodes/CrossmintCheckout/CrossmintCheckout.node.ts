@@ -16,13 +16,13 @@ import { findProduct } from '../../shared/actions/checkout/findProduct.operation
 import { purchaseProduct } from '../../shared/actions/checkout/purchaseProduct.operation';
 import {
 	DEFAULT_SOLANA_CHAIN_ID,
-	getAllChainOptions,
 	getMainnetChainOptions,
+	getTestnetChainOptions,
 	getCurrencyOptions,
 	ChainOption,
 } from '../../shared/types/chains';
 
-const ALL_CHAIN_VALUES = getAllChainOptions().map((option) => option.value);
+const ALL_CHAIN_VALUES = [...getMainnetChainOptions(), ...getTestnetChainOptions()].map((option) => option.value);
 const CURRENCY_OPTIONS = getCurrencyOptions();
 
 export class CrossmintCheckout implements INodeType {
@@ -316,8 +316,8 @@ export class CrossmintCheckout implements INodeType {
 			async getChainOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const credentials = await this.getCredentials<CrossmintCredentials>('crossmintApi');
 				const chains = credentials.environment === 'production' 
-					? getMainnetChainOptions() 
-					: getAllChainOptions();
+					? getMainnetChainOptions()    // Production: Solana, Polygon, Base
+					: getTestnetChainOptions();   // Staging: Solana Devnet, Polygon Amoy, Base Sepolia
 				
 				return chains.map((chain: ChainOption) => ({
 					name: chain.name,

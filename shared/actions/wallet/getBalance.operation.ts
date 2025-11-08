@@ -10,9 +10,15 @@ export async function getBalance(
 	itemIndex: number,
 ): Promise<ApiResponse> {
 	const walletResource = context.getNodeParameter('walletLocator', itemIndex) as WalletLocatorData;
-	const chains = context.getNodeParameter('chains', itemIndex) as string;
-	const tkn = context.getNodeParameter('tkn', itemIndex) as string;
 	const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
+	
+	// Get chain based on blockchain type (Solana or EVM have separate fields)
+	// Use whichever parameter is set
+	const chainsSolana = context.getNodeParameter('chainsSolana', itemIndex, '') as string;
+	const chainsEvm = context.getNodeParameter('chainsEvm', itemIndex, '') as string;
+	const chains = chainsSolana || chainsEvm;
+	
+	const tkn = context.getNodeParameter('tkn', itemIndex) as string;
 
 	const walletLocator = buildWalletLocator(walletResource, chainType, context, itemIndex);
 

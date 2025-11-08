@@ -24,7 +24,7 @@ export interface ChainDefinition {
 
 export const SOLANA_CHAIN_IDS = {
 	MAINNET: 'solana',
-	DEVNET: 'solana-devnet',
+	TESTNET: 'solana', // API uses same chain ID for both, environment determines mainnet vs testnet
 } as const;
 
 export type SolanaChainId = (typeof SOLANA_CHAIN_IDS)[keyof typeof SOLANA_CHAIN_IDS];
@@ -40,12 +40,12 @@ export const SOLANA_CHAINS: readonly ChainDefinition[] = [
 		isDefault: true,
 	},
 	{
-		id: SOLANA_CHAIN_IDS.DEVNET,
-		label: 'Solana Devnet',
+		id: SOLANA_CHAIN_IDS.TESTNET,
+		label: 'Solana (Testnet)',
 		family: CHAIN_FAMILIES.SOLANA,
 		environment: CHAIN_ENVIRONMENTS.TESTNET,
-		description: 'Solana development network',
-		aliases: ['sol-devnet'],
+		description: 'Solana testnet/devnet',
+		aliases: ['sol-devnet', 'solana-devnet'],
 	},
 ] as const;
 
@@ -108,8 +108,17 @@ export interface ChainOption {
 }
 
 export function toChainOptions(chains: readonly ChainDefinition[]): ChainOption[] {
-	return chains.map((chain) => ({
-		name: chain.environment === CHAIN_ENVIRONMENTS.TESTNET ? `${chain.label} (Testnet)` : chain.label,
+	// Remove duplicates by ID (e.g., Solana uses same ID for mainnet and testnet)
+	const uniqueChains = chains.reduce((acc, chain) => {
+		const existing = acc.find(c => c.id === chain.id);
+		if (!existing) {
+			acc.push(chain);
+		}
+		return acc;
+	}, [] as ChainDefinition[]);
+	
+	return uniqueChains.map((chain) => ({
+		name: chain.environment === CHAIN_ENVIRONMENTS.TESTNET ? `${chain.label}` : chain.label,
 		value: chain.id as ChainId,
 		description: chain.description ?? `${chain.label} ${chain.environment === CHAIN_ENVIRONMENTS.MAINNET ? 'mainnet' : 'testnet'}`,
 	}));
@@ -144,7 +153,7 @@ export function findChainById(chainId: string): ChainDefinition | undefined {
 	return ALL_CHAINS.find((chain) => chain.id === chainId || chain.aliases?.includes(chainId));
 }
 
-export const DEFAULT_SOLANA_CHAIN_ID: SolanaChainId = SOLANA_CHAIN_IDS.MAINNET;
+export const DEFAULT_SOLANA_CHAIN_ID = 'solana' as const;
 export const DEFAULT_EVM_CHAIN_ID: EvmChainId = EVM_CHAIN_IDS.POLYGON;
 
 export function getAllChainOptions(): ChainOption[] {
@@ -163,7 +172,25 @@ export function getChainOptionsForEnvironment(environment: 'production' | 'stagi
 	if (environment === 'production') {
 		return getMainnetChainOptions();
 	}
-	return getAllChainOptions();
+	return getTestnetChainOptions();
+}
+
+export function getChainOptionsByFamilyAndEnvironment(family: ChainFamily, environment: 'production' | 'staging'): ChainOption[] {
+	const envFilter = environment === 'production' ? CHAIN_ENVIRONMENTS.MAINNET : CHAIN_ENVIRONMENTS.TESTNET;
+	const filtered = ALL_CHAINS.filter((chain) => chain.family === family && chain.environment === envFilter);
+	return toChainOptions(filtered);
+}
+
+export function getFilteredChainOptions(environment: 'production' | 'staging', family?: ChainFamily): ChainOption[] {
+	// If no family specified, return all chains for the environment
+	if (!family) {
+		return environment === 'production' 
+			? getMainnetChainOptions() 
+			: getTestnetChainOptions();
+	}
+	
+	// Return chains filtered by both family and environment
+	return getChainOptionsByFamilyAndEnvironment(family, environment);
 }
 
 // Currency support mapping
@@ -184,7 +211,7 @@ export const CURRENCY_OPTIONS: CurrencyOption[] = [
 		name: 'SOL',
 		value: 'sol',
 		description: 'Solana native token',
-		supportedChains: [SOLANA_CHAIN_IDS.MAINNET, SOLANA_CHAIN_IDS.DEVNET],
+		supportedChains: [SOLANA_CHAIN_IDS.MAINNET, SOLANA_CHAIN_IDS.TESTNET],
 	},
 	{
 		name: 'MATIC',
