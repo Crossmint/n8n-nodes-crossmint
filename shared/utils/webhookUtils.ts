@@ -1,7 +1,7 @@
 import type { IWebhookFunctions, INodeExecutionData, IDataObject } from 'n8n-workflow';
 
 export type WebhookParameters = {
-	httpMethod: string | string[];
+	httpMethod?: string | string[];
 	responseMode: string;
 	responseData: string;
 	responseCode?: number; //typeVersion <= 1.1
@@ -49,7 +49,7 @@ export const getResponseData = (parameters: WebhookParameters) => {
 };
 
 export const configuredOutputs = (parameters: WebhookParameters) => {
-	const httpMethod = parameters.httpMethod;
+	const httpMethod = parameters.httpMethod ?? 'POST';
 
 	if (!Array.isArray(httpMethod))
 		return [
@@ -76,7 +76,13 @@ export const setupOutputConnection = (
 		jwtPayload?: IDataObject;
 	},
 ) => {
-	const httpMethod = ctx.getNodeParameter('httpMethod', []) as string[] | string;
+	let httpMethod: string[] | string;
+
+	try {
+		httpMethod = ctx.getNodeParameter('httpMethod', 0, 'POST') as string[] | string;
+	} catch {
+		httpMethod = 'POST';
+	}
 	let webhookUrl = ctx.getNodeWebhookUrl('default') as string;
 	const executionMode = ctx.getMode() === 'manual' ? 'test' : 'production';
 

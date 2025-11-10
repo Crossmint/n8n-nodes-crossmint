@@ -3,7 +3,7 @@ import { buildCdpJwtAsync } from '../CoinbaseJWT';
 import type { IPaymentPayload, IPaymentRequirements, PaymentRequirements } from '../../../../transport/types';
 
 // Coinbase CDP facilitator integration
-const CDP_HOST = 'api.cdp.coinbase.com';
+const CDP_HOST = 'facilitator.corbits.dev';
 const FACILITATOR_VERIFY_PATH = '/platform/v2/x402/verify';
 const FACILITATOR_SETTLE_PATH = '/platform/v2/x402/settle';
 
@@ -100,7 +100,7 @@ export async function settleX402Payment(
 	paymentPayload: IPaymentPayload,
 	paymentRequirements: PaymentRequirements,
 	logger?: IWebhookFunctions['logger'],
-): Promise<{ success: boolean; txHash?: string; error?: string }> {
+): Promise<{ success: boolean; txHash?: string; error?: string; data: Record<string, any> }> {
 	const token = await buildCdpJwtAsync({
 		apiKeyId,
 		apiKeySecret,
@@ -165,6 +165,6 @@ export async function settleX402Payment(
 	}
 	const data = JSON.parse(responseText) as { success: boolean; transaction?: { hash?: string } } &
 		Record<string, any>;
-	return { success: data.success, txHash: data.transaction?.hash, error: data['errorReason'] };
+	return { success: data.success, txHash: data.transaction?.hash, error: data['errorReason'], data };
 }
 

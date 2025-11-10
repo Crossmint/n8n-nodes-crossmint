@@ -2,6 +2,7 @@ import type {
 	IWebhookFunctions,
 	INodeExecutionData,
 	IWebhookResponseData,
+	IDataObject,
 } from 'n8n-workflow';
 import type { IPaymentRequirements } from '../../../../shared/transport/types';
 import type * as express from 'express';
@@ -14,15 +15,22 @@ export function generateResponse(
 	txHash: string,
 	prepareOutput: (data: INodeExecutionData) => INodeExecutionData[][],
 	network?: string,
+	settlementData?: IDataObject,
 ): IWebhookResponseData {
+	const responseJson: IDataObject = {
+		headers: req.headers,
+		params: req.params,
+		query: req.query,
+		body: req.body,
+		txHash,
+	};
+
+	if (settlementData) {
+		responseJson.settlement = settlementData;
+	}
+
 	const response: INodeExecutionData = {
-		json: {
-			headers: req.headers,
-			params: req.params,
-			query: req.query,
-			body: req.body,
-			txHash: txHash,
-		},
+		json: responseJson,
 	};
 
 	// Generate X-PAYMENT-RESPONSE header with Base64(JSON) settlement details

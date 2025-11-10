@@ -4,7 +4,7 @@ import { getResponseCode, getResponseData } from '../../../shared/utils/webhookU
 
 export const defaultWebhookDescription: IWebhookDescription = {
 	name: 'default',
-	httpMethod: '={{$parameter["httpMethod"] || "GET"}}',
+	httpMethod: 'POST',
 	isFullPath: true,
 	responseCode: `={{(${getResponseCode})($parameter)}}`,
 	responseMode: '={{$parameter["responseMode"]}}',
@@ -22,31 +22,11 @@ export const httpMethodsProperty: INodeProperties = {
 	type: 'options',
 	options: [
 		{
-			name: 'DELETE',
-			value: 'DELETE',
-		},
-		{
-			name: 'GET',
-			value: 'GET',
-		},
-		{
-			name: 'HEAD',
-			value: 'HEAD',
-		},
-		{
-			name: 'PATCH',
-			value: 'PATCH',
-		},
-		{
 			name: 'POST',
 			value: 'POST',
 		},
-		{
-			name: 'PUT',
-			value: 'PUT',
-		},
 	],
-	default: 'GET',
+	default: 'POST',
 	description: 'The HTTP method to listen to',
 };
 

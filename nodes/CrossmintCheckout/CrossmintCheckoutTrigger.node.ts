@@ -10,7 +10,7 @@ import { configuredOutputs, getResponseCode, getResponseData } from '../../share
 
 const webhookDescription: IWebhookDescription = {
 	name: 'default',
-	httpMethod: '={{$parameter["httpMethod"] || "POST"}}',
+	httpMethod: 'POST',
 	isFullPath: true,
 	responseCode: `={{(${getResponseCode})($parameter)}}`,
 	responseMode: '={{$parameter["responseMode"]}}',

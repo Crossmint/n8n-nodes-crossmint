@@ -156,10 +156,19 @@ async function handleX402Webhook(
 				settleResponse.txHash ?? 'UNKNOWN_TX',
 				prepareOutput,
 				decodedXPaymentJson.network,
+				settleResponse.data,
 			);
 		} catch (error) {
 			this.logger.error('Error in x402 webhook settlement, moving on...', error);
-			return generateResponse(this, req, responseMode, responseData, 'TBD', prepareOutput, decodedXPaymentJson?.network);
+			return generateResponse(
+				this,
+				req,
+				responseMode,
+				responseData,
+				'TBD',
+				prepareOutput,
+				decodedXPaymentJson?.network,
+			);
 		}
 	} catch (error) {
 		this.logger.error('Error in x402 webhook', error);
