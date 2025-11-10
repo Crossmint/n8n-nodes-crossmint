@@ -1,9 +1,9 @@
-import type { IPaymentPayload, IPaymentRequirements, PaymentRequirements } from '../types/x402Types';
+import type { IPaymentPayload, PaymentRequirements } from '../types/x402Types';
 import type { IFacilitator } from './IFacilitator';
 
-const FAREMETER_HOST = 'api.faremeter.com';
-const FACILITATOR_VERIFY_PATH = '/v1/x402/verify';
-const FACILITATOR_SETTLE_PATH = '/v1/x402/settle';
+const FAREMETER_BASE_URL = 'http://localhost:3000/api/v1';
+const FACILITATOR_VERIFY_PATH = '/faremeter/verify';
+const FACILITATOR_SETTLE_PATH = '/faremeter/settle';
 
 export class FaremeterFacilitator implements IFacilitator {
 	constructor() {}
@@ -12,33 +12,28 @@ export class FaremeterFacilitator implements IFacilitator {
 		paymentPayload: IPaymentPayload,
 		paymentRequirements: PaymentRequirements,
 	): Promise<{ isValid: boolean; invalidReason?: string }> {
-		const paymentRequirementsObj: IPaymentRequirements = {
-			scheme: paymentRequirements.scheme,
-			network: paymentRequirements.network,
-			maxAmountRequired: paymentRequirements.maxAmountRequired,
-			resource: paymentRequirements.resource,
-			description: paymentRequirements.description,
-			mimeType: paymentRequirements.mimeType,
-			outputSchema: paymentRequirements.outputSchema,
-			payTo: paymentRequirements.payTo,
-			maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
-			asset: paymentRequirements.asset,
-			extra: paymentRequirements.extra,
-		};
-
+		// Format for your local Faremeter API
 		const requestBody = {
-			x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
-			paymentPayload: {
-				...paymentPayload,
-				x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
-			},
-			paymentRequirements: paymentRequirementsObj,
+			facilitatorUrl: 'https://facilitator.corbits.dev',
+			resource: paymentRequirements.resource,
+			accepts: [
+				{
+					scheme: paymentRequirements.scheme,
+					network: paymentRequirements.network,
+					payTo: paymentRequirements.payTo,
+					asset: paymentRequirements.asset,
+					maxAmountRequired: paymentRequirements.maxAmountRequired,
+					description: paymentRequirements.description,
+					mimeType: paymentRequirements.mimeType,
+					maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
+				},
+			],
 		};
 
 		const requestDataStr = JSON.stringify(requestBody, null, 2);
 
 		console.log(`=== SENDING TO FAREMETER FACILITATOR (VERIFY) ===\n${requestDataStr}`);
-		const verifyUrl = `https://${FAREMETER_HOST}${FACILITATOR_VERIFY_PATH}`;
+		const verifyUrl = `${FAREMETER_BASE_URL}${FACILITATOR_VERIFY_PATH}`;
 		console.log(`=== Fetch URL: ${verifyUrl} ===`);
 
 		let res: Response;
@@ -75,44 +70,51 @@ export class FaremeterFacilitator implements IFacilitator {
 			throw new Error(`/verify ${res.status}: ${responseText}`);
 		}
 
-		const parsedResponse = JSON.parse(responseText) as { isValid: boolean; invalidReason?: string };
+		const parsedResponse = JSON.parse(responseText) as { 
+			paymentValid?: boolean; 
+			message?: string;
+			middlewareResponse?: any;
+			paymentResponse?: { status: number; body: any };
+		};
 		console.log(`=== PARSED RESPONSE FROM FAREMETER FACILITATOR (VERIFY) ===`);
 		console.log(JSON.stringify(parsedResponse, null, 2));
 		
-		return parsedResponse;
+		// Map your API response to expected format
+		// Your API returns { paymentResponse: { status: 402/200, body: ... } }
+		const isValid = parsedResponse.paymentResponse?.status === 200 || parsedResponse.paymentValid === true;
+		
+		return {
+			isValid,
+			invalidReason: isValid ? undefined : (parsedResponse.message || 'Payment validation failed'),
+		};
 	}
 
 	async settlePayment(
 		paymentPayload: IPaymentPayload,
 		paymentRequirements: PaymentRequirements,
 	): Promise<{ success: boolean; txHash?: string; error?: string }> {
-		const paymentRequirementsObj: IPaymentRequirements = {
+		// Encode the payment payload as base64 for x-payment header
+		const paymentHeaderValue = Buffer.from(JSON.stringify(paymentPayload)).toString('base64');
+		
+		// Format for your local Faremeter API settle endpoint
+		const requestBody = {
+			paytoAddress: paymentRequirements.payTo,
+			facilitatorUrl: 'https://facilitator.corbits.dev',
 			scheme: paymentRequirements.scheme,
 			network: paymentRequirements.network,
-			maxAmountRequired: paymentRequirements.maxAmountRequired,
-			resource: paymentRequirements.resource,
-			description: paymentRequirements.description,
-			mimeType: paymentRequirements.mimeType,
-			outputSchema: paymentRequirements.outputSchema,
-			payTo: paymentRequirements.payTo,
-			maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
 			asset: paymentRequirements.asset,
-			extra: paymentRequirements.extra,
-		};
-
-		const requestBody = {
-			x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
-			paymentPayload: {
-				...paymentPayload,
-				x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
+			resource: paymentRequirements.resource,
+			paymentAmount: parseFloat(paymentRequirements.maxAmountRequired) / 1000000, // Convert atomic units to USDC
+			description: paymentRequirements.description,
+			paymentHeaders: {
+				'x-payment': paymentHeaderValue,
 			},
-			paymentRequirements: paymentRequirementsObj,
 		};
 
 		const requestDataStr = JSON.stringify(requestBody, null, 2);
 
 		console.log(`=== SENDING TO FAREMETER FACILITATOR (SETTLE) ===\n${requestDataStr}`);
-		const settleUrl = `https://${FAREMETER_HOST}${FACILITATOR_SETTLE_PATH}`;
+		const settleUrl = `${FAREMETER_BASE_URL}${FACILITATOR_SETTLE_PATH}`;
 		console.log(`=== Fetch URL: ${settleUrl} ===`);
 
 		let res: Response;
@@ -149,11 +151,21 @@ export class FaremeterFacilitator implements IFacilitator {
 			throw new Error(`/settle ${res.status}: ${responseText}`);
 		}
 
-		const parsedResponse = JSON.parse(responseText) as { success: boolean; transaction?: { hash?: string }; errorReason?: string };
+		const parsedResponse = JSON.parse(responseText) as { 
+			success: boolean; 
+			paymentValid: boolean;
+			message: string;
+			data?: { settlementId?: string; timestamp?: string; amount?: number };
+		};
 		console.log(`=== PARSED RESPONSE FROM FAREMETER FACILITATOR (SETTLE) ===`);
 		console.log(JSON.stringify(parsedResponse, null, 2));
 		
-		const result = { success: parsedResponse.success, txHash: parsedResponse.transaction?.hash, error: parsedResponse.errorReason };
+		// Map your API response to expected format
+		const result = { 
+			success: parsedResponse.success && parsedResponse.paymentValid, 
+			txHash: parsedResponse.data?.settlementId, 
+			error: parsedResponse.success ? undefined : parsedResponse.message,
+		};
 		console.log(`=== PROCESSED SETTLE RESULT ===`);
 		console.log(JSON.stringify(result, null, 2));
 		
