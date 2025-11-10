@@ -107,19 +107,19 @@ export function buildPaymentRequirements(
  * @param obj - The object to sort
  * @returns A new object with sorted keys
  */
-export function sortObjectKeys(obj: Record<string, any>): Record<string, any> {
+export function sortObjectKeys(obj: Record<string, unknown>): Record<string, unknown> {
 	if (obj === null || typeof obj !== 'object') {
 		return obj;
 	}
 
 	if (Array.isArray(obj)) {
-		return obj.map(sortObjectKeys);
+		return obj.map((item) => sortObjectKeys(item as Record<string, unknown>)) as unknown as Record<string, unknown>;
 	}
 
 	return Object.keys(obj)
 		.sort()
-		.reduce((result: Record<string, any>, key: string) => {
-			result[key] = sortObjectKeys(obj[key]);
+		.reduce((result: Record<string, unknown>, key: string) => {
+			result[key] = sortObjectKeys(obj[key] as Record<string, unknown>);
 			return result;
 		}, {});
 }

@@ -24,7 +24,7 @@ export function validateXPayment(payment: IPaymentPayload): string {
 		},
 	};
 
-	const missing = checkShape(requiredShape, payment, '');
+	const missing = checkShape(requiredShape, payment as unknown as Record<string, unknown>, '');
 
 	if (missing.length > 0) {
 		return missing.join('; ');
@@ -33,8 +33,8 @@ export function validateXPayment(payment: IPaymentPayload): string {
 }
 
 export function checkShape(
-	expected: Record<string, any>,
-	actual: Record<string, any>,
+	expected: Record<string, unknown>,
+	actual: Record<string, unknown>,
 	path: string,
 ): string[] {
 	const missing = new Array<string>();
@@ -47,7 +47,7 @@ export function checkShape(
 			if (typeof actual[key] !== 'object' || actual[key] === null) {
 				missing.push('Invalid type at ' + currentPath + ': expected object');
 			} else {
-				checkShape(expected[key], actual[key], currentPath);
+				missing.push(...checkShape(expected[key] as Record<string, unknown>, actual[key] as Record<string, unknown>, currentPath));
 			}
 		} else {
 			if (typeof actual[key] !== expected[key]) {
@@ -93,7 +93,7 @@ export function verifyPaymentDetails(
 			if (typeof actual !== 'undefined' && actual < required) {
 				errors.push(`Value too low: got ${actual}, requires at least ${required}`);
 			}
-		} catch (e) {
+		} catch {
 			errors.push('Invalid value: must be numeric string');
 		}
 
@@ -121,7 +121,7 @@ export function verifyPaymentDetails(
 					`Payment has expired, validBefore is ${validBefore} but the server time is ${now}`,
 				);
 			}
-		} catch (e) {
+		} catch {
 			errors.push(`Invalid validAfter or validBefore timestamps`);
 		}
 	}

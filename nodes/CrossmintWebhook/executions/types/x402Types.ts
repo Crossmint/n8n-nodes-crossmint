@@ -23,8 +23,8 @@ export interface IPaymentRequirements {
 	resource: string;
 	description: string;
 	mimeType: string;
-	outputSchema: any;
-	payTo: string; // EVM wallet address (0x...)
+	outputSchema: unknown;
+	payTo: string;// EVM wallet address (0x...)
 	maxTimeoutSeconds: number;
 	asset: string; // ERC20 token contract address (0x...)
 	extra: {
@@ -41,7 +41,7 @@ export class PaymentRequirements implements IPaymentRequirements {
 		public resource: string,
 		public description: string,
 		public mimeType: string,
-		public outputSchema: any,
+		public outputSchema: unknown,
 		public payTo: string,
 		public maxTimeoutSeconds: number,
 	public asset: string,
