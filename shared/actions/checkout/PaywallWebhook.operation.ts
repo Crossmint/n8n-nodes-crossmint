@@ -140,22 +140,7 @@ async function handleX402Webhook(
 	} catch (error) {
 		context.logger.error('Error in x402 webhook', error);
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		
-		// Handle credential/JWT errors before payment processing
-		if (
-			errorMessage.includes('Ed25519') ||
-			errorMessage.includes('secret') ||
-			errorMessage.includes('key') ||
-			errorMessage.includes('DECODER') ||
-			errorMessage.includes('Invalid private key format') ||
-			errorMessage.includes('Failed to sign JWT')
-		) {
-			resp.writeHead(500, { 'Content-Type': 'application/json' });
-			resp.end(
-				JSON.stringify({ error: { errorMessage: `Corbits facilitator error: ${errorMessage}` } }),
-			);
-			return { noWebhookResponse: true };
-		}
+
 		return generateX402Error(resp, `Payment processing error: ${errorMessage}`, paymentRequirements);
 	}
 }

@@ -224,9 +224,12 @@ export class CrossmintCheckoutTrigger implements INodeType {
 								name: 'paymentAmount',
 								type: 'number',
 								required: true,
-								default: 1000000,
+								default: 0.5,
+								typeOptions: {
+									numberPrecision: 6,
+								},
 								description:
-									'The minimum payment amount required in atomic units (must be an integer). USDC uses 6 decimals - $1.00 = 1000000, $0.01 = 10000. No decimal points allowed.',
+									'The minimum payment amount required. Supports up to 6 decimals for USDC (e.g. $1.00 = 1.0, $0.01 = 0.01).',
 							},
 						],
 					},
