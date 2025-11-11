@@ -5,7 +5,7 @@ import type { IPaymentPayload, IPaymentRequirements, PaymentRequirements } from 
 // Coinbase CDP facilitator integration
 const CDP_HOST = 'facilitator.corbits.dev';
 const FACILITATOR_VERIFY_PATH = '/platform/v2/x402/verify';
-const FACILITATOR_SETTLE_PATH = '/platform/v2/x402/settle';
+const FACILITATOR_SETTLE_PATH = '/settle';
 
 /**
  * Creates correlation header for Coinbase API requests
@@ -29,6 +29,13 @@ export async function verifyX402Payment(
 	paymentRequirements: PaymentRequirements,
 	logger?: IWebhookFunctions['logger'],
 ): Promise<{ isValid: boolean; invalidReason?: string }> {
+	if (CDP_HOST === 'facilitator.corbits.dev') {
+		logger?.info(
+			'Skipping /verify call: facilitator.corbits.dev does not support verify, proceeding directly to settle.',
+		);
+		return { isValid: true };
+	}
+
 	const token = await buildCdpJwtAsync({
 		apiKeyId,
 		apiKeySecret,
@@ -99,15 +106,18 @@ export async function settleX402Payment(
 	apiKeySecret: string,
 	paymentPayload: IPaymentPayload,
 	paymentRequirements: PaymentRequirements,
+	paymentHeader?: string,
 	logger?: IWebhookFunctions['logger'],
 ): Promise<{ success: boolean; txHash?: string; error?: string; data: Record<string, any> }> {
-	const token = await buildCdpJwtAsync({
-		apiKeyId,
-		apiKeySecret,
-		method: 'POST',
-		host: CDP_HOST,
-		path: FACILITATOR_SETTLE_PATH,
-	});
+	const token = CDP_HOST === 'facilitator.corbits.dev'
+		? undefined
+		: await buildCdpJwtAsync({
+			apiKeyId,
+			apiKeySecret,
+			method: 'POST',
+			host: CDP_HOST,
+			path: FACILITATOR_SETTLE_PATH,
+		});
 	// Convert PaymentRequirements class instance to plain object for proper JSON serialization
 	const paymentRequirementsObj: IPaymentRequirements = {
 		scheme: paymentRequirements.scheme,
@@ -129,21 +139,28 @@ export async function settleX402Payment(
 			x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
 		},
 		paymentRequirements: paymentRequirementsObj,
+		...(paymentHeader ? { paymentHeader } : {}),
 	};
 	const requestDataStr = JSON.stringify(requestBody, null, 2);
 
 	// Log JSON being sent to Coinbase facilitator (settle)
-	const sendingLog = `=== SENDING TO COINBASE FACILITATOR (SETTLE) ===\nAuthorization: Bearer ${token}\n\n${requestDataStr}`;
+	const sendingLogAuthPart = token ? `Authorization: Bearer ${token}\n\n` : '';
+	const sendingLog = `=== SENDING TO COINBASE FACILITATOR (SETTLE) ===\n${sendingLogAuthPart}${requestDataStr}`;
 	console.log(sendingLog);
 
 	const correlationHeader = createCorrelationHeader();
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json',
+		'Correlation-Context': correlationHeader,
+	};
+
+	if (token) {
+		headers.Authorization = `Bearer ${token}`;
+	}
+
 	const res = await fetch(`https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`, {
 		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${token}`,
-			'Correlation-Context': correlationHeader,
-		},
+		headers,
 		body: JSON.stringify(requestBody),
 	});
 

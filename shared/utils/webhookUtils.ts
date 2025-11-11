@@ -76,13 +76,7 @@ export const setupOutputConnection = (
 		jwtPayload?: IDataObject;
 	},
 ) => {
-	let httpMethod: string[] | string;
-
-	try {
-		httpMethod = ctx.getNodeParameter('httpMethod', 0, 'POST') as string[] | string;
-	} catch {
-		httpMethod = 'POST';
-	}
+	const httpMethod: string[] | string = 'POST';
 	let webhookUrl = ctx.getNodeWebhookUrl('default') as string;
 	const executionMode = ctx.getMode() === 'manual' ? 'test' : 'production';
 

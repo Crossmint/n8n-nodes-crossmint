@@ -6,7 +6,7 @@ import {
 import { setupOutputConnection } from '../../utils/webhookUtils';
 import { getSupportedTokens, buildPaymentRequirements } from '../../utils/x402/helpers/paymentHelpers';
 import { parseXPaymentHeader, validateXPayment, verifyPaymentDetails } from '../../utils/x402/validation/paymentValidation';
-import { verifyX402Payment, settleX402Payment } from '../../utils/x402/coinbase/facilitator/coinbaseFacilitator';
+import { settleX402Payment } from '../../utils/x402/coinbase/facilitator/coinbaseFacilitator';
 import { generateX402Error, generateResponse } from '../../utils/x402/response/paymentResponse';
 
 export async function webhookTrigger(this: IWebhookFunctions): Promise<IWebhookResponseData> {
@@ -109,23 +109,6 @@ async function handleX402Webhook(
 			);
 		}
 
-		// Verify payment with Coinbase facilitator
-		const verifyResponse = await verifyX402Payment(
-			coinbaseKeyId!,
-			coinbaseKeySecret!,
-			decodedXPaymentJson,
-			verification.paymentRequirements!,
-			this.logger,
-		);
-
-		if (!verifyResponse.isValid) {
-			return generateX402Error(
-				resp,
-				`x-payment verification failed: ${verifyResponse.invalidReason}`,
-				paymentRequirements,
-			);
-		}
-
 		// Settle payment with facilitator (continue on error to avoid blocking workflow)
 		try {
 			const settleResponse = await settleX402Payment(
@@ -133,6 +116,7 @@ async function handleX402Webhook(
 				coinbaseKeySecret!,
 				decodedXPaymentJson,
 				verification.paymentRequirements!,
+				xPaymentHeader,
 				this.logger,
 			);
 
