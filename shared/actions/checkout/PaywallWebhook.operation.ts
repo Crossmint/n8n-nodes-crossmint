@@ -102,8 +102,6 @@ async function handleX402Webhook(
 				xPaymentHeader,
 			);
 
-			console.log("CONSOLEEEEEEEE ------>  "+settleResponse+"\n\n\n");
-
 			if (!settleResponse.success) {
 				resp.writeHead(402, { 'Content-Type': 'application/json' });
 				resp.end(

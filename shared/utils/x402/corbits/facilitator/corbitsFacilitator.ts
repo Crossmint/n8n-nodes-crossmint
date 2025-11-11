@@ -50,12 +50,6 @@ export async function settleX402Payment(
 		paymentRequirements: paymentRequirementsObj,
 		...(paymentHeader ? { paymentHeader } : {}),
 	};
-	const requestDataStr = JSON.stringify(requestBody, null, 2);
-
-	// Log JSON being sent to Corbits facilitator (settle)
-	const sendingLog = `=== SENDING TO CORBITS FACILITATOR (SETTLE) ===\n${requestDataStr}`;
-	console.log(sendingLog);
-
 	const headers: Record<string, string> = {
 		'Content-Type': 'application/json',
 	};
@@ -69,17 +63,6 @@ export async function settleX402Payment(
 		});
 
 		const responseText = await res.text();
-
-		// Log raw response from Corbits facilitator (settle) - print immediately before any processing
-		console.log(`=== RAW RESPONSE FROM CORBITS FACILITATOR (SETTLE) ===`);
-		console.log(`Status Code: ${res.status}`);
-		console.log(`Status Text: ${res.statusText}`);
-		console.log(`Raw Response Body:`, responseText);
-		console.log(`Response Headers:`, JSON.stringify(Object.fromEntries(res.headers.entries()), null, 2));
-
-		// Log JSON received from Corbits facilitator (settle)
-		const receivedLog = `=== RECEIVED FROM CORBITS FACILITATOR (SETTLE) ===\nStatus: ${res.status} ${res.statusText}\nResponse: ${responseText}`;
-		console.log(receivedLog);
 
 		if (!res.ok) {
 			const errorPayload: JsonObject = {
