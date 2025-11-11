@@ -1,5 +1,4 @@
 import {
-	IDataObject,
 	IWebhookFunctions,
 	IWebhookResponseData,
 } from 'n8n-workflow';
@@ -10,13 +9,11 @@ import { settleX402Payment } from '../../utils/x402/corbits/facilitator/corbitsF
 import { generateX402Error, generateResponse } from '../../utils/x402/response/paymentResponse';
 
 export async function webhookTrigger(this: IWebhookFunctions): Promise<IWebhookResponseData> {
-	const body = this.getBodyData();
-	return await handleX402Webhook.call(this, body);
+	return await handleX402Webhook.call(this);
 }
 
 async function handleX402Webhook(
 	this: IWebhookFunctions,
-	_body: IDataObject,
 ): Promise<IWebhookResponseData> {
 	const responseMode = this.getNodeParameter('responseMode', 'onReceived') as string;
 
@@ -36,7 +33,7 @@ async function handleX402Webhook(
 	}
 
 	// Get environment to determine network (staging: base-sepolia, production: base)
-	const environment = (credentials as any).environment as string | undefined;
+	const environment = (credentials as unknown as { environment?: string } | undefined)?.environment;
 
 	const supportedTokens = getSupportedTokens(environment);
 
