@@ -12,7 +12,6 @@ export function generateResponse(
 	req: express.Request,
 	responseMode: string,
 	responseData: string,
-	txHash: string,
 	prepareOutput: (data: INodeExecutionData) => INodeExecutionData[][],
 	network?: string,
 	settlementData?: IDataObject,
@@ -22,7 +21,6 @@ export function generateResponse(
 		params: req.params,
 		query: req.query,
 		body: req.body,
-		txHash,
 	};
 
 	if (settlementData) {
@@ -36,7 +34,6 @@ export function generateResponse(
 	// Generate X-PAYMENT-RESPONSE header with Base64(JSON) settlement details
 	const paymentResponseData = {
 		success: true,
-		txHash: txHash,
 		networkId: network || 'base-sepolia',
 	};
 	const paymentResponseBase64 = Buffer.from(JSON.stringify(paymentResponseData)).toString('base64');

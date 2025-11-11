@@ -125,7 +125,6 @@ async function handleX402Webhook(
 				req,
 				responseMode,
 				responseData,
-				settleResponse.txHash ?? 'UNKNOWN_TX',
 				prepareOutput,
 				decodedXPaymentJson.network,
 				settleResponse.data,
@@ -137,7 +136,6 @@ async function handleX402Webhook(
 				req,
 				responseMode,
 				responseData,
-				'TBD',
 				prepareOutput,
 				decodedXPaymentJson?.network,
 			);
