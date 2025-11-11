@@ -46,6 +46,11 @@ export function buildPaymentRequirements(
 
 	// Get the expected network from supported tokens (should match environment)
 	const expectedNetwork = supportedTokens.kinds[0]?.network;
+	if (!expectedNetwork) {
+		resp.writeHead(403);
+		resp.end('Misconfiguration: No supported payment networks found for the selected environment');
+		return null;
+	}
 
 	for (const configuredToken of configured ?? []) {
 		const [network, contractAddress] = (configuredToken.paymentToken || '').split(':');
