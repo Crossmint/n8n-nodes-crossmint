@@ -1,4 +1,6 @@
 import {
+	ILoadOptionsFunctions,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 	IWebhookFunctions,
@@ -23,6 +25,31 @@ const webhookDescription: IWebhookDescription = {
 };
 
 export class CrossmintCheckoutTrigger implements INodeType {
+	methods = {
+		loadOptions: {
+			async getPaymentTokens(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const credentials = await this.getCredentials('crossmintApi').catch(() => null);
+				const environment = (credentials as { environment?: string } | null)?.environment ?? 'staging';
+
+				if (environment === 'production') {
+					return [
+						{
+							name: 'USDC (Base)',
+							value: 'base:usdc',
+						},
+					];
+				}
+
+				return [
+					{
+						name: 'USDC (Base Sepolia)',
+						value: 'base-sepolia:usdc',
+					},
+				];
+			},
+		},
+	};
+
 	description: INodeTypeDescription = {
 		displayName: 'Crossmint Checkout Trigger',
 		name: 'crossmintCheckoutTrigger',
@@ -176,18 +203,11 @@ export class CrossmintCheckoutTrigger implements INodeType {
 								displayName: 'Payment Token',
 								name: 'paymentToken',
 								type: 'options',
-								options: [
-									{
-										name: 'USDC (Base)',
-										value: 'base:usdc',
-									},
-									{
-										name: 'USDC (Base Sepolia)',
-										value: 'base-sepolia:usdc',
-									},
-								],
+								typeOptions: {
+									loadOptionsMethod: 'getPaymentTokens',
+								},
 								required: true,
-								default: 'base-sepolia:usdc',
+								default: '',
 								description: 'The token to accept for payment',
 							},
 							{
