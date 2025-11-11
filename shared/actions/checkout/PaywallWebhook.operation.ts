@@ -6,7 +6,7 @@ import {
 import { setupOutputConnection } from '../../utils/webhookUtils';
 import { getSupportedTokens, buildPaymentRequirements } from '../../utils/x402/helpers/paymentHelpers';
 import { parseXPaymentHeader, validateXPayment, verifyPaymentDetails } from '../../utils/x402/validation/paymentValidation';
-import { settleX402Payment } from '../../utils/x402/coinbase/facilitator/coinbaseFacilitator';
+import { settleX402Payment } from '../../utils/x402/corbits/facilitator/corbitsFacilitator';
 import { generateX402Error, generateResponse } from '../../utils/x402/response/paymentResponse';
 
 export async function webhookTrigger(this: IWebhookFunctions): Promise<IWebhookResponseData> {
@@ -32,16 +32,6 @@ async function handleX402Webhook(
 	if (!credentials) {
 		resp.writeHead(403);
 		resp.end('crossmintApi credential not found');
-		return { noWebhookResponse: true };
-	}
-
-	// Extract Coinbase credentials for x402 payment processing
-	const coinbaseKeyId = (credentials as any).apiKeyId as string | undefined;
-	const coinbaseKeySecret = (credentials as any).apiKeySecret as string | undefined;
-
-	if (!coinbaseKeyId || !coinbaseKeySecret) {
-		resp.writeHead(403);
-		resp.end('crossmintApi credential missing Coinbase apiKeyId or apiKeySecret');
 		return { noWebhookResponse: true };
 	}
 
@@ -112,8 +102,6 @@ async function handleX402Webhook(
 		// Settle payment with facilitator (continue on error to avoid blocking workflow)
 		try {
 			const settleResponse = await settleX402Payment(
-				coinbaseKeyId!,
-				coinbaseKeySecret!,
 				decodedXPaymentJson,
 				verification.paymentRequirements!,
 				xPaymentHeader,
@@ -169,7 +157,7 @@ async function handleX402Webhook(
 		) {
 			resp.writeHead(500, { 'Content-Type': 'application/json' });
 			resp.end(
-				JSON.stringify({ error: { errorMessage: `Coinbase credential error: ${errorMessage}` } }),
+				JSON.stringify({ error: { errorMessage: `Corbits facilitator error: ${errorMessage}` } }),
 			);
 			return { noWebhookResponse: true };
 		}
