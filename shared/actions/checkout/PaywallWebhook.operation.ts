@@ -102,7 +102,6 @@ async function handleX402Webhook(
 				decodedXPaymentJson,
 				verification.paymentRequirements!,
 				xPaymentHeader,
-				this.logger,
 			);
 
 			if (!settleResponse.success) {

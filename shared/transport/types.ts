@@ -77,7 +77,7 @@ export interface WalletLocatorData {
 
 // EVM exact scheme payload structure (EIP-3009)
 export interface IPaymentPayload {
-	x402Version: string;
+	x402Version: number | string;
 	scheme: string;
 	network: string;
 	payload: {
@@ -96,17 +96,17 @@ export interface IPaymentPayload {
 export interface IPaymentRequirements {
 	scheme: string;
 	network: string;
-	maxAmountRequired: string; // Amount in smallest unit (e.g., wei for ERC20 tokens)
+	maxAmountRequired: string;
 	resource: string;
 	description: string;
 	mimeType: string;
-	outputSchema: any;
-	payTo: string; // EVM wallet address (0x...)
+	outputSchema: Record<string, unknown>;
+	payTo: string;
 	maxTimeoutSeconds: number;
-	asset: string; // ERC20 token contract address (0x...)
+	asset: string;
 	extra: {
-		version: string; // EIP-712 domain version
-		name: string; // Token name (e.g., "USDC")
+		version: string;
+		name: string;
 	};
 }
 
@@ -118,7 +118,7 @@ export class PaymentRequirements implements IPaymentRequirements {
 		public resource: string,
 		public description: string,
 		public mimeType: string,
-		public outputSchema: any,
+		public outputSchema: Record<string, unknown>,
 		public payTo: string,
 		public maxTimeoutSeconds: number,
 	public asset: string,

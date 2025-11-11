@@ -1,4 +1,4 @@
-import type { IWebhookFunctions } from 'n8n-workflow';
+import type { IDataObject } from 'n8n-workflow';
 import type { IPaymentPayload, IPaymentRequirements, PaymentRequirements } from '../../../../transport/types';
 
 // Corbits facilitator integration
@@ -8,24 +8,18 @@ const FACILITATOR_SETTLE_PATH = '/settle';
 /**
  * Creates correlation header for Corbits API requests
  */
-function createCorrelationHeader(): string {
-	const data: Record<string, string> = {
-		sdk_version: '1.29.0',
-		sdk_language: 'typescript',
-		source: 'x402',
-		source_version: '0.7.1',
-	};
-	return Object.keys(data)
-		.map(key => `${key}=${encodeURIComponent(data[key])}`)
-		.join(',');
+export interface SettleResponse {
+	success: boolean;
+	txHash?: string;
+	error?: string;
+	data: IDataObject;
 }
 
 export async function settleX402Payment(
 	paymentPayload: IPaymentPayload,
 	paymentRequirements: PaymentRequirements,
 	paymentHeader?: string,
-	logger?: IWebhookFunctions['logger'],
-): Promise<{ success: boolean; txHash?: string; error?: string; data: Record<string, any> }> {
+): Promise<SettleResponse> {
 	// Convert PaymentRequirements class instance to plain object for proper JSON serialization
 	const paymentRequirementsObj: IPaymentRequirements = {
 		scheme: paymentRequirements.scheme,
@@ -55,10 +49,8 @@ export async function settleX402Payment(
 	const sendingLog = `=== SENDING TO CORBITS FACILITATOR (SETTLE) ===\n${requestDataStr}`;
 	console.log(sendingLog);
 
-	const correlationHeader = createCorrelationHeader();
 	const headers: Record<string, string> = {
 		'Content-Type': 'application/json',
-		'Correlation-Context': correlationHeader,
 	};
 
 	const res = await fetch(`https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`, {
@@ -83,8 +75,19 @@ export async function settleX402Payment(
 	if (!res.ok) {
 		throw new Error(`/settle ${res.status}: ${responseText}`);
 	}
-	const data = JSON.parse(responseText) as { success: boolean; transaction?: { hash?: string } } &
-		Record<string, any>;
-	return { success: data.success, txHash: data.transaction?.hash, error: data['errorReason'], data };
+	const data = JSON.parse(responseText) as IDataObject & {
+		success?: boolean;
+		transaction?: {
+			hash?: string;
+		};
+		errorReason?: string;
+	};
+
+	return {
+		success: Boolean(data.success),
+		txHash: (data.transaction as IDataObject | undefined)?.hash as string | undefined,
+		error: typeof data.errorReason === 'string' ? data.errorReason : undefined,
+		data,
+	};
 }
 
