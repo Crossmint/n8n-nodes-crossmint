@@ -101,26 +101,3 @@ export function buildPaymentRequirements(
 
 	return requirements;
 }
-
-/**
- * Recursively sorts object keys alphabetically
- * @param obj - The object to sort
- * @returns A new object with sorted keys
- */
-export function sortObjectKeys(obj: Record<string, any>): Record<string, any> {
-	if (obj === null || typeof obj !== 'object') {
-		return obj;
-	}
-
-	if (Array.isArray(obj)) {
-		return obj.map(sortObjectKeys);
-	}
-
-	return Object.keys(obj)
-		.sort()
-		.reduce((result: Record<string, any>, key: string) => {
-			result[key] = sortObjectKeys(obj[key]);
-			return result;
-		}, {});
-}
-
