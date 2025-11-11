@@ -80,12 +80,13 @@ export function buildPaymentRequirements(
 		const supportedToken = kind.tokens.find((t) => t.normalizedName === contractAddress || t.contractAddress === contractAddress);
 		if (supportedToken == null) throw new Error(`Supported token ${contractAddress} not found`);
 
-		// Convert payment amount to atomic units (USDC has 6 decimals)
-		// If paymentAmount is already in atomic units (integer >= 1000000), use it as-is
-		// Otherwise, assume it's in dollars and multiply by 10^6
-		const paymentAmountInAtomicUnits = configuredToken.paymentAmount < 1000000
-			? Math.floor(configuredToken.paymentAmount * 1000000)
-			: configuredToken.paymentAmount;
+		// Convert payment amount (entered in standard token units) to atomic units (USDC has 6 decimals)
+		const paymentAmount = configuredToken.paymentAmount;
+		if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+			throw new Error(`Invalid payment amount configured for network ${normalizedNetwork}`);
+		}
+
+		const paymentAmountInAtomicUnits = Math.round(paymentAmount * 1000000);
 
 		requirements.push(
 			new PaymentRequirements(
