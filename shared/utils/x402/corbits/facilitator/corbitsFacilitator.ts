@@ -1,4 +1,9 @@
-import type { IDataObject } from 'n8n-workflow';
+import {
+	NodeApiError,
+	type IDataObject,
+	type IWebhookFunctions,
+	type JsonObject,
+} from 'n8n-workflow';
 import type { IPaymentPayload, IPaymentRequirements, PaymentRequirements } from '../../../../transport/types';
 
 // Corbits facilitator integration
@@ -15,7 +20,9 @@ export interface SettleResponse {
 	data: IDataObject;
 }
 
+
 export async function settleX402Payment(
+	context: IWebhookFunctions,
 	paymentPayload: IPaymentPayload,
 	paymentRequirements: PaymentRequirements,
 	paymentHeader?: string,
@@ -53,41 +60,57 @@ export async function settleX402Payment(
 		'Content-Type': 'application/json',
 	};
 
-	const res = await fetch(`https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`, {
-		method: 'POST',
-		headers,
-		body: JSON.stringify(requestBody),
-	});
 
-	const responseText = await res.text();
+	try {
+		const res = await fetch(`https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify(requestBody),
+		});
 
-	// Log raw response from Corbits facilitator (settle) - print immediately before any processing
-	console.log(`=== RAW RESPONSE FROM CORBITS FACILITATOR (SETTLE) ===`);
-	console.log(`Status Code: ${res.status}`);
-	console.log(`Status Text: ${res.statusText}`);
-	console.log(`Raw Response Body:`, responseText);
-	console.log(`Response Headers:`, JSON.stringify(Object.fromEntries(res.headers.entries()), null, 2));
+		const responseText = await res.text();
 
-	// Log JSON received from Corbits facilitator (settle)
-	const receivedLog = `=== RECEIVED FROM CORBITS FACILITATOR (SETTLE) ===\nStatus: ${res.status} ${res.statusText}\nResponse: ${responseText}`;
-	console.log(receivedLog);
+		// Log raw response from Corbits facilitator (settle) - print immediately before any processing
+		console.log(`=== RAW RESPONSE FROM CORBITS FACILITATOR (SETTLE) ===`);
+		console.log(`Status Code: ${res.status}`);
+		console.log(`Status Text: ${res.statusText}`);
+		console.log(`Raw Response Body:`, responseText);
+		console.log(`Response Headers:`, JSON.stringify(Object.fromEntries(res.headers.entries()), null, 2));
 
-	if (!res.ok) {
-		throw new Error(`/settle ${res.status}: ${responseText}`);
-	}
-	const data = JSON.parse(responseText) as IDataObject & {
-		success?: boolean;
-		transaction?: {
-			hash?: string;
+		// Log JSON received from Corbits facilitator (settle)
+		const receivedLog = `=== RECEIVED FROM CORBITS FACILITATOR (SETTLE) ===\nStatus: ${res.status} ${res.statusText}\nResponse: ${responseText}`;
+		console.log(receivedLog);
+
+		if (!res.ok) {
+			const errorPayload: JsonObject = {
+				message: `/settle ${res.status}: ${res.statusText}`,
+				statusCode: res.status,
+				body: responseText,
+				headers: Object.fromEntries(res.headers.entries()),
+			};
+			throw new NodeApiError(context.getNode(), errorPayload);
+		}
+		const data = JSON.parse(responseText) as IDataObject & {
+			success?: boolean;
+			transaction?: {
+				hash?: string;
+			};
+			errorReason?: string;
 		};
-		errorReason?: string;
-	};
 
-	return {
-		success: Boolean(data.success),
-		txHash: (data.transaction as IDataObject | undefined)?.hash as string | undefined,
-		error: typeof data.errorReason === 'string' ? data.errorReason : undefined,
-		data,
-	};
+		return {
+			success: Boolean(data.success),
+			txHash: (data.transaction as IDataObject | undefined)?.hash as string | undefined,
+			error: typeof data.errorReason === 'string' ? data.errorReason : undefined,
+			data,
+		};
+
+	} catch (error) {
+		if (error instanceof NodeApiError) {
+			throw error;
+		}
+
+		throw new NodeApiError(context.getNode(), error as object & { message?: string });
+	}
 }
 

@@ -236,6 +236,6 @@ export class CrossmintCheckoutTrigger implements INodeType {
 	};
 	
 	async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
-		return webhookTrigger.call(this);
+		return webhookTrigger(this);
 	}
 }

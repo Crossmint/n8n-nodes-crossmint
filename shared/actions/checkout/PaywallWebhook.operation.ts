@@ -1,31 +1,28 @@
-import {
-	IWebhookFunctions,
-	IWebhookResponseData,
-} from 'n8n-workflow';
+import { IWebhookFunctions, IWebhookResponseData } from 'n8n-workflow';
 import { setupOutputConnection } from '../../utils/webhookUtils';
 import { getSupportedTokens, buildPaymentRequirements } from '../../utils/x402/helpers/paymentHelpers';
 import { parseXPaymentHeader, validateXPayment, verifyPaymentDetails } from '../../utils/x402/validation/paymentValidation';
 import { settleX402Payment } from '../../utils/x402/corbits/facilitator/corbitsFacilitator';
 import { generateX402Error, generateResponse } from '../../utils/x402/response/paymentResponse';
 
-export async function webhookTrigger(this: IWebhookFunctions): Promise<IWebhookResponseData> {
-	return await handleX402Webhook.call(this);
+export async function webhookTrigger(context: IWebhookFunctions): Promise<IWebhookResponseData> {
+	return await handleX402Webhook(context);
 }
 
 async function handleX402Webhook(
-	this: IWebhookFunctions,
+	context: IWebhookFunctions,
 ): Promise<IWebhookResponseData> {
-	const responseMode = this.getNodeParameter('responseMode', 'onReceived') as string;
+	const responseMode = context.getNodeParameter('responseMode', 'onReceived') as string;
 
-	const headers = this.getHeaderData();
-	const req = this.getRequestObject();
-	const resp = this.getResponseObject();
-	const requestMethod = this.getRequestObject().method;
+	const headers = context.getHeaderData();
+	const req = context.getRequestObject();
+	const resp = context.getResponseObject();
+	const requestMethod = context.getRequestObject().method;
 
-	const prepareOutput = setupOutputConnection(this, requestMethod, {});
+	const prepareOutput = setupOutputConnection(context, requestMethod, {});
 
 	// Get Crossmint API credentials
-	const credentials = await this.getCredentials('crossmintApi');
+	const credentials = await context.getCredentials('crossmintApi');
 	if (!credentials) {
 		resp.writeHead(403);
 		resp.end('crossmintApi credential not found');
@@ -38,16 +35,16 @@ async function handleX402Webhook(
 	const supportedTokens = getSupportedTokens(environment);
 
 	// Get configured payment tokens from node parameters
-	const configuredTokens = this.getNodeParameter('tokens') as {
+	const configuredTokens = context.getNodeParameter('tokens') as {
 		paymentToken: { paymentToken: string; payToAddress: string; paymentAmount: number }[];
 	};
 
 	const resourceDescription = 'n8n workflow webhook';
 	const mimeType = 'application/json';
 
-	const responseData = this.getNodeParameter('responseData') as string;
+	const responseData = context.getNodeParameter('responseData') as string;
 
-	const webhookUrl = this.getNodeWebhookUrl('default');
+	const webhookUrl = context.getNodeWebhookUrl('default');
 	if (webhookUrl == null) {
 		resp.writeHead(403);
 		resp.end('webhookUrl not found');
@@ -99,10 +96,13 @@ async function handleX402Webhook(
 		// Settle payment with facilitator (continue on error to avoid blocking workflow)
 		try {
 			const settleResponse = await settleX402Payment(
+				context,
 				decodedXPaymentJson,
 				verification.paymentRequirements!,
 				xPaymentHeader,
 			);
+
+			console.log("CONSOLEEEEEEEE ------>  "+settleResponse+"\n\n\n");
 
 			if (!settleResponse.success) {
 				resp.writeHead(402, { 'Content-Type': 'application/json' });
@@ -117,7 +117,7 @@ async function handleX402Webhook(
 
 			// Return workflow data with settlement details
 			return generateResponse(
-				this,
+				context,
 				req,
 				responseMode,
 				responseData,
@@ -126,18 +126,21 @@ async function handleX402Webhook(
 				settleResponse.data,
 			);
 		} catch (error) {
-			this.logger.error('Error in x402 webhook settlement, moving on...', error);
-			return generateResponse(
-				this,
-				req,
-				responseMode,
-				responseData,
-				prepareOutput,
-				decodedXPaymentJson?.network,
+			context.logger.error('Error in x402 webhook settlement', error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+
+			resp.writeHead(402, { 'Content-Type': 'application/json' });
+			resp.end(
+				JSON.stringify({
+					x402Version: 1,
+					error: `Settlement failed: ${errorMessage}`,
+					accepts: paymentRequirements,
+				}),
 			);
+			return { noWebhookResponse: true };
 		}
 	} catch (error) {
-		this.logger.error('Error in x402 webhook', error);
+		context.logger.error('Error in x402 webhook', error);
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		
 		// Handle credential/JWT errors before payment processing
