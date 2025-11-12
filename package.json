@@ -1,9 +1,9 @@
 {
     "name": "n8n-nodes-crossmint",
-    "version": "1.0.6",
+    "version": "1.1.0",
     "description": "Crossmint n8n node",
     "license": "MIT",
-    "homepage": "https://crossmint.com",
+    "homepage": "https://docs.crossmint.com/solutions/n8n/overview",
     "keywords": [
         "n8n-community-node-package"
     ],
@@ -34,11 +34,13 @@
         ],
         "nodes": [
             "dist/nodes/CrossmintWallets/CrossmintWallets.node.js",
-            "dist/nodes/CrossmintCheckout/CrossmintCheckout.node.js"
+            "dist/nodes/CrossmintCheckout/CrossmintCheckout.node.js",
+            "dist/nodes/CrossmintCheckout/CrossmintCheckoutTrigger.node.js"
         ]
     },
     "devDependencies": {
         "@n8n/node-cli": "*",
+        "@types/express": "^5.0.3",
         "@types/node": "*",
         "eslint": "9.32.0",
         "prettier": "3.6.2",
