@@ -196,11 +196,10 @@ export class CrossmintCheckoutTrigger implements INodeType {
 				options: [
 					{
 						name: 'paymentToken',
-						displayName: 'Payment Token',
-						// eslint-disable-next-line n8n-nodes-base/node-param-fixed-collection-type-unsorted-items
+						displayName: 'Payment Token Name or ID',
 						values: [
 							{
-								displayName: 'Payment Token',
+								displayName: 'Payment Token Name or ID',
 								name: 'paymentToken',
 								type: 'options',
 								typeOptions: {
@@ -208,7 +207,8 @@ export class CrossmintCheckoutTrigger implements INodeType {
 								},
 								required: true,
 								default: '',
-								description: 'The token to accept for payment',
+								description:
+									'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 							},
 							{
 								displayName: 'Pay To Address',
