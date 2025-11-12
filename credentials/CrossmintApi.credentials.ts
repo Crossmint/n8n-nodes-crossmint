@@ -9,7 +9,7 @@ export class CrossmintApi implements ICredentialType {
 	name = 'crossmintApi';
 	displayName = 'Crossmint API';
 
-	documentationUrl = 'https://docs.crossmint.com/';
+	documentationUrl = 'https://docs.crossmint.com/solutions/n8n/overview';
 
 	properties: INodeProperties[] = [
 		{
