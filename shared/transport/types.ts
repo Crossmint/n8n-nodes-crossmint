@@ -51,11 +51,15 @@ export interface OrderCreateRequest {
 	payment: {
 		receiptEmail: string;
 		method: string;
-		currency: string;
+		currency?: string;
 		payerAddress?: string;
 	};
 	lineItems: Array<{
 		productLocator: string;
+		experimental_variantAttributesDetails?: Array<{
+			propertyName: string;
+			value: string;
+		}>;
 	}>;
 }
 

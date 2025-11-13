@@ -11,11 +11,18 @@ export async function findProduct(
 	itemIndex: number,
 ): Promise<ApiResponse> {
 	const platform = context.getNodeParameter('platform', itemIndex) as string;
-	const productIdentifier = context.getNodeParameter('productIdentifier', itemIndex) as string;
 	const recipientEmail = context.getNodeParameter('recipientEmail', itemIndex) as string;
 
-	validateRequiredField(productIdentifier, 'Product identifier', context, itemIndex);
 	validateEmail(recipientEmail, context, itemIndex);
+
+	// For customMerch, use hardcoded product URL; otherwise get from parameters
+	let productIdentifier: string;
+	if (platform === 'customMerch') {
+		productIdentifier = 'www.worldstore.ai/design/tshirt';
+	} else {
+		productIdentifier = context.getNodeParameter('productIdentifier', itemIndex) as string;
+		validateRequiredField(productIdentifier, 'Product identifier', context, itemIndex);
+	}
 
 	const productLocator = buildProductLocator(platform, productIdentifier);
 
@@ -35,6 +42,14 @@ export async function findProduct(
 	}, context, itemIndex);
 
 	const paymentMethod = context.getNodeParameter('paymentMethod', itemIndex) as string;
+	let paymentReceiptEmail = recipientEmail;
+
+	if (platform === 'customMerch') {
+		const customReceiptEmail = context.getNodeParameter('paymentReceiptEmail', itemIndex) as string;
+		if (customReceiptEmail) {
+			paymentReceiptEmail = customReceiptEmail;
+		}
+	}
 
 	const physicalAddress: OrderCreateRequest['recipient']['physicalAddress'] = {
 		name: recipientName,
@@ -52,17 +67,38 @@ export async function findProduct(
 	}
 
 	const payment: OrderCreateRequest['payment'] = {
-		receiptEmail: recipientEmail,
+		receiptEmail: paymentReceiptEmail,
 		method: paymentMethod,
-		currency: '', // Will be set below
 	};
 
-	const paymentCurrency = context.getNodeParameter('paymentCurrency', itemIndex) as string;
-	payment.currency = paymentCurrency;
+	if (paymentMethod === 'solana') {
+		const paymentCurrency = context.getNodeParameter('paymentCurrency', itemIndex) as string;
+		payment.currency = paymentCurrency;
 
-	const payerAddress = context.getNodeParameter('payerAddress', itemIndex) as string;
-	if (payerAddress) {
-		payment.payerAddress = payerAddress;
+		const payerAddress = context.getNodeParameter('payerAddress', itemIndex) as string;
+		if (payerAddress) {
+			payment.payerAddress = payerAddress;
+		}
+	}
+
+	const lineItem: OrderCreateRequest['lineItems'][number] = {
+		productLocator: productLocator,
+	};
+
+	if (platform === 'customMerch') {
+		const variantSize = context.getNodeParameter('variantSize', itemIndex) as string;
+		const variantColor = context.getNodeParameter('variantColor', itemIndex) as string;
+		const designUrl = context.getNodeParameter('designUrl', itemIndex) as string;
+
+		validateRequiredField(variantSize, 'Variant size', context, itemIndex);
+		validateRequiredField(variantColor, 'Variant color', context, itemIndex);
+		validateRequiredField(designUrl, 'Design URL', context, itemIndex);
+
+		lineItem.experimental_variantAttributesDetails = [
+			{ propertyName: 'size', value: variantSize },
+			{ propertyName: 'color', value: variantColor },
+			{ propertyName: 'designUrl', value: designUrl },
+		];
 	}
 
 	const requestBody: OrderCreateRequest = {
@@ -71,9 +107,7 @@ export async function findProduct(
 			physicalAddress: physicalAddress,
 		},
 		payment: payment,
-		lineItems: [{
-			productLocator: productLocator,
-		}],
+		lineItems: [lineItem],
 	};
 
 	try {
