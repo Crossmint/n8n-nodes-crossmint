@@ -17,6 +17,7 @@ export const VALIDATION_PATTERNS = {
 	EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
 	SOLANA_ADDRESS: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
 	PHONE: /^\+?[\d\s\-()]+$/,
+	COUNTRY_CODE: /^[A-Z]{2}$/,
 } as const;
 
 export const PAGINATION = {

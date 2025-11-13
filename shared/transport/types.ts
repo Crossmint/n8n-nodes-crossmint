@@ -61,6 +61,7 @@ export interface OrderCreateRequest {
 			value: string;
 		}>;
 	}>;
+	locale?: string;
 }
 
 

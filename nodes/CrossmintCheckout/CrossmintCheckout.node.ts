@@ -12,6 +12,7 @@ import { CrossmintApi } from '../../shared/transport/CrossmintApi';
 import { CrossmintCredentials } from '../../shared/transport/types';
 import { findProduct } from '../../shared/actions/checkout/findProduct.operation';
 import { purchaseProduct } from '../../shared/actions/checkout/purchaseProduct.operation';
+import { customMerchFields } from './customMerchFields';
 
 export class CrossmintCheckout implements INodeType {
 	description: INodeTypeDescription = {
@@ -99,26 +100,6 @@ export class CrossmintCheckout implements INodeType {
 				description: 'E-commerce platform for the purchase',
 				required: true,
 			},
-			{
-				displayName: 'Platform',
-				name: 'platform',
-				type: 'options',
-				displayOptions: {
-					show: {
-						resource: ['checkout'],
-						operation: ['findProduct'],
-						'@version': [2],
-					},
-				},
-				options: [
-					{ name: 'Amazon', value: 'amazon', description: 'Amazon marketplace' },
-					{ name: 'Shopify', value: 'shopify', description: 'Shopify store' },
-					{ name: 'Custom Merch', value: 'customMerch', description: 'Direct URL products with variant attributes' },
-				],
-				default: 'amazon',
-				description: 'E-commerce platform for the purchase',
-				required: true,
-			},
 			// ---- Find Product fields (all fields needed for POST /orders)
 
 			// ---- Purchase Product fields (Step 2: Submit Transaction)
@@ -190,7 +171,7 @@ export class CrossmintCheckout implements INodeType {
 				displayName: 'Recipient Email',
 				name: 'recipientEmail',
 				type: 'string',
-				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], platform: ['amazon', 'shopify'] } },
 				default: '',
 				placeholder: 'recipient@example.com',
 				description: 'Email address of the person receiving the product',
@@ -200,7 +181,7 @@ export class CrossmintCheckout implements INodeType {
 				displayName: 'Recipient Name',
 				name: 'recipientName',
 				type: 'string',
-				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], platform: ['amazon', 'shopify'] } },
 				default: '',
 				placeholder: 'Manuel Paella',
 				description: 'Full name of the recipient',
@@ -210,7 +191,7 @@ export class CrossmintCheckout implements INodeType {
 				displayName: 'Address Line 1',
 				name: 'addressLine1',
 				type: 'string',
-				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], platform: ['amazon', 'shopify'] } },
 				default: '',
 				placeholder: '123 Fake Street',
 				description: 'Street address, P.O. box, company name, c/o.',
@@ -220,7 +201,7 @@ export class CrossmintCheckout implements INodeType {
 				displayName: 'Address Line 2 (Optional)',
 				name: 'addressLine2',
 				type: 'string',
-				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], platform: ['amazon', 'shopify'] } },
 				default: '',
 				placeholder: 'Apartment 4B',
 				description: 'Apartment, suite, unit, building, floor, etc',
@@ -229,7 +210,7 @@ export class CrossmintCheckout implements INodeType {
 				displayName: 'City',
 				name: 'city',
 				type: 'string',
-				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], platform: ['amazon', 'shopify'] } },
 				default: '',
 				placeholder: 'Valencia',
 				description: 'City, district, suburb, town, or village',
@@ -239,7 +220,7 @@ export class CrossmintCheckout implements INodeType {
 				displayName: 'State',
 				name: 'state',
 				type: 'string',
-				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], platform: ['amazon', 'shopify'] } },
 				default: '',
 				placeholder: 'FL',
 				description: 'US State (required)',
@@ -249,7 +230,7 @@ export class CrossmintCheckout implements INodeType {
 				displayName: 'ZIP Code',
 				name: 'postalCode',
 				type: 'string',
-				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], platform: ['amazon', 'shopify'] } },
 				default: '',
 				placeholder: '33130',
 				description: 'US ZIP code',
@@ -259,7 +240,7 @@ export class CrossmintCheckout implements INodeType {
 				displayName: 'Country',
 				name: 'country',
 				type: 'options',
-				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], platform: ['amazon', 'shopify'] } },
 				options: [
 					{ name: 'United States', value: 'US' },
 				],
@@ -268,27 +249,11 @@ export class CrossmintCheckout implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'Payment Receipt Email',
-				name: 'paymentReceiptEmail',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['checkout'],
-						operation: ['findProduct'],
-						platform: ['customMerch'],
-						'@version': [2],
-					},
-				},
-				default: '',
-				placeholder: 'billing@example.com',
-				description: 'Email address for payment receipt (defaults to recipient email when empty)',
-			},
-			{
 				displayName: 'Environment',
 				name: 'environment',
 				type: 'options',
 				displayOptions: {
-					show: { resource: ['checkout'], operation: ['findProduct'], platform: ['amazon', 'shopify', 'customMerch'] },
+					show: { resource: ['checkout'], operation: ['findProduct'], platform: ['amazon', 'shopify'] },
 				},
 				options: [
 					{ name: 'Staging (Testnet)', value: 'staging', description: 'Use testnet chains for testing' },
@@ -306,7 +271,7 @@ export class CrossmintCheckout implements INodeType {
 					show: {
 						resource: ['checkout'],
 						operation: ['findProduct'],
-						platform: ['amazon', 'shopify', 'customMerch'],
+						platform: ['amazon', 'shopify'],
 						environment: ['staging'],
 					},
 				},
@@ -325,7 +290,7 @@ export class CrossmintCheckout implements INodeType {
 					show: {
 						resource: ['checkout'],
 						operation: ['findProduct'],
-						platform: ['amazon', 'shopify', 'customMerch'],
+						platform: ['amazon', 'shopify'],
 						environment: ['production'],
 					},
 				},
@@ -343,7 +308,7 @@ export class CrossmintCheckout implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['checkout'], operation: ['findProduct'],
-						platform: ['amazon', 'shopify', 'customMerch'],
+						platform: ['amazon', 'shopify'],
 						paymentMethod: ['solana'],
 					},
 				},
@@ -362,7 +327,7 @@ export class CrossmintCheckout implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['checkout'], operation: ['findProduct'],
-						platform: ['amazon', 'shopify', 'customMerch'],
+						platform: ['amazon', 'shopify'],
 						paymentMethod: ['solana'],
 					},
 				},
@@ -371,57 +336,8 @@ export class CrossmintCheckout implements INodeType {
 				description: 'Agent wallet address for crypto payments - must be a Crossmint managed wallet with USDC funds',
 				required: true,
 			},
-			{
-				displayName: 'Variant Size',
-				name: 'variantSize',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['checkout'],
-						operation: ['findProduct'],
-						platform: ['customMerch'],
-						'@version': [2],
-					},
-				},
-				default: '',
-				placeholder: 'S',
-				description: 'Size variant to send with the order (e.g. S, M, L)',
-				required: true,
-			},
-			{
-				displayName: 'Variant Color',
-				name: 'variantColor',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['checkout'],
-						operation: ['findProduct'],
-						platform: ['customMerch'],
-						'@version': [2],
-					},
-				},
-				default: '',
-				placeholder: 'White',
-				description: 'Color variant to send with the order (e.g. white, navy, onyx)',
-				required: true,
-			},
-			{
-				displayName: 'Design URL',
-				name: 'designUrl',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['checkout'],
-						operation: ['findProduct'],
-						platform: ['customMerch'],
-						'@version': [2],
-					},
-				},
-				default: '',
-				placeholder: 'https://www.crossmint.com/assets/crossmint/logo.png',
-				description: 'Hosted asset URL for the custom design artwork',
-				required: true,
-			},
+			// Custom Merch fields (version 2)
+			...customMerchFields,
 		] as INodeProperties[],
 	};
 
