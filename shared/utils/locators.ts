@@ -89,6 +89,8 @@ export function buildProductLocator(platform: string, productIdentifier: string)
 		} else {
 			return `shopify:${productIdentifier}:default`;
 		}
+	} else if (platform === 'customMerch') {
+		return `url:${productIdentifier}`;
 	} else {
 		return `url:${productIdentifier}`;
 	}

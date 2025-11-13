@@ -98,3 +98,21 @@ export function validateAddressFields(fields: {
 		});
 	}
 }
+
+export function validateCountryCode(country: string, context: unknown, itemIndex: number): void {
+	if (!country || country.trim() === '') {
+		throw new NodeOperationError((context as { getNode: () => INode }).getNode(), 'Country code is required', {
+			description: 'Please provide a two-letter ISO 3166-1 alpha-2 country code (e.g., US, GB, FR)',
+			itemIndex,
+		});
+	}
+
+	// ISO 3166-1 alpha-2 codes are exactly 2 uppercase letters
+	const countryCodePattern = /^[A-Z]{2}$/;
+	if (!countryCodePattern.test(country.trim().toUpperCase())) {
+		throw new NodeOperationError((context as { getNode: () => INode }).getNode(), 'Invalid country code', {
+			description: `'${country}' is not a valid ISO 3166-1 alpha-2 country code. Please use a two-letter code (e.g., US, GB, FR, DE)`,
+			itemIndex,
+		});
+	}
+}
