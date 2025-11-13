@@ -1,8 +1,15 @@
-import { IExecuteFunctions, NodeApiError } from 'n8n-workflow';
+import { IExecuteFunctions } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { buildWalletLocator } from '../../utils/locators';
 import { WalletLocatorData, ApiResponse } from '../../transport/types';
+
+export async function getWalletByLocator(
+	api: CrossmintApi,
+	walletLocator: string,
+): Promise<ApiResponse> {
+	return await api.get(`wallets/${walletLocator}`, API_VERSIONS.WALLETS);
+}
 
 export async function getWallet(
 	context: IExecuteFunctions,
@@ -14,10 +21,5 @@ export async function getWallet(
 
 	const walletLocator = buildWalletLocator(walletResource, chainType, context, itemIndex);
 
-	try {
-		return await api.get(`wallets/${walletLocator}`, API_VERSIONS.WALLETS);
-	} catch (error: unknown) {
-		// Pass through the original Crossmint API error exactly as received
-		throw new NodeApiError(context.getNode(), error as object & { message?: string });
-	}
+	return await getWalletByLocator(api, walletLocator);
 }
