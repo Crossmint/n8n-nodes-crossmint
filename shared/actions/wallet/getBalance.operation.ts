@@ -11,6 +11,7 @@ export async function getBalanceByLocator(
 	tkn: string,
 ): Promise<ApiResponse> {
 	const endpoint = `wallets/${walletLocator}/balances?chains=${encodeURIComponent(chains)}&tokens=${encodeURIComponent(tkn)}`;
+	console.log("ENDPOINT ------------> "+endpoint);
 	return await api.get(endpoint, API_VERSIONS.WALLETS);
 }
 

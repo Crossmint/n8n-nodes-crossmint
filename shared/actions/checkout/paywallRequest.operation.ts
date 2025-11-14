@@ -82,6 +82,7 @@ export async function paywallRequest(
 		itemIndex,
 	);
 
+	
 	return {
 		x402Version: paywallBody.x402Version ?? 1,
 		accepts: normalizedRequirements.map((r) => r.requirement),
@@ -177,8 +178,8 @@ async function selectRule(params: {
 		const requirement = findMatchingRequirement(resolvedToken, requirements);
 		if (!requirement) continue;
 
-		// Use the wallet address from the rule (this is the "from" wallet)
-		const walletAddress = rule.fromWallet.trim().toLowerCase();
+		// Use the wallet address from the rule (preserve original casing for EVM addresses)
+		const walletAddress = rule.fromWallet.trim();
 
 		// Check balance of the wallet associated with this rule
 		try {
@@ -190,23 +191,26 @@ async function selectRule(params: {
 				requiredAmount: requirement.requiredAmount.toString(),
 				paymentToken: rule.paymentToken,
 			};
-			
+
 			if (context) {
 				context.logger?.info(`Checking balance for rule: ${JSON.stringify(balanceRequest)}`);
 			}
 
 			const balanceResponse = await getBalanceByLocator(api, walletAddress, resolvedToken.network, resolvedToken.tokenName);
-			
+
+			console.log("BALANCE ---------->" + JSON.stringify(balanceResponse));
+
 			if (context) {
 				context.logger?.debug(`Balance response received: ${JSON.stringify(balanceResponse)}`);
 			}
 
-			const available = extractAvailableBalance(balanceResponse as IDataObject);
-			
+			const available = extractAvailableBalance(balanceResponse);
+			console.log("AVAILABLE = " + available);
+
 			if (context) {
 				context.logger?.info(`Balance check result - Wallet: ${walletAddress}, Network: ${resolvedToken.network}, Token: ${resolvedToken.tokenName}, Available: ${available?.toString() || 'null'}, Required: ${requirement.requiredAmount.toString()}, Sufficient: ${available != null && available >= requirement.requiredAmount}`);
 			}
-			
+
 			if (available != null && available >= requirement.requiredAmount) {
 				return {
 					...rule,
@@ -273,46 +277,16 @@ function findMatchingRequirement(
 	);
 }
 
-function extractAvailableBalance(balanceResponse: IDataObject): bigint | null {
-	const candidates: Array<string | number | undefined> = [];
-	const balances = balanceResponse.balances;
+export function extractAvailableBalance(balanceResponse: any): bigint | undefined {
+	if (!Array.isArray(balanceResponse)) return undefined;
 
-	if (Array.isArray(balances)) {
-		for (const entry of balances) {
-			if (entry && typeof entry === 'object') {
-				const entryObject = entry as IDataObject;
-				candidates.push(
-					(entryObject.available as string | number | undefined) ??
-					(entryObject.balance as string | number | undefined) ??
-					(entryObject.amount as string | number | undefined) ??
-					(entryObject.quantity as string | number | undefined),
-				);
-			}
-		}
-	}
+	const raw = balanceResponse[0]?.rawAmount;
+	if (!raw) return undefined;
 
-	candidates.push(
-		balanceResponse.available as string | number | undefined,
-		balanceResponse.balance as string | number | undefined,
-		balanceResponse.amount as string | number | undefined,
-		balanceResponse.quantity as string | number | undefined,
-	);
-
-	for (const candidate of candidates) {
-		if (candidate == null) continue;
-
-		try {
-			const value = typeof candidate === 'number' ? BigInt(Math.trunc(candidate)) : BigInt(candidate);
-			if (value >= BigInt(0)) {
-				return value;
-			}
-		} catch {
-			continue;
-		}
-	}
-
-	return null;
+	return BigInt(raw); // <-- convert to BigInt
 }
+
+
 
 async function signPayment(
 	payerWalletAddress: string,

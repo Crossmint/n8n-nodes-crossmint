@@ -57,10 +57,15 @@ export function deriveEvmKeyPair(privateKeyStr: string, context: unknown, itemIn
 			: `0x${privateKeyStr.trim()}`;
 
 		const wallet = new ethers.Wallet(normalizedKey);
+		const signingKeyProvider = wallet.signingKey ?? (wallet as unknown as { _signingKey?: () => { publicKey: string } })._signingKey?.();
+		const publicKey =
+			(wallet as unknown as { publicKey?: string }).publicKey ??
+			signingKeyProvider?.publicKey ??
+			wallet.address;
 
 		return {
 			address: ethers.getAddress(wallet.address),
-			publicKey: wallet.publicKey,
+			publicKey,
 			chainType: 'evm',
 		};
 	} catch (error: unknown) {
