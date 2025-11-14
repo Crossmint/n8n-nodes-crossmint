@@ -1,12 +1,14 @@
-import { IExecuteFunctions, IDataObject, NodeOperationError } from 'n8n-workflow';
+import { IExecuteFunctions, IDataObject, NodeOperationError, NodeApiError } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
-import { API_VERSIONS } from '../../utils/constants';
 import { getSupportedTokens } from '../../utils/x402/helpers/paymentHelpers';
-import type { CrossmintCredentials, IPaymentRequirements } from '../../transport/types';
+import type { CrossmintCredentials, IPaymentRequirements, IPaymentPayload } from '../../transport/types';
+import { getBalanceByLocator } from '../wallet/getBalance.operation';
+import { PaymentRequirements as PaymentRequirementsClass } from '../../transport/types';
 
 interface PayRule {
 	paymentToken: string;
-	payToAddress: string;
+	fromWallet: string;
+	privateKey: string;
 }
 
 interface NormalizedRequirement {
@@ -19,12 +21,14 @@ interface NormalizedRequirement {
 interface ResolvedRuleToken {
 	network: string;
 	contractAddress: string;
+	tokenName: string;
 }
 
 type SelectedRule = PayRule & {
 	requirement: IPaymentRequirements;
 	available: bigint;
 	required: bigint;
+	walletAddress: string;
 };
 
 export async function paywallRequest(
@@ -52,6 +56,7 @@ export async function paywallRequest(
 		requirements: normalizedRequirements,
 		supportedTokens,
 		expectedNetwork,
+		context,
 	});
 
 	if (!selectedRule) {
@@ -60,30 +65,60 @@ export async function paywallRequest(
 		});
 	}
 
+	// Sign and pay the selected rule using the rule's private key and wallet address
+	const paymentPayload = await signPayment(
+		selectedRule.walletAddress,
+		selectedRule.privateKey,
+		selectedRule.requirement,
+		selectedRule.required,
+		context,
+		itemIndex,
+	);
+
+	const settlementResult = await settlePayment(
+		paymentPayload,
+		selectedRule.requirement,
+		context,
+		itemIndex,
+	);
+
 	return {
 		x402Version: paywallBody.x402Version ?? 1,
 		accepts: normalizedRequirements.map((r) => r.requirement),
 		selectedRule: {
 			paymentToken: selectedRule.paymentToken,
-			payToAddress: selectedRule.payToAddress,
+			walletAddress: selectedRule.walletAddress,
+			payTo: selectedRule.requirement.payTo,
 			requiredAmount: selectedRule.required.toString(),
 			availableAmount: selectedRule.available.toString(),
 		},
 		requirement: selectedRule.requirement,
+		payment: paymentPayload,
+		settlement: settlementResult,
 	};
 }
 
 function getConfiguredRules(context: IExecuteFunctions, itemIndex: number): PayRule[] {
 	const payRulesParam = context.getNodeParameter('payRules', itemIndex, {
 		rule: [],
-	}) as { rule: PayRule[] };
+	}) as { rule: Array<PayRule & { privateKey?: string }> };
 
 	const configuredRules = payRulesParam.rule ?? [];
 	if (configuredRules.length === 0) {
 		throw new NodeOperationError(context.getNode(), 'At least one payment rule is required', { itemIndex });
 	}
 
-	return configuredRules;
+	// Validate that each rule has required fields
+	for (const rule of configuredRules) {
+		if (!rule.fromWallet || rule.fromWallet.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Each payment rule must have a from wallet address', { itemIndex });
+		}
+		if (!rule.privateKey || rule.privateKey.trim() === '') {
+			throw new NodeOperationError(context.getNode(), 'Each payment rule must have a private key', { itemIndex });
+		}
+	}
+
+	return configuredRules as PayRule[];
 }
 
 async function fetchPaywallRequirements(
@@ -93,7 +128,7 @@ async function fetchPaywallRequirements(
 ): Promise<IDataObject> {
 	try {
 		return (await context.helpers.httpRequest({
-			method: 'GET',
+			method: 'POST',
 			url: resourceUrl,
 			headers: { Accept: 'application/json' },
 			json: true,
@@ -131,8 +166,9 @@ async function selectRule(params: {
 	requirements: NormalizedRequirement[];
 	supportedTokens: ReturnType<typeof getSupportedTokens>;
 	expectedNetwork: string;
+	context?: IExecuteFunctions;
 }): Promise<SelectedRule | null> {
-	const { api, rules, requirements, supportedTokens, expectedNetwork } = params;
+	const { api, rules, requirements, supportedTokens, expectedNetwork, context } = params;
 
 	for (const rule of rules) {
 		const resolvedToken = resolveRuleToken(rule, supportedTokens, expectedNetwork);
@@ -141,14 +177,51 @@ async function selectRule(params: {
 		const requirement = findMatchingRequirement(resolvedToken, requirements);
 		if (!requirement) continue;
 
-		const available = await fetchAvailableBalance(api, rule.payToAddress, resolvedToken);
-		if (available != null && available >= requirement.requiredAmount) {
-			return {
-				...rule,
-				requirement: requirement.requirement,
-				available,
-				required: requirement.requiredAmount,
+		// Use the wallet address from the rule (this is the "from" wallet)
+		const walletAddress = rule.fromWallet.trim().toLowerCase();
+
+		// Check balance of the wallet associated with this rule
+		try {
+			// Log the balance request details
+			const balanceRequest = {
+				walletAddress,
+				network: resolvedToken.network,
+				token: resolvedToken.tokenName,
+				requiredAmount: requirement.requiredAmount.toString(),
+				paymentToken: rule.paymentToken,
 			};
+			
+			if (context) {
+				context.logger?.info(`Checking balance for rule: ${JSON.stringify(balanceRequest)}`);
+			}
+
+			const balanceResponse = await getBalanceByLocator(api, walletAddress, resolvedToken.network, resolvedToken.tokenName);
+			
+			if (context) {
+				context.logger?.debug(`Balance response received: ${JSON.stringify(balanceResponse)}`);
+			}
+
+			const available = extractAvailableBalance(balanceResponse as IDataObject);
+			
+			if (context) {
+				context.logger?.info(`Balance check result - Wallet: ${walletAddress}, Network: ${resolvedToken.network}, Token: ${resolvedToken.tokenName}, Available: ${available?.toString() || 'null'}, Required: ${requirement.requiredAmount.toString()}, Sufficient: ${available != null && available >= requirement.requiredAmount}`);
+			}
+			
+			if (available != null && available >= requirement.requiredAmount) {
+				return {
+					...rule,
+					requirement: requirement.requirement,
+					available,
+					required: requirement.requiredAmount,
+					walletAddress,
+				};
+			}
+		} catch (error) {
+			// If balance check fails, skip this rule and try the next one
+			if (context) {
+				context.logger?.warn(`Balance check failed for wallet ${walletAddress}, network ${resolvedToken.network}, token ${resolvedToken.tokenName}: ${error instanceof Error ? error.message : String(error)}`);
+			}
+			continue;
 		}
 	}
 
@@ -178,9 +251,13 @@ function resolveRuleToken(
 
 	if (!token) return null;
 
+	// Use normalizedName if available, otherwise fall back to the tokenPart from the rule
+	const tokenName = token.normalizedName?.toLowerCase() || (tokenPart || '').toLowerCase();
+
 	return {
 		network: kind.network.toLowerCase(),
 		contractAddress: token.contractAddress.toLowerCase(),
+		tokenName,
 	};
 }
 
@@ -194,20 +271,6 @@ function findMatchingRequirement(
 			requirement.asset === resolvedToken.contractAddress &&
 			requirement.requiredAmount > BigInt(0),
 	);
-}
-
-async function fetchAvailableBalance(
-	api: CrossmintApi,
-	walletAddress: string,
-	token: ResolvedRuleToken,
-): Promise<bigint | null> {
-	try {
-		const endpoint = `wallets/${encodeURIComponent(walletAddress)}/balances?chains=${encodeURIComponent(token.network)}&tokens=${encodeURIComponent(token.contractAddress)}`;
-		const response = (await api.get(endpoint, API_VERSIONS.WALLETS)) as IDataObject;
-		return extractAvailableBalance(response);
-	} catch {
-		return null;
-	}
 }
 
 function extractAvailableBalance(balanceResponse: IDataObject): bigint | null {
@@ -249,4 +312,162 @@ function extractAvailableBalance(balanceResponse: IDataObject): bigint | null {
 	}
 
 	return null;
+}
+
+async function signPayment(
+	payerWalletAddress: string,
+	payerPrivateKey: string,
+	requirement: IPaymentRequirements,
+	requiredAmount: bigint,
+	context: IExecuteFunctions,
+	itemIndex: number,
+): Promise<IPaymentPayload> {
+	// Dynamic import of ethers
+	const { ethers } = await import('ethers');
+
+	// Create wallet from private key
+	const wallet = new ethers.Wallet(payerPrivateKey);
+
+	// Get current timestamp
+	const now = Math.floor(Date.now() / 1000);
+	const validAfter = now.toString();
+	const validBefore = (now + (requirement.maxTimeoutSeconds || 3600)).toString();
+
+	// Generate a nonce (using random bytes for uniqueness)
+	// Use Node.js crypto for better compatibility
+	const crypto = await import('crypto');
+	const nonceBytes = crypto.randomBytes(32);
+	const nonce = '0x' + nonceBytes.toString('hex');
+
+	// Create authorization object
+	const authorization = {
+		from: payerWalletAddress.toLowerCase(),
+		to: requirement.payTo.toLowerCase(),
+		value: requiredAmount.toString(),
+		validAfter,
+		validBefore,
+		nonce,
+	};
+
+	// EIP-3009 exact scheme uses EIP-712 signing
+	// Domain separator for EIP-712
+	const domain = {
+		name: 'TransferWithAuthorization',
+		version: requirement.extra?.version || '1',
+		chainId: getChainId(requirement.network),
+		verifyingContract: requirement.asset.toLowerCase(),
+	};
+
+	// Types for EIP-712
+	const types = {
+		TransferWithAuthorization: [
+			{ name: 'from', type: 'address' },
+			{ name: 'to', type: 'address' },
+			{ name: 'value', type: 'uint256' },
+			{ name: 'validAfter', type: 'uint256' },
+			{ name: 'validBefore', type: 'uint256' },
+			{ name: 'nonce', type: 'bytes32' },
+		],
+	};
+
+	// Sign the authorization using signTypedData (ethers v6)
+	const signature = await wallet.signTypedData(domain, types, authorization);
+
+	// Create payment payload
+	const paymentPayload: IPaymentPayload = {
+		x402Version: 1,
+		scheme: requirement.scheme || 'exact',
+		network: requirement.network,
+		payload: {
+			signature,
+			authorization,
+		},
+	};
+
+	return paymentPayload;
+}
+
+function getChainId(network: string): number {
+	const networkLower = network.toLowerCase();
+	if (networkLower === 'base-sepolia' || networkLower === 'base sepolia') {
+		return 84532;
+	}
+	if (networkLower === 'base') {
+		return 8453;
+	}
+	if (networkLower === 'ethereum' || networkLower === 'mainnet') {
+		return 1;
+	}
+	if (networkLower === 'sepolia') {
+		return 11155111;
+	}
+	// Default to base-sepolia for staging
+	return 84532;
+}
+
+async function settlePayment(
+	paymentPayload: IPaymentPayload,
+	requirement: IPaymentRequirements,
+	context: IExecuteFunctions,
+	itemIndex: number,
+): Promise<IDataObject> {
+	// Create PaymentRequirements instance
+	const paymentRequirements = new PaymentRequirementsClass(
+		requirement.scheme,
+		requirement.network,
+		requirement.maxAmountRequired,
+		requirement.resource,
+		requirement.description,
+		requirement.mimeType,
+		requirement.outputSchema,
+		requirement.payTo,
+		requirement.maxTimeoutSeconds,
+		requirement.asset,
+		requirement.extra,
+	);
+
+	// Convert PaymentRequirements to plain object for JSON serialization
+	const paymentRequirementsObj: IPaymentRequirements = {
+		scheme: paymentRequirements.scheme,
+		network: paymentRequirements.network,
+		maxAmountRequired: paymentRequirements.maxAmountRequired,
+		resource: paymentRequirements.resource,
+		description: paymentRequirements.description,
+		mimeType: paymentRequirements.mimeType,
+		outputSchema: paymentRequirements.outputSchema,
+		payTo: paymentRequirements.payTo,
+		maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
+		asset: paymentRequirements.asset,
+		extra: paymentRequirements.extra,
+	};
+
+	const requestBody = {
+		x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
+		paymentPayload: {
+			...paymentPayload,
+			x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
+		},
+		paymentRequirements: paymentRequirementsObj,
+	};
+
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json',
+	};
+
+	const CDP_HOST = 'facilitator.corbits.dev';
+	const FACILITATOR_SETTLE_PATH = '/settle';
+
+	try {
+		const response = await context.helpers.httpRequest({
+			method: 'POST',
+			url: `https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`,
+			headers,
+			body: requestBody,
+			json: true,
+		});
+
+		return response as IDataObject;
+	} catch (error: unknown) {
+		throw new NodeApiError(context.getNode(), error as object & { message?: string });
+	}
 }

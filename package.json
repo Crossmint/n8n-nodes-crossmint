@@ -38,6 +38,9 @@
             "dist/nodes/CrossmintCheckout/CrossmintCheckoutTrigger.node.js"
         ]
     },
+    "dependencies": {
+        "ethers": "^6.0.0"
+    },
     "devDependencies": {
         "@n8n/node-cli": "*",
         "@types/express": "^5.0.3",

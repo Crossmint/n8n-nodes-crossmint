@@ -1,6 +1,8 @@
 import {
 	IDataObject,
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 	INodeExecutionData,
@@ -17,6 +19,45 @@ import { transferToken } from '../../shared/actions/wallet/transferToken.operati
 import { signTransaction } from '../../shared/actions/wallet/signTransaction.operation';
 
 export class CrossmintWallets implements INodeType {
+	methods = {
+		loadOptions: {
+			async getBalanceChains(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const chainType = (this.getCurrentNodeParameter('balanceWalletChainType') as string) ?? 'solana';
+
+				if (chainType === 'solana') {
+					return [
+						{
+							name: 'Solana',
+							value: 'solana',
+							description: 'Solana blockchain',
+						},
+					];
+				}
+
+				const credentials = await this.getCredentials('crossmintApi').catch(() => null);
+				const environment = (credentials as { environment?: string } | null)?.environment ?? 'staging';
+
+				if (environment === 'production') {
+					return [
+						{
+							name: 'Base (Mainnet)',
+							value: 'base',
+							description: 'Base network',
+						},
+					];
+				}
+
+				return [
+					{
+						name: 'Base Sepolia (Testnet)',
+						value: 'base-sepolia',
+						description: 'Base Sepolia network (staging)',
+					},
+				];
+			},
+		},
+	};
+
 	description: INodeTypeDescription = {
 		displayName: 'Crossmint Wallets',
 		name: 'crossmintWallets',
@@ -110,9 +151,14 @@ export class CrossmintWallets implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['getOrCreateWallet'] } },
 				options: [
 					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
+					{
+						name: 'EVM',
+						value: 'evm',
+						description: 'Use Base in production or Base Sepolia in staging',
+					},
 				],
 				default: 'solana',
-				description: 'Blockchain type',
+				description: 'Blockchain type. Select EVM to create wallets on Base (production) or Base Sepolia (staging).',
 			},
 			{
 				displayName: 'Owner Type (Optional)',
@@ -187,8 +233,9 @@ export class CrossmintWallets implements INodeType {
 				typeOptions: { password: true },
 				displayOptions: { show: { resource: ['wallet'], operation: ['getOrCreateWallet'] } },
 				default: '',
-				placeholder: 'Enter private key (base58 for Solana)',
-				description: 'Private key that authorizes all transactions from this wallet. Use this link to generate them: https://www.val.town/x/Crossmint/crypto-address-generator.',
+				placeholder: 'Enter private key (base58 for Solana or 0x... for EVM)',
+				description:
+					'Private key that authorizes all transactions from this wallet. Use base58 keys for Solana or hex-encoded keys for Base/Base Sepolia. Use this link to generate them: https://www.val.town/x/Crossmint/crypto-address-generator.',
 				required: true,
 			},
 
@@ -573,19 +620,26 @@ export class CrossmintWallets implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
 				options: [
 					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
+					{
+						name: 'EVM',
+						value: 'evm',
+						description: 'Use Base (production) or Base Sepolia (staging)',
+					},
 				],
 				default: 'solana',
-				description: 'Blockchain type for the wallet locator (only needed for email, userId, phoneNumber, twitter, x modes)',
-
+				description: 'Blockchain type for the wallet locator. Determines which chain options and tokens are available.',
 			},
 			{
-				displayName: 'Chains',
+				displayName: 'Chain',
 				name: 'chains',
-				type: 'string',
+				type: 'options',
 				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
+				typeOptions: {
+					loadOptionsMethod: 'getBalanceChains',
+					loadOptionsDependsOn: ['balanceWalletChainType'],
+				},
 				default: 'solana',
-				placeholder: 'solana or solana-devnet',
-				description: 'Comma-separated list of blockchain chains to query',
+				description: 'Blockchain network to query balances from',
 				required: true,
 			},
 			{
@@ -594,8 +648,8 @@ export class CrossmintWallets implements INodeType {
 				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
 				default: 'sol,usdc',
-				placeholder: 'sol,usdc,usdt',
-				description: 'Comma-separated list of tokens to query',
+				placeholder: 'sol,usdc (use usdc for EVM)',
+				description: 'Comma-separated list of tokens to query. Use SOL/USDC for Solana, USDC for EVM chains.',
 				required: true,
 			},
 			// Sign Transaction fields

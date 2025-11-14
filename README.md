@@ -218,6 +218,11 @@ Wallet locators are a key concept used throughout all Crossmint node operations.
 | **Twitter Handle** | `twitter:{handle}:{chainType}:smart` | `twitter:username:solana:smart` | Social media identification |
 | **X Handle** | `x:{handle}:{chainType}:smart` | `x:username:solana:smart` | X (formerly Twitter) identification |
 
+Chain types now supported:
+
+- `solana`
+- `evm` (Base in production, Base Sepolia in staging)
+
 
 For more detailed information about wallet locator formats and specifications, see: [Crossmint Wallet Locators Documentation](https://docs.crossmint.com/api-reference/wallets/get-wallet-by-locator)
 

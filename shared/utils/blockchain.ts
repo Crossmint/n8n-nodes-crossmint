@@ -1,5 +1,6 @@
 import { NodeOperationError, INode } from 'n8n-workflow';
 import { webcrypto } from 'node:crypto';
+import { ethers } from 'ethers';
 import * as base58 from './base58';
 import { derivePublicKeyFromSecretKey, derivePublicKeyFromSeed } from './solana-key-derivation';
 
@@ -46,6 +47,28 @@ export function deriveKeyPair(privateKeyStr: string, context: unknown, itemIndex
 		throw new NodeOperationError((context as { getNode: () => INode }).getNode(), `Failed to process private key: ${(error as Error).message}`, {
 			itemIndex,
 		});
+	}
+}
+
+export function deriveEvmKeyPair(privateKeyStr: string, context: unknown, itemIndex: number): KeyPairResult {
+	try {
+		const normalizedKey = privateKeyStr.trim().startsWith('0x')
+			? privateKeyStr.trim()
+			: `0x${privateKeyStr.trim()}`;
+
+		const wallet = new ethers.Wallet(normalizedKey);
+
+		return {
+			address: ethers.getAddress(wallet.address),
+			publicKey: wallet.publicKey,
+			chainType: 'evm',
+		};
+	} catch (error: unknown) {
+		throw new NodeOperationError(
+			(context as { getNode: () => INode }).getNode(),
+			`Invalid EVM private key: ${(error as Error).message}`,
+			{ itemIndex },
+		);
 	}
 }
 
