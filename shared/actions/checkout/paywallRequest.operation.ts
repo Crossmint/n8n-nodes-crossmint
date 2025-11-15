@@ -1,9 +1,13 @@
-import { IExecuteFunctions, IDataObject, NodeOperationError, NodeApiError } from 'n8n-workflow';
+import { IExecuteFunctions, IDataObject, NodeOperationError } from 'n8n-workflow';
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { getSupportedTokens } from '../../utils/x402/helpers/paymentHelpers';
 import type { CrossmintCredentials, IPaymentRequirements, IPaymentPayload } from '../../transport/types';
 import { getBalanceByLocator } from '../wallet/getBalance.operation';
-import { PaymentRequirements as PaymentRequirementsClass } from '../../transport/types';
+
+import { ethers } from 'ethers';
+import * as crypto from 'crypto';
+
+
 
 interface PayRule {
 	paymentToken: string;
@@ -40,6 +44,7 @@ export async function paywallRequest(
 	const environment = credentials.environment ?? 'staging';
 	const resourceUrl = context.getNodeParameter('resourceUrl', itemIndex) as string;
 	const configuredRules = getConfiguredRules(context, itemIndex);
+	const initialRequestBody: IDataObject = {};
 
 	const supportedTokens = getSupportedTokens(environment);
 	const expectedNetwork = supportedTokens.kinds[0]?.network;
@@ -47,8 +52,9 @@ export async function paywallRequest(
 		throw new NodeOperationError(context.getNode(), 'No supported payment networks available for the selected environment', { itemIndex });
 	}
 
-	const paywallBody = await fetchPaywallRequirements(context, resourceUrl, itemIndex);
-	const normalizedRequirements = normalizeRequirements(paywallBody.accepts, itemIndex, context);
+	const paywallBody = await fetchPaywallRequirements(context, resourceUrl, initialRequestBody, itemIndex);
+	const paymentConfigs = extractPaymentRequirementConfigs(paywallBody, context, itemIndex);
+	const normalizedRequirements = normalizeRequirements(paymentConfigs, itemIndex, context);
 
 	const selectedRule = await selectRule({
 		api,
@@ -65,7 +71,6 @@ export async function paywallRequest(
 		});
 	}
 
-	// Sign and pay the selected rule using the rule's private key and wallet address
 	const paymentPayload = await signPayment(
 		selectedRule.walletAddress,
 		selectedRule.privateKey,
@@ -75,14 +80,14 @@ export async function paywallRequest(
 		itemIndex,
 	);
 
-	const settlementResult = await settlePayment(
+	const resourceResponse = await sendPaymentToResource(
+		context,
+		resourceUrl,
+		initialRequestBody,
 		paymentPayload,
 		selectedRule.requirement,
-		context,
-		itemIndex,
 	);
 
-	
 	return {
 		x402Version: paywallBody.x402Version ?? 1,
 		accepts: normalizedRequirements.map((r) => r.requirement),
@@ -95,7 +100,7 @@ export async function paywallRequest(
 		},
 		requirement: selectedRule.requirement,
 		payment: paymentPayload,
-		settlement: settlementResult,
+		resourceResponse,
 	};
 }
 
@@ -125,6 +130,7 @@ function getConfiguredRules(context: IExecuteFunctions, itemIndex: number): PayR
 async function fetchPaywallRequirements(
 	context: IExecuteFunctions,
 	resourceUrl: string,
+	requestBody: IDataObject,
 	itemIndex: number,
 ): Promise<IDataObject> {
 	try {
@@ -132,6 +138,7 @@ async function fetchPaywallRequirements(
 			method: 'POST',
 			url: resourceUrl,
 			headers: { Accept: 'application/json' },
+			body: requestBody,
 			json: true,
 			ignoreHttpStatusErrors: true,
 		})) as IDataObject;
@@ -142,18 +149,41 @@ async function fetchPaywallRequirements(
 	}
 }
 
+function extractPaymentRequirementConfigs(
+	paywallBody: IDataObject,
+	context: IExecuteFunctions,
+	itemIndex: number,
+): IPaymentRequirements[] {
+	const accepts = Array.isArray(paywallBody.accepts) ? (paywallBody.accepts as IPaymentRequirements[]) : undefined;
+	const errorConfigs = Array.isArray((paywallBody.error as IDataObject | undefined)?.paymentConfigs)
+		? (((paywallBody.error as IDataObject | undefined)?.paymentConfigs as IPaymentRequirements[]) ?? undefined)
+		: undefined;
+
+	const configs = accepts ?? errorConfigs;
+
+	if (!configs || configs.length === 0) {
+		throw new NodeOperationError(
+			context.getNode(),
+			'The paywall resource did not return any payment requirements (accepts or error.paymentConfigs)',
+			{ itemIndex },
+		);
+	}
+
+	return configs;
+}
+
 function normalizeRequirements(
-	accepts: unknown,
+	configs: IPaymentRequirements[],
 	itemIndex: number,
 	context: IExecuteFunctions,
 ): NormalizedRequirement[] {
-	if (!Array.isArray(accepts) || accepts.length === 0) {
-		throw new NodeOperationError(context.getNode(), 'The paywall resource did not return any payment requirements (accepts array)', {
+	if (!Array.isArray(configs) || configs.length === 0) {
+		throw new NodeOperationError(context.getNode(), 'The paywall resource did not return any payment requirements', {
 			itemIndex,
 		});
 	}
 
-	return (accepts as IPaymentRequirements[]).map((requirement) => ({
+	return configs.map((requirement) => ({
 		network: requirement.network?.toLowerCase(),
 		asset: requirement.asset?.toLowerCase(),
 		requiredAmount: requirement.maxAmountRequired ? BigInt(requirement.maxAmountRequired) : BigInt(0),
@@ -288,6 +318,35 @@ export function extractAvailableBalance(balanceResponse: any): bigint | undefine
 
 
 
+async function sendPaymentToResource(
+	context: IExecuteFunctions,
+	resourceUrl: string,
+	requestBody: IDataObject,
+	paymentPayload: IPaymentPayload,
+	requirement: IPaymentRequirements,
+): Promise<IDataObject> {
+	const headers: Record<string, string> = {
+		Accept: 'application/json',
+		'Content-Type': 'application/json',
+		'x-payment': Buffer.from(JSON.stringify(paymentPayload)).toString('base64'),
+	};
+
+	return (await context.helpers.httpRequest({
+		method: 'POST',
+		url: resourceUrl,
+		headers,
+		body: requestBody,
+		json: true,
+		ignoreHttpStatusErrors: true,
+	})) as IDataObject;
+}
+
+function generateNonce(): string {
+	const nonce20 = crypto.randomBytes(20);
+	// Pad to 32 bytes (12 bytes of zeros + 20 bytes nonce)
+	return '0x' + Buffer.concat([Buffer.alloc(12), nonce20]).toString('hex');
+}
+
 async function signPayment(
 	payerWalletAddress: string,
 	payerPrivateKey: string,
@@ -296,43 +355,68 @@ async function signPayment(
 	context: IExecuteFunctions,
 	itemIndex: number,
 ): Promise<IPaymentPayload> {
-	// Dynamic import of ethers
 	const { ethers } = await import('ethers');
-
-	// Create wallet from private key
 	const wallet = new ethers.Wallet(payerPrivateKey);
 
-	// Get current timestamp
 	const now = Math.floor(Date.now() / 1000);
-	const validAfter = now.toString();
-	const validBefore = (now + (requirement.maxTimeoutSeconds || 3600)).toString();
+	const validAfter = now - 60;
+	const validBefore = now + (requirement.maxTimeoutSeconds || 3600);
+	const nonce = generateNonce();
 
-	// Generate a nonce (using random bytes for uniqueness)
-	// Use Node.js crypto for better compatibility
-	const crypto = await import('crypto');
-	const nonceBytes = crypto.randomBytes(32);
-	const nonce = '0x' + nonceBytes.toString('hex');
-
-	// Create authorization object
-	const authorization = {
-		from: payerWalletAddress.toLowerCase(),
-		to: requirement.payTo.toLowerCase(),
-		value: requiredAmount.toString(),
+	const value = requirement.maxAmountRequired ?? requiredAmount.toString();
+	const signature = await generateEIP3009Signature(
+		wallet,
+		requirement.asset,
+		requirement.payTo,
+		value,
 		validAfter,
 		validBefore,
 		nonce,
+		requirement.network,
+		requirement.extra,
+	);
+
+	const paymentPayload: IPaymentPayload = {
+		x402Version: 1,
+		scheme: requirement.scheme || 'exact',
+		network: requirement.network,
+		payload: {
+			signature,
+			authorization: {
+				from: wallet.address,
+				to: requirement.payTo,
+				value,
+				validAfter: validAfter.toString(),
+				validBefore: validBefore.toString(),
+				nonce,
+			},
+		},
 	};
 
-	// EIP-3009 exact scheme uses EIP-712 signing
-	// Domain separator for EIP-712
+	return paymentPayload;
+}
+
+async function generateEIP3009Signature(
+	wallet: ethers.Wallet,
+	tokenAddress: string,
+	to: string,
+	value: string,
+	validAfter: number,
+	validBefore: number,
+	nonce: string,
+	network: string,
+	extra?: { name?: string; version?: string }
+): Promise<string> {
+	// EIP-712 domain for USDC contract
+	// Use values from extra if provided, otherwise defaults
 	const domain = {
-		name: 'TransferWithAuthorization',
-		version: requirement.extra?.version || '1',
-		chainId: getChainId(requirement.network),
-		verifyingContract: requirement.asset.toLowerCase(),
+		name: extra?.name || 'USD Coin',
+		version: extra?.version || '2',
+		chainId: network === 'base' ? 8453 : 84532, // Base mainnet or Base Sepolia
+		verifyingContract: tokenAddress,
 	};
 
-	// Types for EIP-712
+	// EIP-712 types for transferWithAuthorization
 	const types = {
 		TransferWithAuthorization: [
 			{ name: 'from', type: 'address' },
@@ -344,104 +428,18 @@ async function signPayment(
 		],
 	};
 
-	// Sign the authorization using signTypedData (ethers v6)
-	const signature = await wallet.signTypedData(domain, types, authorization);
-
-	// Create payment payload
-	const paymentPayload: IPaymentPayload = {
-		x402Version: 1,
-		scheme: requirement.scheme || 'exact',
-		network: requirement.network,
-		payload: {
-			signature,
-			authorization,
-		},
+	// Message to sign
+	const message = {
+		from: wallet.address,
+		to: to,
+		value: value,
+		validAfter: validAfter.toString(),
+		validBefore: validBefore.toString(),
+		nonce: nonce,
 	};
 
-	return paymentPayload;
-}
+	// Sign the typed data
+	const signature = await wallet._signTypedData(domain, types, message);
 
-function getChainId(network: string): number {
-	const networkLower = network.toLowerCase();
-	if (networkLower === 'base-sepolia' || networkLower === 'base sepolia') {
-		return 84532;
-	}
-	if (networkLower === 'base') {
-		return 8453;
-	}
-	if (networkLower === 'ethereum' || networkLower === 'mainnet') {
-		return 1;
-	}
-	if (networkLower === 'sepolia') {
-		return 11155111;
-	}
-	// Default to base-sepolia for staging
-	return 84532;
-}
-
-async function settlePayment(
-	paymentPayload: IPaymentPayload,
-	requirement: IPaymentRequirements,
-	context: IExecuteFunctions,
-	itemIndex: number,
-): Promise<IDataObject> {
-	// Create PaymentRequirements instance
-	const paymentRequirements = new PaymentRequirementsClass(
-		requirement.scheme,
-		requirement.network,
-		requirement.maxAmountRequired,
-		requirement.resource,
-		requirement.description,
-		requirement.mimeType,
-		requirement.outputSchema,
-		requirement.payTo,
-		requirement.maxTimeoutSeconds,
-		requirement.asset,
-		requirement.extra,
-	);
-
-	// Convert PaymentRequirements to plain object for JSON serialization
-	const paymentRequirementsObj: IPaymentRequirements = {
-		scheme: paymentRequirements.scheme,
-		network: paymentRequirements.network,
-		maxAmountRequired: paymentRequirements.maxAmountRequired,
-		resource: paymentRequirements.resource,
-		description: paymentRequirements.description,
-		mimeType: paymentRequirements.mimeType,
-		outputSchema: paymentRequirements.outputSchema,
-		payTo: paymentRequirements.payTo,
-		maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
-		asset: paymentRequirements.asset,
-		extra: paymentRequirements.extra,
-	};
-
-	const requestBody = {
-		x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
-		paymentPayload: {
-			...paymentPayload,
-			x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
-		},
-		paymentRequirements: paymentRequirementsObj,
-	};
-
-	const headers: Record<string, string> = {
-		'Content-Type': 'application/json',
-	};
-
-	const CDP_HOST = 'facilitator.corbits.dev';
-	const FACILITATOR_SETTLE_PATH = '/settle';
-
-	try {
-		const response = await context.helpers.httpRequest({
-			method: 'POST',
-			url: `https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`,
-			headers,
-			body: requestBody,
-			json: true,
-		});
-
-		return response as IDataObject;
-	} catch (error: unknown) {
-		throw new NodeApiError(context.getNode(), error as object & { message?: string });
-	}
+	return signature;
 }

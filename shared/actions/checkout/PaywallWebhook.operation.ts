@@ -17,7 +17,13 @@ async function handleX402Webhook(
 	const headers = context.getHeaderData();
 	const req = context.getRequestObject();
 	const resp = context.getResponseObject();
-	const requestMethod = context.getRequestObject().method;
+	const requestMethod = req.method;
+
+	context.logger?.info('Paywall webhook request received', {
+		method: requestMethod,
+		headers,
+		body: req.body,
+	});
 
 	const prepareOutput = setupOutputConnection(context, requestMethod, {});
 
@@ -65,6 +71,7 @@ async function handleX402Webhook(
 	// Check for X-PAYMENT header
 	const xPaymentHeader = headers['x-payment'];
 	if (xPaymentHeader == null || typeof xPaymentHeader !== 'string') {
+		context.logger?.warn('Paywall webhook missing x-payment header');
 		return generateX402Error(resp, 'No x-payment header provided', paymentRequirements);
 	}
 
@@ -86,6 +93,9 @@ async function handleX402Webhook(
 
 		const verification = verifyPaymentDetails(decodedXPaymentJson, paymentRequirements);
 		if (!verification.valid) {
+			context.logger?.warn('Paywall webhook payment verification failed', {
+				errors: verification.errors,
+			});
 			return generateX402Error(
 				resp,
 				`x-payment header is not valid for reasons: ${verification.errors}`,

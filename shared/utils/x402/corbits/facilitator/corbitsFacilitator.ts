@@ -56,6 +56,12 @@ export async function settleX402Payment(
 
 
 	try {
+		console.log('Sending request to Corbits facilitator', {
+			url: `https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`,
+			headers,
+			body: JSON.stringify(requestBody),
+		});
+
 		const res = await fetch(`https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`, {
 			method: 'POST',
 			headers,
@@ -63,6 +69,12 @@ export async function settleX402Payment(
 		});
 
 		const responseText = await res.text();
+		console.log('Received response from Corbits facilitator', {
+			status: res.status,
+			statusText: res.statusText,
+			headers: Object.fromEntries(res.headers.entries()),
+			body: responseText,
+		});
 
 		if (!res.ok) {
 			const errorPayload: JsonObject = {
