@@ -22,39 +22,16 @@ export async function getBalance(
 	const walletResource = context.getNodeParameter('walletLocator', itemIndex) as WalletLocatorData;
 	const chains = context.getNodeParameter('chains', itemIndex) as string;
 	const tkn = context.getNodeParameter('tkn', itemIndex) as string;
-	const chainType = context.getNodeParameter('balanceWalletChainType', itemIndex) as string;
 
-	if (!['solana', 'evm'].includes(chainType)) {
+	if (chains !== 'solana') {
 		throw new NodeOperationError(
 			context.getNode(),
-			`Unsupported chain type: ${chainType}`,
+			`Chains must be set to 'solana' for smart wallets`,
 			{ itemIndex },
 		);
 	}
 
-	const credentials = api.getCredentials();
-	const environment = credentials.environment ?? 'staging';
-
-	if (chainType === 'solana') {
-		if (chains !== 'solana') {
-			throw new NodeOperationError(
-				context.getNode(),
-				`Chains must be set to 'solana' when Chain Type is Solana`,
-				{ itemIndex },
-			);
-		}
-	} else {
-		const expectedChain = environment === 'production' ? 'base' : 'base-sepolia';
-		if (chains !== expectedChain) {
-			throw new NodeOperationError(
-				context.getNode(),
-				`Chains must be set to '${expectedChain}' when Chain Type is EVM and credentials environment is ${environment}`,
-				{ itemIndex },
-			);
-		}
-	}
-
-	const walletLocator = buildWalletLocator(walletResource, chainType, context, itemIndex);
+	const walletLocator = buildWalletLocator(walletResource, 'solana', context, itemIndex);
 
 	try {
 		return await getBalanceByLocator(api, walletLocator, chains, tkn);

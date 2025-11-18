@@ -2,7 +2,7 @@ import { IExecuteFunctions, NodeApiError, IDataObject, NodeOperationError } from
 import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS } from '../../utils/constants';
 import { validateRequiredField } from '../../utils/validation';
-import { deriveKeyPair, deriveEvmKeyPair } from '../../utils/blockchain';
+import { deriveKeyPair } from '../../utils/blockchain';
 import { WalletCreateRequest } from '../../transport/types';
 
 export async function createWallet(
@@ -16,29 +16,13 @@ export async function createWallet(
 
 	validateRequiredField(externalSignerDetails, 'External signer private key', context, itemIndex);
 
-	const credentials = api.getCredentials();
-	const environment = credentials.environment ?? 'staging';
-
-	if (chainType !== 'solana' && chainType !== 'evm') {
-		throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${chainType}`, { itemIndex });
+	if (chainType !== 'solana') {
+		throw new NodeOperationError(context.getNode(), `Unsupported chain type: ${chainType}. Only Solana smart wallets are available`, {
+			itemIndex,
+		});
 	}
 
-	if (chainType === 'evm') {
-		if (environment === 'production') {
-			// EVM wallets on production run on Base
-		} else if (environment === 'staging') {
-			// EVM wallets on staging run on Base Sepolia
-		} else {
-			throw new NodeOperationError(context.getNode(), 'EVM wallets are only supported when the Crossmint credentials environment is set to production (Base) or staging (Base Sepolia)', {
-				itemIndex,
-			});
-		}
-	}
-
-	const keyPair =
-		chainType === 'evm'
-			? deriveEvmKeyPair(externalSignerDetails, context, itemIndex)
-			: deriveKeyPair(externalSignerDetails, context, itemIndex);
+	const keyPair = deriveKeyPair(externalSignerDetails, context, itemIndex);
 
 	const adminSigner = {
 		type: 'external-wallet',

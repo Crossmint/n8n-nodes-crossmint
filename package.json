@@ -39,7 +39,9 @@
         ]
     },
     "dependencies": {
-        "ethers": "^5.8.0"
+        "@faremeter/fetch": "^0.12.0",
+        "@faremeter/wallet-crossmint": "^0.12.0",
+        "@faremeter/x-solana-settlement": "^0.3.1"
     },
     "devDependencies": {
         "@n8n/node-cli": "*",

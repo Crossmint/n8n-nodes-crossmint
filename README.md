@@ -202,6 +202,7 @@ For detailed information about each operation, parameters, and response formats,
 
 ### Additional Resources
 - [Supported Chains and Tokens](https://docs.crossmint.com/introduction/supported-chains#supported-chains)
+- [Solana Smart Wallet Flow (Faremeter)](docs/solana-smart-wallets.md)
 
 ## 🔑 Understanding Wallet Locators
 
@@ -221,7 +222,6 @@ Wallet locators are a key concept used throughout all Crossmint node operations.
 Chain types now supported:
 
 - `solana`
-- `evm` (Base in production, Base Sepolia in staging)
 
 
 For more detailed information about wallet locator formats and specifications, see: [Crossmint Wallet Locators Documentation](https://docs.crossmint.com/api-reference/wallets/get-wallet-by-locator)

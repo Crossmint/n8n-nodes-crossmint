@@ -1,9 +1,12 @@
 import { IWebhookFunctions, IWebhookResponseData } from 'n8n-workflow';
 import { setupOutputConnection } from '../../utils/webhookUtils';
 import { getSupportedTokens, buildPaymentRequirements } from '../../utils/x402/helpers/paymentHelpers';
-import { parseXPaymentHeader, validateXPayment, verifyPaymentDetails } from '../../utils/x402/validation/paymentValidation';
-import { settleX402Payment } from '../../utils/x402/corbits/facilitator/corbitsFacilitator';
+import { parseXPaymentHeader, validateXPayment } from '../../utils/x402/validation/paymentValidation';
+import { requestFacilitatorAccepts, settleX402Payment } from '../../utils/x402/corbits/facilitator/corbitsFacilitator';
 import { generateX402Error, generateResponse } from '../../utils/x402/response/paymentResponse';
+import type { IPaymentPayload, IPaymentRequirements } from '../../transport/types';
+
+const CORBITS_FACILITATOR_URL = 'https://facilitator.corbits.dev';
 
 export async function webhookTrigger(context: IWebhookFunctions): Promise<IWebhookResponseData> {
 	return await handleX402Webhook(context);
@@ -35,7 +38,7 @@ async function handleX402Webhook(
 		return { noWebhookResponse: true };
 	}
 
-	// Get environment to determine network (staging: base-sepolia, production: base)
+	// Get environment to determine network (staging: solana-devnet, production: solana-mainnet-beta)
 	const environment = (credentials as unknown as { environment?: string } | undefined)?.environment;
 
 	const supportedTokens = getSupportedTokens(environment);
@@ -68,11 +71,14 @@ async function handleX402Webhook(
 	);
 	if (paymentRequirements == null) return { noWebhookResponse: true };
 
+	const facilitatorRequirements = await requestFacilitatorAccepts(context, CORBITS_FACILITATOR_URL, paymentRequirements, webhookUrl);
+	const facilitatorAccepts = facilitatorRequirements.accepts;
+
 	// Check for X-PAYMENT header
 	const xPaymentHeader = headers['x-payment'];
 	if (xPaymentHeader == null || typeof xPaymentHeader !== 'string') {
 		context.logger?.warn('Paywall webhook missing x-payment header');
-		return generateX402Error(resp, 'No x-payment header provided', paymentRequirements);
+		return generateX402Error(resp, 'No x-payment header provided', facilitatorAccepts);
 	}
 
 	// Process payment: decode, validate, verify, and settle
@@ -85,21 +91,18 @@ async function handleX402Webhook(
 			resp.end(
 				JSON.stringify({
 					x402Version: 1,
-					accepts: paymentRequirements,
+					accepts: facilitatorAccepts,
 				}),
 			);
 			return { noWebhookResponse: true };
 		}
 
-		const verification = verifyPaymentDetails(decodedXPaymentJson, paymentRequirements);
-		if (!verification.valid) {
-			context.logger?.warn('Paywall webhook payment verification failed', {
-				errors: verification.errors,
-			});
+		const matchingRequirement = findMatchingFacilitatorRequirement(decodedXPaymentJson, facilitatorAccepts);
+		if (!matchingRequirement) {
 			return generateX402Error(
 				resp,
-				`x-payment header is not valid for reasons: ${verification.errors}`,
-				paymentRequirements,
+				'Unable to find matching payment requirement for provided x-payment header',
+				facilitatorAccepts,
 			);
 		}
 
@@ -107,8 +110,9 @@ async function handleX402Webhook(
 		try {
 			const settleResponse = await settleX402Payment(
 				context,
+				CORBITS_FACILITATOR_URL,
 				decodedXPaymentJson,
-				verification.paymentRequirements!,
+				matchingRequirement,
 				xPaymentHeader,
 			);
 
@@ -117,7 +121,7 @@ async function handleX402Webhook(
 				resp.end(
 					JSON.stringify({
 						x402Version: 1,
-						accepts: paymentRequirements,
+						accepts: facilitatorAccepts,
 					}),
 				);
 				return { noWebhookResponse: true };
@@ -142,7 +146,7 @@ async function handleX402Webhook(
 				JSON.stringify({
 					x402Version: 1,
 					error: `Settlement failed: ${errorMessage}`,
-					accepts: paymentRequirements,
+					accepts: facilitatorAccepts,
 				}),
 			);
 			return { noWebhookResponse: true };
@@ -151,6 +155,18 @@ async function handleX402Webhook(
 		context.logger.error('Error in x402 webhook', error);
 		const errorMessage = error instanceof Error ? error.message : String(error);
 
-		return generateX402Error(resp, `Payment processing error: ${errorMessage}`, paymentRequirements);
+		return generateX402Error(resp, `Payment processing error: ${errorMessage}`, facilitatorAccepts);
 	}
+}
+
+function findMatchingFacilitatorRequirement(
+	payment: IPaymentPayload,
+	requirements: IPaymentRequirements[],
+): IPaymentRequirements | undefined {
+	return requirements.find((req) => {
+		const schemeMatches = req.scheme === payment.scheme;
+		const networkMatches = req.network === payment.network;
+		const assetMatches = payment.asset ? req.asset === payment.asset : true;
+		return schemeMatches && networkMatches && assetMatches;
+	});
 }

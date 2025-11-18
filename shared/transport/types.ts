@@ -75,22 +75,12 @@ export interface WalletLocatorData {
 	value: string;
 }
 
-// EVM exact scheme payload structure (EIP-3009)
 export interface IPaymentPayload {
 	x402Version: number | string;
 	scheme: string;
 	network: string;
-	payload: {
-		signature: string;
-		authorization: {
-			from: string;
-			to: string;
-			value: string;
-			validAfter: string;
-			validBefore: string;
-			nonce: string;
-		};
-	};
+	asset?: string;
+	payload: Record<string, unknown>;
 }
 
 export interface IPaymentRequirements {
@@ -104,10 +94,7 @@ export interface IPaymentRequirements {
 	payTo: string;
 	maxTimeoutSeconds: number;
 	asset: string;
-	extra: {
-		version: string;
-		name: string;
-	};
+	extra?: Record<string, unknown>;
 }
 
 export class PaymentRequirements implements IPaymentRequirements {
@@ -122,10 +109,7 @@ export class PaymentRequirements implements IPaymentRequirements {
 		public payTo: string,
 		public maxTimeoutSeconds: number,
 	public asset: string,
-	public extra: {
-		version: string;
-		name: string;
-	},
+		public extra: Record<string, unknown> = {},
 	) {}
 }
 

@@ -8,21 +8,22 @@ export function getSupportedTokens(environment?: string): {
 		tokens: Array<{ name: string; contractAddress: string; version: string; normalizedName?: string }>;
 	}>;
 } {
-	// Use base-sepolia for staging, base for production
-	const network = environment === 'staging' ? 'base-sepolia' : 'base';
+	const isProduction = environment === 'production';
+	const network = isProduction ? 'solana-mainnet-beta' : 'solana-devnet';
+	const mint = isProduction
+		? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+		: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';
 
 	return {
 		kinds: [
 			{
-				scheme: 'exact',
+				scheme: '@faremeter/x-solana-settlement',
 				network: network,
 				tokens: [
 					{
 						name: 'USDC',
-						contractAddress: environment === 'staging'
-							? '0x036CbD53842c5426634e7929541eC2318f3dCF7e' // Base Sepolia USDC
-							: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // Base Mainnet USDC
-						version: '2',
+						contractAddress: mint,
+						version: '1',
 						normalizedName: 'usdc'
 					},
 				],
@@ -44,11 +45,10 @@ export function buildPaymentRequirements(
 	const requirements: PaymentRequirements[] = [];
 	const configuredNetworks: string[] = [];
 
-	// Get the expected network from supported tokens (should match environment)
 	const expectedNetwork = supportedTokens.kinds[0]?.network;
 	if (!expectedNetwork) {
 		resp.writeHead(403);
-		resp.end('Misconfiguration: No supported payment networks found for the selected environment');
+		resp.end('Misconfiguration: No supported Solana networks found for the selected environment');
 		return null;
 	}
 
@@ -61,8 +61,7 @@ export function buildPaymentRequirements(
 			return null;
 		}
 
-		// Map 'base' to the expected network (base or base-sepolia based on environment)
-		const normalizedNetwork = network === 'base' ? expectedNetwork : network;
+		const normalizedNetwork = network === 'solana' ? expectedNetwork : network;
 
 		if (configuredNetworks.includes(normalizedNetwork)) {
 			resp.writeHead(403);
@@ -76,11 +75,9 @@ export function buildPaymentRequirements(
 		const kind = supportedTokens.kinds.find((k) => k.network === expectedNetwork);
 		if (kind == null) throw new Error(`Supported network ${expectedNetwork} not found`);
 
-		// Match by normalizedName (usdc/sol) or by contractAddress (full address)
 		const supportedToken = kind.tokens.find((t) => t.normalizedName === contractAddress || t.contractAddress === contractAddress);
 		if (supportedToken == null) throw new Error(`Supported token ${contractAddress} not found`);
 
-		// Convert payment amount (entered in standard token units) to atomic units (USDC has 6 decimals)
 		const paymentAmount = configuredToken.paymentAmount;
 		if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
 			throw new Error(`Invalid payment amount configured for network ${normalizedNetwork}`);
@@ -100,7 +97,7 @@ export function buildPaymentRequirements(
 				configuredToken.payToAddress,
 				60,
 				supportedToken.contractAddress,
-				{ version: supportedToken.version, name: supportedToken.name },
+				{ tokenName: supportedToken.normalizedName ?? supportedToken.name },
 			),
 		);
 	}

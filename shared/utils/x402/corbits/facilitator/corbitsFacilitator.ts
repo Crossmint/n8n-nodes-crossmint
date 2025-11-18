@@ -6,106 +6,118 @@ import {
 } from 'n8n-workflow';
 import type { IPaymentPayload, IPaymentRequirements, PaymentRequirements } from '../../../../transport/types';
 
-// Corbits facilitator integration
-const CDP_HOST = 'facilitator.corbits.dev';
-const FACILITATOR_SETTLE_PATH = '/settle';
-
-/**
- * Creates correlation header for Corbits API requests
- */
 export interface SettleResponse {
 	success: boolean;
-	txHash?: string;
+	txHash?: string | null;
 	error?: string;
 	data: IDataObject;
 }
 
+export interface FacilitatorAcceptsResponse {
+	x402Version: number;
+	accepts: IPaymentRequirements[];
+}
+
+export async function requestFacilitatorAccepts(
+	context: IWebhookFunctions,
+	facilitatorUrl: string,
+	requirements: PaymentRequirements[],
+	resourceUrl: string,
+): Promise<FacilitatorAcceptsResponse> {
+	const accepts = requirements.map((req) => serializeRequirements(req, resourceUrl));
+	const response = await httpJsonRequest(context, facilitatorUrl, '/accepts', {
+		x402Version: 1,
+		accepts,
+	});
+
+	return {
+		x402Version: typeof response.x402Version === 'number' ? response.x402Version : 1,
+		accepts: Array.isArray(response.accepts) ? (response.accepts as IPaymentRequirements[]) : [],
+	};
+}
 
 export async function settleX402Payment(
 	context: IWebhookFunctions,
+	facilitatorUrl: string,
 	paymentPayload: IPaymentPayload,
-	paymentRequirements: PaymentRequirements,
+	paymentRequirements: PaymentRequirements | IPaymentRequirements,
 	paymentHeader?: string,
 ): Promise<SettleResponse> {
-	// Convert PaymentRequirements class instance to plain object for proper JSON serialization
-	const paymentRequirementsObj: IPaymentRequirements = {
-		scheme: paymentRequirements.scheme,
-		network: paymentRequirements.network,
-		maxAmountRequired: paymentRequirements.maxAmountRequired,
-		resource: paymentRequirements.resource,
-		description: paymentRequirements.description,
-		mimeType: paymentRequirements.mimeType,
-		outputSchema: paymentRequirements.outputSchema,
-		payTo: paymentRequirements.payTo,
-		maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
-		asset: paymentRequirements.asset,
-		extra: paymentRequirements.extra,
-	};
 	const requestBody = {
 		x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
-		paymentPayload: {
-			...paymentPayload,
-			x402Version: typeof paymentPayload.x402Version === 'string' ? parseInt(paymentPayload.x402Version, 10) : paymentPayload.x402Version ?? 1,
-		},
-		paymentRequirements: paymentRequirementsObj,
+		paymentPayload,
+		paymentRequirements: serializeRequirements(paymentRequirements),
 		...(paymentHeader ? { paymentHeader } : {}),
 	};
-	const headers: Record<string, string> = {
-		'Content-Type': 'application/json',
+
+	const response = await httpJsonRequest(context, facilitatorUrl, '/settle', requestBody);
+	return {
+		success: Boolean(response.success),
+		txHash: (response.txHash as string | null | undefined) ?? null,
+		error: typeof response.error === 'string' ? response.error : undefined,
+		data: response,
 	};
-
-
-	try {
-		console.log('Sending request to Corbits facilitator', {
-			url: `https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`,
-			headers,
-			body: JSON.stringify(requestBody),
-		});
-
-		const res = await fetch(`https://${CDP_HOST}${FACILITATOR_SETTLE_PATH}`, {
-			method: 'POST',
-			headers,
-			body: JSON.stringify(requestBody),
-		});
-
-		const responseText = await res.text();
-		console.log('Received response from Corbits facilitator', {
-			status: res.status,
-			statusText: res.statusText,
-			headers: Object.fromEntries(res.headers.entries()),
-			body: responseText,
-		});
-
-		if (!res.ok) {
-			const errorPayload: JsonObject = {
-				message: `/settle ${res.status}: ${res.statusText}`,
-				statusCode: res.status,
-				body: responseText,
-				headers: Object.fromEntries(res.headers.entries()),
-			};
-			throw new NodeApiError(context.getNode(), errorPayload);
-		}
-		const data = JSON.parse(responseText) as IDataObject & {
-			success?: boolean;
-			transaction?: {
-				hash?: string;
-			};
-			errorReason?: string;
-		};
-
-		return {
-			success: Boolean(data.success),
-			txHash: (data.transaction as IDataObject | undefined)?.hash as string | undefined,
-			error: typeof data.errorReason === 'string' ? data.errorReason : undefined,
-			data,
-		};
-
-	} catch (error) {
-		if (error instanceof NodeApiError) {
-			throw error;
-		}
-
-		throw new NodeApiError(context.getNode(), error as object & { message?: string });
-	}
 }
 
+function serializeRequirements(
+	requirements: PaymentRequirements | IPaymentRequirements,
+	resourceOverride?: string,
+): IPaymentRequirements {
+	return {
+		scheme: requirements.scheme,
+		network: requirements.network,
+		maxAmountRequired: requirements.maxAmountRequired,
+		resource: resourceOverride ?? requirements.resource,
+		description: requirements.description,
+		mimeType: requirements.mimeType,
+		outputSchema: requirements.outputSchema,
+		payTo: requirements.payTo,
+		maxTimeoutSeconds: requirements.maxTimeoutSeconds,
+		asset: requirements.asset,
+		extra: requirements.extra ?? {},
+	};
+}
+
+async function httpJsonRequest(
+	context: IWebhookFunctions,
+	baseUrl: string,
+	path: string,
+	body: IDataObject,
+): Promise<IDataObject> {
+	const url = new URL(path, ensureBaseUrl(baseUrl)).toString();
+	const res = await fetch(url, {
+		method: 'POST',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify(body),
+	});
+
+	const text = await res.text();
+	const json = safeParseJson(text);
+
+	if (!res.ok) {
+		const errorPayload: JsonObject = {
+			message: `${path} ${res.status}: ${res.statusText}`,
+			statusCode: res.status,
+			body: text,
+		};
+		throw new NodeApiError(context.getNode(), errorPayload);
+	}
+
+	return json;
+}
+
+function ensureBaseUrl(url: string): string {
+	return url.endsWith('/') ? url : `${url}/`;
+}
+
+function safeParseJson(text: string): IDataObject {
+	if (!text) return {};
+	try {
+		return JSON.parse(text) as IDataObject;
+	} catch {
+		return { raw: text };
+	}
+}
