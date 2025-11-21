@@ -11,6 +11,7 @@ export const API_VERSIONS = {
 
 export const CHAIN_TYPES = {
 	SOLANA: 'solana',
+	EVM: 'evm',
 } as const;
 
 export const VALIDATION_PATTERNS = {

@@ -1,6 +1,8 @@
 import {
 	IDataObject,
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 	INodeExecutionData,
@@ -12,8 +14,36 @@ import { CrossmintApi } from '../../shared/transport/CrossmintApi';
 import { CrossmintCredentials } from '../../shared/transport/types';
 import { findProduct } from '../../shared/actions/checkout/findProduct.operation';
 import { purchaseProduct } from '../../shared/actions/checkout/purchaseProduct.operation';
+import { paywallRequest } from '../../shared/actions/checkout/paywallRequest.operation';
 
 export class CrossmintCheckout implements INodeType {
+	methods = {
+		loadOptions: {
+			async getPaymentTokens(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const selectedEnvironment = (this.getCurrentNodeParameter('environment') as string | undefined) ?? null;
+				const credentials = await this.getCredentials('crossmintApi').catch(() => null);
+				const credentialsEnvironment = (credentials as { environment?: string } | null)?.environment ?? 'staging';
+				const environment = selectedEnvironment ?? credentialsEnvironment;
+
+				if (environment === 'production') {
+					return [
+						{
+							name: 'USDC (Base)',
+							value: 'base:usdc',
+						},
+					];
+				}
+
+				return [
+					{
+						name: 'USDC (Base Sepolia)',
+						value: 'base-sepolia:usdc',
+					},
+				];
+			},
+		},
+	};
+
 	description: INodeTypeDescription = {
 		displayName: 'Crossmint Checkout',
 		name: 'crossmintCheckout',
@@ -76,6 +106,12 @@ export class CrossmintCheckout implements INodeType {
 						value: 'purchaseProduct',
 						description: 'Purchase a product with automated checkout',
 						action: 'Pay order',
+					},
+					{
+						name: 'Paywall Request',
+						value: 'paywallRequest',
+						description: 'Generate payment requirements for a Crossmint Paywall',
+						action: 'Paywall Request',
 					},
 				],
 				default: 'findProduct',
@@ -311,6 +347,73 @@ export class CrossmintCheckout implements INodeType {
 				description: 'Agent wallet address for crypto payments - must be a Crossmint managed wallet with USDC funds',
 				required: true,
 			},
+			// Paywall Request
+			{
+				displayName: 'Resource URL',
+				name: 'resourceUrl',
+				type: 'string',
+				displayOptions: { show: { resource: ['checkout'], operation: ['paywallRequest'] } },
+				default: '',
+				placeholder: 'https://example.com/resource',
+				description: 'URL that identifies the protected resource',
+				required: true,
+			},
+			{
+				displayName: 'Payment Rules',
+				name: 'payRules',
+				type: 'fixedCollection',
+				displayOptions: {
+					show: {
+						resource: ['checkout'],
+						operation: ['paywallRequest'],
+					},
+				},
+				required: true,
+				default: [],
+				description: 'Ordered payment rules evaluated from top to bottom. Each rule specifies a token, wallet address (from), and private key for that wallet. When a resource sends payment requirements matching a rule\'s token, that rule\'s wallet will be used to pay.',
+				typeOptions: {
+					multipleValues: true,
+				},
+				options: [
+					{
+						name: 'rule',
+						displayName: 'Rule',
+						// eslint-disable-next-line n8n-nodes-base/node-param-fixed-collection-type-unsorted-items
+						values: [
+							{
+								displayName: 'Payment Token',
+								name: 'paymentToken',
+								type: 'options',
+								typeOptions: {
+									loadOptionsMethod: 'getPaymentTokens',
+								},
+								required: true,
+								default: '',
+								description: 'Token that will be accepted for the payment (e.g., base-sepolia:usdc)',
+							},
+							{
+								displayName: 'From Wallet',
+								name: 'fromWallet',
+								type: 'string',
+								required: true,
+								default: '',
+								placeholder: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+								description: 'Wallet address that will make the payment (from address)',
+							},
+							{
+								displayName: 'Private Key',
+								name: 'privateKey',
+								type: 'string',
+								typeOptions: { password: true },
+								required: true,
+								default: '',
+								placeholder: 'Enter private key (hex for EVM chains)',
+								description: 'Private key of the from wallet used for signing the payment. The pay-to address comes from the payment requirements.',
+							},
+						],
+					},
+				],
+			},
 		] as INodeProperties[],
 	};
 
@@ -332,6 +435,9 @@ export class CrossmintCheckout implements INodeType {
 						break;
 					case 'purchaseProduct':
 						result = await purchaseProduct(this, api, itemIndex);
+						break;
+					case 'paywallRequest':
+						result = await paywallRequest(this, itemIndex);
 						break;
 					default:
 						throw new NodeOperationError(this.getNode(), `Unknown checkout operation: ${operation}`, {
