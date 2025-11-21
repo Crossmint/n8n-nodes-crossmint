@@ -5,6 +5,8 @@ import {
 	INodeTypeDescription,
 	INodeExecutionData,
 	INodeProperties,
+	INodePropertyOptions,
+	ILoadOptionsFunctions,
 	NodeOperationError,
 	NodeConnectionTypes,
 } from 'n8n-workflow';
@@ -12,6 +14,16 @@ import { CrossmintApi } from '../../shared/transport/CrossmintApi';
 import { CrossmintCredentials } from '../../shared/transport/types';
 import { findProduct } from '../../shared/actions/checkout/findProduct.operation';
 import { purchaseProduct } from '../../shared/actions/checkout/purchaseProduct.operation';
+import {
+	DEFAULT_SOLANA_CHAIN_ID,
+	getMainnetChainOptions,
+	getTestnetChainOptions,
+	getCurrencyOptions,
+	ChainOption,
+} from '../../shared/types/chains';
+
+const ALL_CHAIN_VALUES = [...getMainnetChainOptions(), ...getTestnetChainOptions()].map((option) => option.value);
+const CURRENCY_OPTIONS = getCurrencyOptions();
 
 export class CrossmintCheckout implements INodeType {
 	description: INodeTypeDescription = {
@@ -111,10 +123,10 @@ export class CrossmintCheckout implements INodeType {
 				name: 'paymentMethod',
 				type: 'options',
 				displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'] } },
-				options: [
-					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
-				],
-				default: 'solana',
+				typeOptions: {
+					loadOptionsMethod: 'getChainOptions',
+				},
+				default: DEFAULT_SOLANA_CHAIN_ID,
 				description: 'Payment method for completing the transaction',
 				required: true,
 			},
@@ -136,8 +148,8 @@ export class CrossmintCheckout implements INodeType {
 				typeOptions: { password: true },
 				displayOptions: { show: { resource: ['checkout'], operation: ['purchaseProduct'] } },
 				default: '',
-				placeholder: 'base58 encoded private key',
-				description: 'Private key to sign with (base58 for Solana) - External signer is required',
+				placeholder: 'base58 for Solana, hex for EVM',
+				description: 'Private key to sign with (base58 for Solana, hex for EVM) - External signer is required',
 				required: true,
 			},
 			{
@@ -258,24 +270,12 @@ export class CrossmintCheckout implements INodeType {
 				displayName: 'Payment Chain',
 				name: 'paymentMethod',
 				type: 'options',
-				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], environment: ['staging'] } },
-				options: [
-					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
-				],
-				default: 'solana',
-				description: 'Payment method for the purchase (Staging/Testnet)',
-				required: true,
-			},
-			{
-				displayName: 'Payment Chain',
-				name: 'paymentMethod',
-				type: 'options',
-				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'], environment: ['production'] } },
-				options: [
-					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
-				],
-				default: 'solana',
-				description: 'Payment method for the purchase (Production/Mainnet)',
+				displayOptions: { show: { resource: ['checkout'], operation: ['findProduct'] } },
+				typeOptions: {
+					loadOptionsMethod: 'getChainOptions',
+				},
+				default: DEFAULT_SOLANA_CHAIN_ID,
+				description: 'Payment method for the purchase',
 				required: true,
 			},
 			{
@@ -285,13 +285,10 @@ export class CrossmintCheckout implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['checkout'], operation: ['findProduct'],
-						paymentMethod: ['solana'],
+						paymentMethod: ALL_CHAIN_VALUES,
 					},
 				},
-				options: [
-					{ name: 'USDC', value: 'usdc', description: 'USD Coin' },
-					{ name: 'SOL', value: 'sol', description: 'Solana native token' },
-				],
+				options: CURRENCY_OPTIONS,
 				default: 'usdc',
 				description: 'Cryptocurrency to pay with',
 				required: true,
@@ -303,7 +300,7 @@ export class CrossmintCheckout implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['checkout'], operation: ['findProduct'],
-						paymentMethod: ['solana'],
+						paymentMethod: ALL_CHAIN_VALUES,
 					},
 				},
 				default: '',
@@ -312,6 +309,23 @@ export class CrossmintCheckout implements INodeType {
 				required: true,
 			},
 		] as INodeProperties[],
+	};
+
+	methods = {
+		loadOptions: {
+			async getChainOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const credentials = await this.getCredentials<CrossmintCredentials>('crossmintApi');
+				const chains = credentials.environment === 'production' 
+					? getMainnetChainOptions()    // Production: Solana, Polygon, Base
+					: getTestnetChainOptions();   // Staging: Solana Devnet, Polygon Amoy, Base Sepolia
+				
+				return chains.map((chain: ChainOption) => ({
+					name: chain.name,
+					value: chain.value,
+					description: chain.description,
+				}));
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {

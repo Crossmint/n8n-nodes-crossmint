@@ -11,9 +11,15 @@ export async function transferToken(
 	itemIndex: number,
 ): Promise<IDataObject> {
 	const amount = context.getNodeParameter('amount', itemIndex) as string;
-	const tknChain = context.getNodeParameter('tknChain', itemIndex) as string;
-	const tknName = context.getNodeParameter('tknName', itemIndex) as string;
 	const blockchainType = context.getNodeParameter('blockchainType', itemIndex) as string;
+	
+	// Get chain based on blockchain type (Solana or EVM have separate fields)
+	// Use whichever parameter is set
+	const tknChainSolana = context.getNodeParameter('tknChainSolana', itemIndex, '') as string;
+	const tknChainEvm = context.getNodeParameter('tknChainEvm', itemIndex, '') as string;
+	const tknChain = tknChainSolana || tknChainEvm;
+	
+	const tknName = context.getNodeParameter('tknName', itemIndex) as string;
 
 	validateAmount(amount, context, itemIndex);
 	validateRequiredField(tknChain, 'Token chain', context, itemIndex);
