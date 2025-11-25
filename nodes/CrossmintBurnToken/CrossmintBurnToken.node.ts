@@ -8,19 +8,19 @@ import {
 } from 'n8n-workflow';
 import { CrossmintApi } from '../../shared/transport/CrossmintApi';
 import { CrossmintCredentials } from '../../shared/transport/types';
-import { buyToken } from '../../shared/actions/buyToken/buyToken.operation';
+import { burnToken } from '../../shared/actions/burnToken/burnToken.operation';
 
-export class CrossmintBuyToken implements INodeType {
+export class CrossmintBurnToken implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Crossmint Buy Token',
-		name: 'crossmintBuyToken',
-		icon: 'file:crossmint-buytoken.svg',
+		displayName: 'Crossmint Burn Token',
+		name: 'crossmintBurnToken',
+		icon: 'file:crossmint-burntoken.svg',
 		group: ['transform'],
 		version: 1,
-		subtitle: 'Buy Token',
-		description: 'Buy tokens using Crossmint Orders API with cross-chain payments (creates order, signs transaction, and polls for completion)',
+		subtitle: 'Burn Token',
+		description: 'Burn tokens using Crossmint Wallets API (creates burn transaction, signs, and submits)',
 		defaults: {
-			name: 'Crossmint Buy Token',
+			name: 'Crossmint Burn Token',
 		},
 		inputs: [NodeConnectionTypes.Main],
 		outputs: [NodeConnectionTypes.Main],
@@ -38,46 +38,12 @@ export class CrossmintBuyToken implements INodeType {
 		},
 		properties: [
 			{
-				displayName: 'Payer Wallet Address',
-				name: 'payerAddress',
-				type: 'string',
-				default: '',
-				placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-				description: 'Solana wallet address that will pay',
-				required: true,
-			},
-			{
-				displayName: 'Payment Currency',
-				name: 'paymentCurrency',
-				type: 'options',
-				options: [
-					{
-						name: 'USDC',
-						value: 'usdc',
-						description: 'USD Coin',
-					},
-					{
-						name: 'SOL',
-						value: 'sol',
-						description: 'Solana native token',
-					},
-					{
-						name: 'BONK',
-						value: 'bonk',
-						description: 'Bonk token',
-					},
-				],
-				default: 'usdc',
-				description: 'Currency to pay with on Solana',
-				required: true,
-			},
-			{
-				displayName: 'Recipient Wallet Address',
-				name: 'recipientWalletAddress',
+				displayName: 'Wallet Address',
+				name: 'walletAddress',
 				type: 'string',
 				default: '',
 				placeholder: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
-				description: 'Base wallet address that will receive the tokens',
+				description: 'Wallet address that owns the tokens to burn',
 				required: true,
 			},
 			{
@@ -95,34 +61,25 @@ export class CrossmintBuyToken implements INodeType {
 				type: 'string',
 				default: '',
 				placeholder: '10',
-				description: 'Amount of tokens to buy',
+				description: 'Amount of tokens to burn',
 				required: true,
 			},
 			{
-				displayName: 'Max Slippage BPS',
-				name: 'maxSlippageBps',
-				type: 'string',
-				default: '500',
-				placeholder: '500',
-				description: 'Maximum slippage in basis points (100 = 1%). Optional - if not provided, default slippage will be applied',
-				required: false,
-			},
-			{
-				displayName: 'Payer Private Key',
+				displayName: 'Private Key',
 				name: 'privateKey',
 				type: 'string',
 				typeOptions: { password: true },
 				default: '',
-				placeholder: 'base58 encoded private key',
-				description: 'Private key of the payer wallet (base58 for Solana)',
+				placeholder: 'base58 encoded private key (Solana) or hex private key (EVM)',
+				description: 'Private key of the wallet that owns the tokens',
 				required: true,
 			},
 			{
-				displayName: 'Wait Until Order Is Completed',
+				displayName: 'Wait Until Transaction Is Completed',
 				name: 'waitForCompletion',
 				type: 'boolean',
 				default: true,
-				description: 'Whether to wait until the order reaches final status (completed, success, or failed) before completing the node execution',
+				description: 'Whether to wait until the transaction reaches final status (success or failed) before completing the node execution',
 			},
 		] as INodeProperties[],
 	};
@@ -136,7 +93,7 @@ export class CrossmintBuyToken implements INodeType {
 
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
-				const result = await buyToken(this, api, itemIndex);
+				const result = await burnToken(this, api, itemIndex);
 
 				const executionData: INodeExecutionData = {
 					json: result,

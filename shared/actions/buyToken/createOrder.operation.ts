@@ -6,21 +6,23 @@ import { ApiResponse } from '../../transport/types';
 
 export interface OrderCreateRequest {
 	payment: {
-		method: string;
-		currency: string;
+		method: 'solana';
+		currency: 'sol' | 'usdc' | 'bonk';
 		payerAddress: string;
+		receiptEmail?: string;
 	};
 	lineItems: Array<{
 		tokenLocator: string;
 		executionParameters: {
-			mode: string;
+			mode: 'exact-in';
 			amount: string;
-			maxSlippageBps: string;
+			maxSlippageBps?: string;
 		};
 	}>;
 	recipient: {
 		walletAddress: string;
 	};
+	locale?: string;
 }
 
 export async function createOrder(
@@ -32,18 +34,19 @@ export async function createOrder(
 	const recipientWalletAddress = context.getNodeParameter('recipientWalletAddress', itemIndex) as string;
 	const tokenLocator = context.getNodeParameter('tokenLocator', itemIndex) as string;
 	const amount = context.getNodeParameter('amount', itemIndex) as string;
-	const maxSlippageBps = context.getNodeParameter('maxSlippageBps', itemIndex) as string;
+	const maxSlippageBps = context.getNodeParameter('maxSlippageBps', itemIndex) as string | undefined;
+	const paymentCurrency = context.getNodeParameter('paymentCurrency', itemIndex, 'usdc') as 'sol' | 'usdc' | 'bonk';
 
 	validateRequiredField(payerAddress, 'Payer address', context, itemIndex);
 	validateRequiredField(recipientWalletAddress, 'Recipient wallet address', context, itemIndex);
 	validateRequiredField(tokenLocator, 'Token locator', context, itemIndex);
 	validateRequiredField(amount, 'Amount', context, itemIndex);
-	validateRequiredField(maxSlippageBps, 'Max slippage BPS', context, itemIndex);
+	// maxSlippageBps is optional according to API docs
 
 	const requestBody: OrderCreateRequest = {
 		payment: {
 			method: 'solana',
-			currency: 'usdc',
+			currency: paymentCurrency,
 			payerAddress: payerAddress,
 		},
 		lineItems: [
@@ -52,7 +55,7 @@ export async function createOrder(
 				executionParameters: {
 					mode: 'exact-in',
 					amount: amount,
-					maxSlippageBps: maxSlippageBps,
+					...(maxSlippageBps && { maxSlippageBps: maxSlippageBps }),
 				},
 			},
 		],

@@ -13,9 +13,51 @@ async function signVersionedTransaction(
 	itemIndex: number,
 ): Promise<{ signedTransaction: string; signature: string }> {
 	try {
-		// Decode the base64 serialized transaction
-		const txBuffer = Buffer.from(serializedTransaction, 'base64');
-		const transaction = VersionedTransaction.deserialize(txBuffer);
+		// Handle both base64 and hex (0x...) formats
+		let txBuffer: Uint8Array;
+		if (serializedTransaction.startsWith('0x')) {
+			// Hex format - remove 0x prefix and convert
+			const hexString = serializedTransaction.substring(2);
+			const buffer = Buffer.from(hexString, 'hex');
+			txBuffer = new Uint8Array(buffer);
+		} else {
+			// Base64 format - convert to Uint8Array (VersionedTransaction.deserialize expects Uint8Array)
+			try {
+				const buffer = Buffer.from(serializedTransaction, 'base64');
+				txBuffer = new Uint8Array(buffer);
+			} catch (base64Error) {
+				throw new NodeOperationError(
+					context.getNode(),
+					`Failed to decode base64 transaction: ${(base64Error as Error).message}`,
+					{ itemIndex }
+				);
+			}
+		}
+
+		if (txBuffer.length === 0) {
+			throw new NodeOperationError(
+				context.getNode(),
+				'Serialized transaction is empty',
+				{ itemIndex }
+			);
+		}
+
+		// Check minimum transaction size (VersionedTransaction needs at least a few bytes)
+		if (txBuffer.length < 3) {
+			throw new NodeOperationError(
+				context.getNode(),
+				`Serialized transaction buffer too short: ${txBuffer.length} bytes (minimum 3 required)`,
+				{ itemIndex }
+			);
+		}
+		
+		let transaction: VersionedTransaction;
+		try {
+			// VersionedTransaction.deserialize expects Uint8Array, not Buffer
+			transaction = VersionedTransaction.deserialize(txBuffer);
+		} catch (deserializeError) {
+			throw deserializeError;
+		}
 
 		// Decode the private key (base58, 64 bytes: seed || public key)
 		const secretKeyBytes = base58.decode(privateKey);
@@ -59,7 +101,10 @@ async function signVersionedTransaction(
 		throw new NodeOperationError(
 			context.getNode(),
 			`Failed to sign transaction: ${(error as Error).message}`,
-			{ itemIndex }
+			{ 
+				itemIndex,
+				description: `Transaction deserialization failed. Serialized transaction length: ${serializedTransaction?.length}, format: ${serializedTransaction?.startsWith('0x') ? 'hex' : 'base64'}`,
+			}
 		);
 	}
 }

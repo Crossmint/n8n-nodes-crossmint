@@ -5,14 +5,13 @@ import { validateRequiredField, validatePrivateKey } from '../../utils/validatio
 import { ApiResponse } from '../../transport/types';
 import { signMessage } from '../../utils/blockchain';
 import { TransactionCreateRequest, ApprovalRequest } from '../../transport/types';
-import { OrderCreateRequest } from './createOrder.operation';
 import { VersionedTransaction } from '@solana/web3.js';
 import * as base58 from '../../utils/base58';
 
 async function signAndSubmitTransactionForSmartWallet(
 	serializedTransaction: string,
 	privateKey: string,
-	payerAddress: string,
+	walletAddress: string,
 	api: CrossmintApi,
 	context: IExecuteFunctions,
 	itemIndex: number,
@@ -30,7 +29,7 @@ async function signAndSubmitTransactionForSmartWallet(
 		}
 	};
 	
-	const endpoint = `wallets/${encodeURIComponent(payerAddress)}/transactions`;
+	const endpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions`;
 
 	let transactionResponse: ApiResponse;
 	try {
@@ -61,7 +60,7 @@ async function signAndSubmitTransactionForSmartWallet(
 		}]
 	};
 
-	const approvalEndpoint = `wallets/${encodeURIComponent(payerAddress)}/transactions/${encodeURIComponent(transactionId as string)}/approvals`;
+	const approvalEndpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId as string)}/approvals`;
 
 	let approvalResponse: ApiResponse;
 	try {
@@ -71,7 +70,6 @@ async function signAndSubmitTransactionForSmartWallet(
 	}
 
 	// Get the transaction signature/txId from the approval response
-	// The signed transaction is in onChain.transaction (base64 encoded)
 	const approvalData = approvalResponse as IDataObject;
 	const onChain = approvalData.onChain as IDataObject | undefined;
 	
@@ -89,11 +87,8 @@ async function signAndSubmitTransactionForSmartWallet(
 	if (!txId && onChain && onChain.transaction) {
 		try {
 			const signedTransactionBase64 = onChain.transaction as string;
-			// Decode base64 to get the signed transaction bytes
 			const signedTxBuffer = Buffer.from(signedTransactionBase64, 'base64');
-			// Deserialize to get the signature
 			const signedTx = VersionedTransaction.deserialize(signedTxBuffer);
-			// Extract the first signature (this is the txId)
 			if (signedTx.signatures && signedTx.signatures.length > 0) {
 				txId = base58.encode(signedTx.signatures[0]);
 			}
@@ -104,8 +99,7 @@ async function signAndSubmitTransactionForSmartWallet(
 	
 	// If still not found, poll the transaction status to get the signature
 	if (!txId) {
-		// Poll transaction status to get the signature once it's submitted
-		const statusEndpoint = `wallets/${encodeURIComponent(payerAddress)}/transactions/${encodeURIComponent(transactionId as string)}`;
+		const statusEndpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId as string)}`;
 		let attempts = 0;
 		const maxAttempts = 10;
 		
@@ -161,187 +155,139 @@ async function signAndSubmitTransactionForSmartWallet(
 	return { txId };
 }
 
-async function getOrderStatus(
-	api: CrossmintApi,
-	orderId: string,
-	clientSecret?: string,
-): Promise<ApiResponse> {
-	const endpoint = `orders/${encodeURIComponent(orderId)}`;
-	const headers: Record<string, string> = {};
-	
-	if (clientSecret) {
-		headers['authorization'] = clientSecret;
-	}
-
-	return await api.get(endpoint, API_VERSIONS.ORDERS, headers);
-}
-
-export async function buyToken(
+export async function burnToken(
 	context: IExecuteFunctions,
 	api: CrossmintApi,
 	itemIndex: number,
 ): Promise<IDataObject> {
 	// Get all parameters
-	const payerAddress = context.getNodeParameter('payerAddress', itemIndex) as string;
-	const recipientWalletAddress = context.getNodeParameter('recipientWalletAddress', itemIndex) as string;
+	const walletAddress = context.getNodeParameter('walletAddress', itemIndex) as string;
 	const tokenLocator = context.getNodeParameter('tokenLocator', itemIndex) as string;
 	const amount = context.getNodeParameter('amount', itemIndex) as string;
-	const maxSlippageBps = context.getNodeParameter('maxSlippageBps', itemIndex) as string | undefined;
-	const paymentCurrency = context.getNodeParameter('paymentCurrency', itemIndex) as 'sol' | 'usdc' | 'bonk';
 	const privateKey = context.getNodeParameter('privateKey', itemIndex) as string;
 	const waitForCompletion = context.getNodeParameter('waitForCompletion', itemIndex, true) as boolean;
 
 	// Validate inputs
-	validateRequiredField(payerAddress, 'Payer address', context, itemIndex);
-	validateRequiredField(recipientWalletAddress, 'Recipient wallet address', context, itemIndex);
+	validateRequiredField(walletAddress, 'Wallet address', context, itemIndex);
 	validateRequiredField(tokenLocator, 'Token locator', context, itemIndex);
 	validateRequiredField(amount, 'Amount', context, itemIndex);
-	// maxSlippageBps is optional according to API docs
 	validatePrivateKey(privateKey, context, itemIndex);
 
-	// Step 1: Create Order
-	const requestBody: OrderCreateRequest = {
-		payment: {
-			method: 'solana',
-			currency: paymentCurrency,
-			payerAddress: payerAddress,
-		},
-		lineItems: [
-			{
-				tokenLocator: tokenLocator,
-				executionParameters: {
-					mode: 'exact-in',
-					amount: amount,
-					...(maxSlippageBps && { maxSlippageBps: maxSlippageBps }),
-				},
-			},
-		],
-		recipient: {
-			walletAddress: recipientWalletAddress,
-		},
+	// Parse token locator to get chain and contract address
+	const [chain, ...rest] = tokenLocator.split(':');
+	const contractAddress = rest.join(':');
+	
+	if (!chain || !contractAddress) {
+		throw new NodeOperationError(context.getNode(), 'Invalid token locator format. Expected format: chain:contractAddress or chain:contractAddress:tokenId', {
+			itemIndex,
+		});
+	}
+
+	// Create burn transaction using Wallets API
+	// For EVM chains (like Base), we'll use the transfer endpoint with a burn address
+	// The burn address is typically 0x000000000000000000000000000000000000dEaD
+	const burnAddress = '0x000000000000000000000000000000000000dEaD';
+	
+	const requestBody = {
+		params: {
+			chain: chain,
+			to: burnAddress,
+			tokenLocator: tokenLocator,
+			amount: amount,
+		}
 	};
 
-	let orderResponse: ApiResponse;
+	const endpoint = `wallets/${encodeURIComponent(walletAddress)}/transfers`;
+
+	let transferResponse: ApiResponse;
 	try {
-		orderResponse = await api.post('orders', requestBody as unknown as IDataObject, API_VERSIONS.ORDERS);
+		transferResponse = await api.post(endpoint, requestBody as unknown as IDataObject, API_VERSIONS.WALLETS);
 	} catch (error: unknown) {
 		throw new NodeApiError(context.getNode(), error as object & { message?: string });
 	}
 
-	const orderData = orderResponse as IDataObject;
-	const order = orderData.order as IDataObject;
-	const clientSecret = orderData.clientSecret as string;
+	const transferData = transferResponse as IDataObject;
+	const serializedTransaction = transferData.serializedTransaction as string | undefined;
 
-	if (!order) {
-		throw new NodeOperationError(context.getNode(), 'Invalid order response: missing order data', {
+	if (!serializedTransaction) {
+		throw new NodeOperationError(context.getNode(), 'Invalid transfer response: missing serialized transaction', {
 			itemIndex,
 		});
 	}
 
-	const payment = order.payment as IDataObject;
-	if (!payment || !payment.preparation) {
-		throw new NodeOperationError(context.getNode(), 'Invalid order response: missing payment preparation', {
-			itemIndex,
-		});
-	}
-
-	const preparation = payment.preparation as IDataObject;
-	
-	// Try multiple possible locations for the serialized transaction
-	// It might be in different places depending on the API response structure
-	let serializedTransaction: string | undefined = 
-		(preparation.serializedTransaction as string | undefined) ||
-		(preparation.transaction as string | undefined) ||
-		((preparation as any).tx as string | undefined) ||
-		(payment.serializedTransaction as string | undefined);
-	
-	const orderId = (order.orderId || order.id) as string;
-
-	if (!serializedTransaction || !orderId) {
-		throw new NodeOperationError(context.getNode(), 'Invalid order response: missing serialized transaction or order ID', {
-			itemIndex,
-			description: `Order ID: ${orderId || 'missing'}, Serialized Transaction: ${serializedTransaction ? 'present' : 'missing'}, Preparation keys: ${preparation ? Object.keys(preparation).join(', ') : 'none'}`,
-		});
-	}
-
-	// Step 2-3: Sign and Submit Transaction (using smart wallet flow)
+	// Sign and submit transaction using smart wallet flow
 	const { txId } = await signAndSubmitTransactionForSmartWallet(
 		serializedTransaction,
 		privateKey,
-		payerAddress,
+		walletAddress,
 		api,
 		context,
 		itemIndex
 	);
 
-	// Step 3: Poll Order Status (if waitForCompletion is true)
+	// If waitForCompletion is false, return immediately
 	if (!waitForCompletion) {
 		return {
-			orderId: orderId,
-			order: orderData,
+			walletAddress: walletAddress,
+			tokenLocator: tokenLocator,
+			amount: amount,
 			txId: txId,
-			clientSecret: clientSecret,
+			burnAddress: burnAddress,
 		};
 	}
 
-	// Poll until completion
-	let currentOrderData = orderData;
-	let currentStatus: string | undefined;
+	// Poll transaction status until completion
+	const transactionId = (transferData.id as string) || (transferData.transactionId as string);
+	if (!transactionId) {
+		// If we don't have a transaction ID, return what we have
+		return {
+			walletAddress: walletAddress,
+			tokenLocator: tokenLocator,
+			amount: amount,
+			txId: txId,
+			burnAddress: burnAddress,
+		};
+	}
+
+	const statusEndpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}`;
 	let attempts = 0;
 	const maxAttempts = PAGINATION.MAX_ATTEMPTS;
 	const pollInterval = PAGINATION.POLL_INTERVAL;
-
-	// Get initial status
-	const initialOrder = (currentOrderData.order as IDataObject | undefined) || currentOrderData;
-	const initialOrderObj = initialOrder && typeof initialOrder === 'object' ? initialOrder as IDataObject : currentOrderData;
-	currentStatus = (initialOrderObj.status as string | undefined) || ((initialOrderObj.payment as IDataObject | undefined)?.status as string | undefined);
+	let currentStatus: string | undefined = 'pending';
 
 	while (
-		(currentStatus === 'awaiting-payment' || 
-		 currentStatus === 'pending' || 
-		 currentStatus === 'processing') &&
+		(currentStatus === 'pending' || currentStatus === 'processing') &&
 		attempts < maxAttempts
 	) {
 		attempts++;
 		await new Promise(resolve => setTimeout(resolve, pollInterval));
 
 		try {
-			const statusResponse = await getOrderStatus(api, orderId, clientSecret);
-			const updatedOrderData = statusResponse as IDataObject;
-			const updatedOrder = (updatedOrderData.order as IDataObject | undefined) || updatedOrderData;
-			const updatedOrderObj = updatedOrder && typeof updatedOrder === 'object' ? updatedOrder as IDataObject : updatedOrderData;
-			currentStatus = (updatedOrderObj.status as string | undefined) || ((updatedOrderObj.payment as IDataObject | undefined)?.status as string | undefined);
-			currentOrderData = updatedOrderData;
+			const statusResponse = await api.get(statusEndpoint, API_VERSIONS.WALLETS) as IDataObject;
+			currentStatus = statusResponse.status as string;
+
+			if (currentStatus === 'success' || currentStatus === 'failed') {
+				break;
+			}
 		} catch (error: unknown) {
 			throw new NodeOperationError(
 				context.getNode(),
-				`Failed to get order status during polling: ${(error as Error).message}`,
+				`Failed to get transaction status during polling: ${(error as Error).message}`,
 				{
 					itemIndex,
-					description: 'Order status polling failed. This may be due to temporary API issues.',
+					description: 'Transaction status polling failed. This may be due to temporary API issues.',
 				}
 			);
 		}
-
-		if (currentStatus === 'completed' || currentStatus === 'success' || currentStatus === 'failed') {
-			break;
-		}
-	}
-
-	if (attempts >= maxAttempts && currentStatus !== 'completed' && currentStatus !== 'success' && currentStatus !== 'failed') {
-		throw new NodeOperationError(
-			context.getNode(),
-			`Order did not complete within ${maxAttempts} attempts. Current status: ${currentStatus}`,
-			{ itemIndex }
-		);
 	}
 
 	return {
-		orderId: orderId,
-		status: currentStatus,
-		order: currentOrderData,
+		walletAddress: walletAddress,
+		tokenLocator: tokenLocator,
+		amount: amount,
 		txId: txId,
-		clientSecret: clientSecret,
+		burnAddress: burnAddress,
+		status: currentStatus,
 		attempts: attempts,
 	};
 }
