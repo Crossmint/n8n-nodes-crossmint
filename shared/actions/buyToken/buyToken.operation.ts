@@ -345,4 +345,3 @@ export async function buyToken(
 		attempts: attempts,
 	};
 }
-
