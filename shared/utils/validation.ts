@@ -64,6 +64,28 @@ export function validatePrivateKey(privateKey: string, context: unknown, itemInd
 	}
 }
 
+export function validateEVMPrivateKey(privateKey: string, context: unknown, itemIndex: number): void {
+	if (!privateKey || privateKey.trim() === '') {
+		throw new NodeOperationError((context as { getNode: () => INode }).getNode(), 'Private key is required', {
+			itemIndex,
+		});
+	}
+
+	// Normalize: remove 0x prefix if present for validation
+	const normalizedKey = privateKey.startsWith('0x') ? privateKey.substring(2) : privateKey;
+	
+	// EVM private keys are 64 hex characters (32 bytes)
+	// They can be provided with or without 0x prefix
+	const hexRegex = /^[0-9a-fA-F]{64}$/;
+	
+	if (!hexRegex.test(normalizedKey)) {
+		throw new NodeOperationError((context as { getNode: () => INode }).getNode(), 'Invalid EVM private key format', {
+			description: 'EVM private key must be 64 hexadecimal characters (32 bytes), with or without 0x prefix. Example: 0x1234...abcd or 1234...abcd',
+			itemIndex,
+		});
+	}
+}
+
 export function validateAddressFields(fields: {
 	recipientName: string;
 	addressLine1: string;

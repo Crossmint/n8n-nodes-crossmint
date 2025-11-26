@@ -35,7 +35,8 @@
         "nodes": [
             "dist/nodes/CrossmintWallets/CrossmintWallets.node.js",
             "dist/nodes/CrossmintCheckout/CrossmintCheckout.node.js",
-            "dist/nodes/CrossmintCheckout/CrossmintCheckoutTrigger.node.js"
+            "dist/nodes/CrossmintCheckout/CrossmintCheckoutTrigger.node.js",
+            "dist/nodes/CrossmintTokens/CrossmintTokens.node.js"
         ]
     },
     "devDependencies": {
@@ -49,5 +50,9 @@
     },
     "peerDependencies": {
         "n8n-workflow": "*"
+    },
+    "dependencies": {
+        "@solana/web3.js": "^1.95.4",
+        "ethers": "^6.13.0"
     }
 }

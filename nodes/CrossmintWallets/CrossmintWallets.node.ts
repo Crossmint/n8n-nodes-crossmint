@@ -499,14 +499,14 @@ export class CrossmintWallets implements INodeType {
 						displayName: 'Address',
 						name: 'address',
 						type: 'string',
-						hint: 'Enter wallet address',
-						placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+						hint: 'Enter wallet address (Solana or EVM)',
+						placeholder: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb or 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
 						validation: [
 							{
 								type: 'regex',
 								properties: {
-									regex: '^[1-9A-HJ-NP-Za-km-z]{32,44}$',
-									errorMessage: 'Please enter a valid Solana wallet address',
+									regex: '^(0x[a-fA-F0-9]{40}|[1-9A-HJ-NP-Za-km-z]{32,44})$',
+									errorMessage: 'Please enter a valid wallet address (EVM: 0x... or Solana: base58)',
 								},
 							},
 						],
@@ -573,6 +573,7 @@ export class CrossmintWallets implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
 				options: [
 					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
+					{ name: 'EVM', value: 'evm', description: 'EVM-compatible blockchain (Ethereum, Base, Polygon, etc.)' },
 				],
 				default: 'solana',
 				description: 'Blockchain type for the wallet locator (only needed for email, userId, phoneNumber, twitter, x modes)',
@@ -584,8 +585,8 @@ export class CrossmintWallets implements INodeType {
 				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
 				default: 'solana',
-				placeholder: 'solana or solana-devnet',
-				description: 'Comma-separated list of blockchain chains to query',
+				placeholder: 'solana, base, ethereum, polygon (comma-separated)',
+				description: 'Comma-separated list of blockchain chains to query (e.g., solana, base, ethereum, polygon)',
 				required: true,
 			},
 			{
@@ -594,8 +595,8 @@ export class CrossmintWallets implements INodeType {
 				type: 'string',
 				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
 				default: 'sol,usdc',
-				placeholder: 'sol,usdc,usdt',
-				description: 'Comma-separated list of tokens to query',
+				placeholder: 'sol,usdc,usdt,eth (comma-separated)',
+				description: 'Comma-separated list of tokens to query (e.g., sol, usdc, usdt, eth, or token contract addresses)',
 				required: true,
 			},
 			// Sign Transaction fields

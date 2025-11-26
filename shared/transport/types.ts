@@ -64,7 +64,14 @@ export interface TransactionCreateRequest {
 	params: {
 		transaction?: string;
 		calls?: Array<{
-			transaction: string;
+			transaction?: string;
+			address?: string;
+			functionName?: string;
+			abi?: unknown[];
+			args?: unknown[];
+			value?: string;
+			to?: string;
+			data?: string;
 		}>;
 		chain?: string;
 	};
