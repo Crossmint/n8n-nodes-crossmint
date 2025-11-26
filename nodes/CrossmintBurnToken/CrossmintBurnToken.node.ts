@@ -60,8 +60,8 @@ export class CrossmintBurnToken implements INodeType {
 				name: 'amount',
 				type: 'string',
 				default: '',
-				placeholder: '10',
-				description: 'Amount of tokens to burn',
+				placeholder: '1 or 1.5',
+				description: 'Amount of tokens to burn (will be automatically converted to wei - smallest unit). Supports decimals up to 18 places.',
 				required: true,
 			},
 			{
