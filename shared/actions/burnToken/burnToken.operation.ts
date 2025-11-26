@@ -36,7 +36,6 @@ async function handleWaitForCompletion(
 
 		try {
 			const statusResponse = await getTransactionStatus(api, walletAddress, transactionId) as IDataObject;
-			console.log(`*********[BurnToken] Polling status - Attempt ${attempts}:`, JSON.stringify(statusResponse, null, 2));
 			currentStatus = (statusResponse as Record<string, unknown>).status;
 
 			const updatedSimplifiedOutput = {
@@ -83,16 +82,12 @@ export async function burnToken(
 	api: CrossmintApi,
 	itemIndex: number,
 ): Promise<IDataObject> {
-	console.log('*********[BurnToken] Starting burn token operation');
-	
 	// Get all parameters
 	const walletAddress = context.getNodeParameter('walletAddress', itemIndex) as string;
 	const tokenLocator = context.getNodeParameter('tokenLocator', itemIndex) as string;
 	const amount = context.getNodeParameter('amount', itemIndex) as string;
 	const privateKey = context.getNodeParameter('privateKey', itemIndex) as string;
 	const waitForCompletion = context.getNodeParameter('waitForCompletion', itemIndex, true) as boolean;
-	
-	console.log('********[BurnToken] Parameters:', { walletAddress, tokenLocator, amount, waitForCompletion });
 
 	// Validate inputs
 	validateRequiredField(walletAddress, 'Wallet address', context, itemIndex);
@@ -214,15 +209,10 @@ export async function burnToken(
 
 	const endpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions`;
 
-	console.log("heyyyyyyyyyyyyyyyyy");
-	console.log('*******[BurnToken] Creating transaction - Request:', JSON.stringify(requestBody, null, 2));
-	
 	let transactionResponse: ApiResponse;
 	try {
 		transactionResponse = await api.post(endpoint, requestBody as unknown as IDataObject, API_VERSIONS.WALLETS);
-		console.log('[BurnToken] Create transaction - Response:', JSON.stringify(transactionResponse, null, 2));
 	} catch (error: unknown) {
-		console.error('[BurnToken] Create transaction - Error:', error);
 		// Pass through the original Crossmint API error exactly as received
 		throw new NodeApiError(context.getNode(), error as object & { message?: string });
 	}
@@ -230,16 +220,7 @@ export async function burnToken(
 	// Get approvals from the transaction response
 	const response = transactionResponse as IDataObject;
 	const transactionId = response.id as string;
-	const transactionStatus = response.status as string;
 	const approvals = response.approvals as { pending?: Array<{ message: string; signer: { address?: string; locator?: string } }>; submitted?: Array<unknown> } | undefined;
-	
-	console.log('[BurnToken] Transaction response:', {
-		transactionId,
-		status: transactionStatus,
-		hasApprovals: !!approvals,
-		pendingCount: approvals?.pending?.length || 0,
-		submittedCount: approvals?.submitted?.length || 0,
-	});
 	
 	let approvalResponse: ApiResponse = transactionResponse;
 	let txId: string | undefined;
@@ -253,12 +234,8 @@ export async function burnToken(
 		messageToSign = approvals.pending[0].message;
 		signerAddress = approvals.pending[0].signer.address || (approvals.pending[0].signer.locator as string).split(':')[1];
 		
-		console.log('[BurnToken] Signing message:', { signerAddress, messageLength: messageToSign.length });
-		
 		// Sign message using EVM signing (hex private key)
 		signature = await signEVMMessage(messageToSign, privateKey, context, itemIndex);
-		
-		console.log('[BurnToken] Message signed, signature length:', signature.length);
 		
 		if (!signature) {
 			throw new NodeOperationError(context.getNode(), 'Failed to generate signature', {
@@ -274,24 +251,12 @@ export async function burnToken(
 		};
 
 		const approvalEndpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId)}/approvals`;
-		
-		console.log('[BurnToken] Submitting approval - Request:', JSON.stringify(approvalRequestBody, null, 2));
 
 		try {
 			approvalResponse = await api.post(approvalEndpoint, approvalRequestBody as unknown as IDataObject, API_VERSIONS.WALLETS);
-			console.log('[BurnToken] Submit approval - Response:', JSON.stringify(approvalResponse, null, 2));
 		} catch (error: unknown) {
-			console.error('[BurnToken] Submit approval - Error:', error);
 			// Pass through the original Crossmint API error exactly as received
 			throw new NodeApiError(context.getNode(), error as object & { message?: string });
-		}
-	} else {
-		// No pending approvals - transaction might already be executed or auto-executed
-		console.log('[BurnToken] No pending approvals found - transaction may already be executed or auto-executed');
-		
-		// Check if transaction is already successful
-		if (transactionStatus === 'success') {
-			console.log('[BurnToken] Transaction already successful, no approval needed');
 		}
 	}
 	
@@ -344,11 +309,9 @@ export async function burnToken(
 	};
 
 	if (waitForCompletion) {
-		console.log('[BurnToken] Waiting for completion, transactionId:', transactionId);
 		return await handleWaitForCompletion(api, walletAddress, transactionId, approvalResponse, simplifiedOutput, context, itemIndex);
 	}
 
-	console.log('[BurnToken] Returning without waiting for completion');
 	return {
 		'simplified-output': simplifiedOutput,
 		raw: approvalResponse

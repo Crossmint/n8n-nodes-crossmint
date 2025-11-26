@@ -18,8 +18,6 @@ export async function getBalance(
 
 	const endpoint = `wallets/${walletLocator}/balances?chains=${encodeURIComponent(chains)}&tokens=${encodeURIComponent(tkn)}`;
 
-	console.log("//////////// "+endpoint);
-
 	try {
 		return await api.get(endpoint, API_VERSIONS.WALLETS);
 	} catch (error: unknown) {

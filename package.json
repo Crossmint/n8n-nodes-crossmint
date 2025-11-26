@@ -36,8 +36,7 @@
             "dist/nodes/CrossmintWallets/CrossmintWallets.node.js",
             "dist/nodes/CrossmintCheckout/CrossmintCheckout.node.js",
             "dist/nodes/CrossmintCheckout/CrossmintCheckoutTrigger.node.js",
-            "dist/nodes/CrossmintBuyToken/CrossmintBuyToken.node.js",
-            "dist/nodes/CrossmintBurnToken/CrossmintBurnToken.node.js"
+            "dist/nodes/CrossmintTokens/CrossmintTokens.node.js"
         ]
     },
     "devDependencies": {
