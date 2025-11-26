@@ -3,41 +3,23 @@ import { CrossmintApi } from '../../transport/CrossmintApi';
 import { API_VERSIONS, PAGINATION } from '../../utils/constants';
 import { validateRequiredField, validatePrivateKey } from '../../utils/validation';
 import { ApiResponse } from '../../transport/types';
-import { signMessage } from '../../utils/blockchain';
+import { signEVMMessage } from '../../utils/blockchain';
 import { TransactionCreateRequest, ApprovalRequest } from '../../transport/types';
-import { VersionedTransaction } from '@solana/web3.js';
-import * as base58 from '../../utils/base58';
 
 async function signAndSubmitTransactionForSmartWallet(
-	serializedTransaction: string,
+	transactionResponse: ApiResponse,
 	privateKey: string,
 	walletAddress: string,
 	api: CrossmintApi,
 	context: IExecuteFunctions,
 	itemIndex: number,
 ): Promise<{ txId: string }> {
-	// For smart wallets, we need to:
-	// 1. Submit the transaction to Wallets API to create a transaction
-	// 2. Get approvals from the response
-	// 3. Sign the message from approvals
-	// 4. Submit the signature as an approval
-	// 5. Get the transaction signature/txId from the response
+	// For EVM smart wallets, we need to:
+	// 1. Get approvals from the transaction response
+	// 2. Sign the message from approvals using EVM signing
+	// 3. Submit the signature as an approval
+	// 4. Get the transaction hash/txId from the response
 	
-	const requestBody: TransactionCreateRequest = {
-		params: {
-			transaction: serializedTransaction
-		}
-	};
-	
-	const endpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions`;
-
-	let transactionResponse: ApiResponse;
-	try {
-		transactionResponse = await api.post(endpoint, requestBody as unknown as IDataObject, API_VERSIONS.WALLETS);
-	} catch (error: unknown) {
-		throw new NodeApiError(context.getNode(), error as object & { message?: string });
-	}
-
 	const transactionId = (transactionResponse as IDataObject).id; 
 	
 	const response = transactionResponse as IDataObject;
@@ -51,7 +33,8 @@ async function signAndSubmitTransactionForSmartWallet(
 	const messageToSign = approvals.pending[0].message;
 	const signerAddress = approvals.pending[0].signer.address || (approvals.pending[0].signer.locator as string).split(':')[1];
 	
-	const signature = await signMessage(messageToSign, privateKey, context, itemIndex);
+	// Sign message using EVM signing (hex private key)
+	const signature = await signEVMMessage(messageToSign, privateKey, context, itemIndex);
 
 	const approvalRequestBody: ApprovalRequest = {
 		approvals: [{
@@ -69,7 +52,7 @@ async function signAndSubmitTransactionForSmartWallet(
 		throw new NodeApiError(context.getNode(), error as object & { message?: string });
 	}
 
-	// Get the transaction signature/txId from the approval response
+	// Get the transaction hash/txId from the approval response
 	const approvalData = approvalResponse as IDataObject;
 	const onChain = approvalData.onChain as IDataObject | undefined;
 	
@@ -78,26 +61,12 @@ async function signAndSubmitTransactionForSmartWallet(
 	// Try to get txId directly from response fields
 	txId = (approvalData.signature as string) || (approvalData.txId as string) || (transactionResponse as IDataObject).signature as string;
 	
-	// Check onChain.txId directly (this is the most reliable source)
+	// Check onChain.txId directly (this is the most reliable source for EVM)
 	if (!txId && onChain && onChain.txId) {
 		txId = onChain.txId as string;
 	}
 	
-	// If not found, extract from onChain.transaction
-	if (!txId && onChain && onChain.transaction) {
-		try {
-			const signedTransactionBase64 = onChain.transaction as string;
-			const signedTxBuffer = Buffer.from(signedTransactionBase64, 'base64');
-			const signedTx = VersionedTransaction.deserialize(signedTxBuffer);
-			if (signedTx.signatures && signedTx.signatures.length > 0) {
-				txId = base58.encode(signedTx.signatures[0]);
-			}
-		} catch (error) {
-			// Continue to try other methods
-		}
-	}
-	
-	// If still not found, poll the transaction status to get the signature
+	// If still not found, poll the transaction status to get the txId
 	if (!txId) {
 		const statusEndpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions/${encodeURIComponent(transactionId as string)}`;
 		let attempts = 0;
@@ -111,28 +80,13 @@ async function signAndSubmitTransactionForSmartWallet(
 				const statusResponse = await api.get(statusEndpoint, API_VERSIONS.WALLETS) as IDataObject;
 				const statusOnChain = statusResponse.onChain as IDataObject | undefined;
 				
-				// Try to get signature from status response
+				// Try to get txId from status response
 				txId = (statusResponse.signature as string) || (statusResponse.txId as string);
 				
-				// Check onChain.txId directly (this is the most reliable source)
+				// Check onChain.txId directly (this is the most reliable source for EVM)
 				if (!txId && statusOnChain && statusOnChain.txId) {
 					txId = statusOnChain.txId as string;
 					break;
-				}
-				
-				// Or extract from onChain.transaction
-				if (!txId && statusOnChain && statusOnChain.transaction) {
-					try {
-						const signedTransactionBase64 = statusOnChain.transaction as string;
-						const signedTxBuffer = Buffer.from(signedTransactionBase64, 'base64');
-						const signedTx = VersionedTransaction.deserialize(signedTxBuffer);
-						if (signedTx.signatures && signedTx.signatures.length > 0) {
-							txId = base58.encode(signedTx.signatures[0]);
-							break;
-						}
-					} catch (error) {
-						// Continue polling
-					}
 				}
 				
 				// If transaction is completed/failed, stop polling
@@ -183,41 +137,51 @@ export async function burnToken(
 		});
 	}
 
-	// Create burn transaction using Wallets API
-	// For EVM chains (like Base), we'll use the transfer endpoint with a burn address
-	// The burn address is typically 0x000000000000000000000000000000000000dEaD
-	const burnAddress = '0x000000000000000000000000000000000000dEaD';
-	
-	const requestBody = {
+	// Create burn transaction by calling the burn function on the token contract
+	// For EVM chains (like Base), we use the contract call format with functionName, abi, and args
+	// Standard ERC20 burn function: burn(uint256 amount)
+	const burnFunctionABI = [
+		{
+			inputs: [
+				{
+					internalType: 'uint256',
+					name: 'amount',
+					type: 'uint256'
+				}
+			],
+			name: 'burn',
+			outputs: [],
+			stateMutability: 'nonpayable',
+			type: 'function'
+		}
+	];
+
+	// Create transaction that calls the burn function
+	const requestBody: TransactionCreateRequest = {
 		params: {
 			chain: chain,
-			to: burnAddress,
-			tokenLocator: tokenLocator,
-			amount: amount,
+			calls: [{
+				address: contractAddress,
+				functionName: 'burn',
+				abi: burnFunctionABI,
+				args: [amount],
+				value: '0'
+			}]
 		}
 	};
 
-	const endpoint = `wallets/${encodeURIComponent(walletAddress)}/transfers`;
+	const endpoint = `wallets/${encodeURIComponent(walletAddress)}/transactions`;
 
-	let transferResponse: ApiResponse;
+	let transactionResponse: ApiResponse;
 	try {
-		transferResponse = await api.post(endpoint, requestBody as unknown as IDataObject, API_VERSIONS.WALLETS);
+		transactionResponse = await api.post(endpoint, requestBody as unknown as IDataObject, API_VERSIONS.WALLETS);
 	} catch (error: unknown) {
 		throw new NodeApiError(context.getNode(), error as object & { message?: string });
 	}
 
-	const transferData = transferResponse as IDataObject;
-	const serializedTransaction = transferData.serializedTransaction as string | undefined;
-
-	if (!serializedTransaction) {
-		throw new NodeOperationError(context.getNode(), 'Invalid transfer response: missing serialized transaction', {
-			itemIndex,
-		});
-	}
-
 	// Sign and submit transaction using smart wallet flow
 	const { txId } = await signAndSubmitTransactionForSmartWallet(
-		serializedTransaction,
+		transactionResponse,
 		privateKey,
 		walletAddress,
 		api,
@@ -232,12 +196,11 @@ export async function burnToken(
 			tokenLocator: tokenLocator,
 			amount: amount,
 			txId: txId,
-			burnAddress: burnAddress,
 		};
 	}
 
 	// Poll transaction status until completion
-	const transactionId = (transferData.id as string) || (transferData.transactionId as string);
+	const transactionId = (transactionResponse as IDataObject).id as string;
 	if (!transactionId) {
 		// If we don't have a transaction ID, return what we have
 		return {
@@ -245,7 +208,6 @@ export async function burnToken(
 			tokenLocator: tokenLocator,
 			amount: amount,
 			txId: txId,
-			burnAddress: burnAddress,
 		};
 	}
 
@@ -286,7 +248,6 @@ export async function burnToken(
 		tokenLocator: tokenLocator,
 		amount: amount,
 		txId: txId,
-		burnAddress: burnAddress,
 		status: currentStatus,
 		attempts: attempts,
 	};

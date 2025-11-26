@@ -71,79 +71,110 @@ async function signAndSubmitTransactionForSmartWallet(
 	}
 
 	// Get the transaction signature/txId from the approval response
-	// The signed transaction is in onChain.transaction (base64 encoded)
+	// For Solana, the transaction might be base58 or base64 encoded
 	const approvalData = approvalResponse as IDataObject;
 	const onChain = approvalData.onChain as IDataObject | undefined;
 	
 	let txId: string | undefined;
 	
-	// Try to get txId directly from response fields
-	txId = (approvalData.signature as string) || (approvalData.txId as string) || (transactionResponse as IDataObject).signature as string;
-	
-	// Check onChain.txId directly (this is the most reliable source)
-	if (!txId && onChain && onChain.txId) {
+	// First, check onChain.txId directly (this is the most reliable source)
+	if (onChain && onChain.txId) {
 		txId = onChain.txId as string;
 	}
 	
-	// If not found, extract from onChain.transaction
+	// Try to get txId directly from response fields
+	if (!txId) {
+		txId = (approvalData.signature as string) || (approvalData.txId as string) || (transactionResponse as IDataObject).signature as string;
+	}
+	
+	// If not found, extract from onChain.transaction (try both base58 and base64)
 	if (!txId && onChain && onChain.transaction) {
+		const transactionData = onChain.transaction as string;
 		try {
-			const signedTransactionBase64 = onChain.transaction as string;
-			// Decode base64 to get the signed transaction bytes
-			const signedTxBuffer = Buffer.from(signedTransactionBase64, 'base64');
-			// Deserialize to get the signature
+			// Try base58 first (common for Solana)
+			const signedTxBuffer = Buffer.from(base58.decode(transactionData));
 			const signedTx = VersionedTransaction.deserialize(signedTxBuffer);
-			// Extract the first signature (this is the txId)
 			if (signedTx.signatures && signedTx.signatures.length > 0) {
 				txId = base58.encode(signedTx.signatures[0]);
 			}
-		} catch (error) {
-			// Continue to try other methods
+		} catch (base58Error) {
+			// If base58 fails, try base64
+			try {
+				const signedTxBuffer = Buffer.from(transactionData, 'base64');
+				const signedTx = VersionedTransaction.deserialize(signedTxBuffer);
+				if (signedTx.signatures && signedTx.signatures.length > 0) {
+					txId = base58.encode(signedTx.signatures[0]);
+				}
+			} catch (base64Error) {
+				// Continue to try other methods
+			}
 		}
 	}
 	
-	// If still not found, poll the transaction status to get the signature
+	// If still not found, wait a bit and then poll the transaction status
+	// The transaction needs time to be submitted to the blockchain
 	if (!txId) {
+		// Wait 2 seconds for the transaction to be submitted
+		await new Promise(resolve => setTimeout(resolve, 2000));
+		
 		// Poll transaction status to get the signature once it's submitted
 		const statusEndpoint = `wallets/${encodeURIComponent(payerAddress)}/transactions/${encodeURIComponent(transactionId as string)}`;
 		let attempts = 0;
-		const maxAttempts = 10;
+		const maxAttempts = 15; // Increased attempts
 		
 		while (attempts < maxAttempts && !txId) {
 			attempts++;
-			await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+			await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5 seconds between attempts
 			
 			try {
 				const statusResponse = await api.get(statusEndpoint, API_VERSIONS.WALLETS) as IDataObject;
 				const statusOnChain = statusResponse.onChain as IDataObject | undefined;
 				
-				// Try to get signature from status response
-				txId = (statusResponse.signature as string) || (statusResponse.txId as string);
-				
-				// Check onChain.txId directly (this is the most reliable source)
-				if (!txId && statusOnChain && statusOnChain.txId) {
+				// First check onChain.txId (most reliable)
+				if (statusOnChain && statusOnChain.txId) {
 					txId = statusOnChain.txId as string;
 					break;
 				}
 				
-				// Or extract from onChain.transaction
+				// Try to get signature from status response
+				if (!txId) {
+					txId = (statusResponse.signature as string) || (statusResponse.txId as string);
+				}
+				
+				// Or extract from onChain.transaction (try both base58 and base64)
 				if (!txId && statusOnChain && statusOnChain.transaction) {
+					const transactionData = statusOnChain.transaction as string;
 					try {
-						const signedTransactionBase64 = statusOnChain.transaction as string;
-						const signedTxBuffer = Buffer.from(signedTransactionBase64, 'base64');
+						// Try base58 first
+						const signedTxBuffer = Buffer.from(base58.decode(transactionData));
 						const signedTx = VersionedTransaction.deserialize(signedTxBuffer);
 						if (signedTx.signatures && signedTx.signatures.length > 0) {
 							txId = base58.encode(signedTx.signatures[0]);
 							break;
 						}
-					} catch (error) {
-						// Continue polling
+					} catch (base58Error) {
+						// If base58 fails, try base64
+						try {
+							const signedTxBuffer = Buffer.from(transactionData, 'base64');
+							const signedTx = VersionedTransaction.deserialize(signedTxBuffer);
+							if (signedTx.signatures && signedTx.signatures.length > 0) {
+								txId = base58.encode(signedTx.signatures[0]);
+								break;
+							}
+						} catch (base64Error) {
+							// Continue polling
+						}
 					}
 				}
 				
 				// If transaction is completed/failed, stop polling
 				const status = statusResponse.status as string;
 				if (status === 'success' || status === 'failed') {
+					// If we still don't have txId but transaction is successful, 
+					// try one more time to get it from the response
+					if (!txId && statusOnChain && statusOnChain.txId) {
+						txId = statusOnChain.txId as string;
+					}
 					break;
 				}
 			} catch (error) {
@@ -152,10 +183,12 @@ async function signAndSubmitTransactionForSmartWallet(
 		}
 	}
 	
+	// If still not found, return undefined instead of throwing error
+	// The caller can handle this case (e.g., check order status for txId)
 	if (!txId) {
-		throw new NodeOperationError(context.getNode(), 'Could not extract txId from approval response or transaction status. The transaction may need to be checked manually.', {
-			itemIndex,
-		});
+		// Don't throw error - let the caller handle it
+		// The transaction might still be processing
+		return { txId: '' };
 	}
 
 	return { txId };
@@ -265,7 +298,7 @@ export async function buyToken(
 	}
 
 	// Step 2-3: Sign and Submit Transaction (using smart wallet flow)
-	const { txId } = await signAndSubmitTransactionForSmartWallet(
+	const { txId: walletTxId } = await signAndSubmitTransactionForSmartWallet(
 		serializedTransaction,
 		privateKey,
 		payerAddress,
@@ -275,13 +308,36 @@ export async function buyToken(
 	);
 
 	// Step 3: Poll Order Status (if waitForCompletion is true)
+	// Also try to extract txId from order status if not found from wallet transaction
+	let txId = walletTxId;
+	
 	if (!waitForCompletion) {
-		return {
-			orderId: orderId,
-			order: orderData,
-			txId: txId,
-			clientSecret: clientSecret,
-		};
+		// If we don't have txId yet, try to get it from order status
+		if (!txId || txId === '') {
+			try {
+				const statusResponse = await getOrderStatus(api, orderId, clientSecret);
+				const orderStatusData = statusResponse as IDataObject;
+				const orderStatus = (orderStatusData.order as IDataObject | undefined) || orderStatusData;
+				const payment = (orderStatus as IDataObject)?.payment as IDataObject | undefined;
+				// Try to extract txId from payment or order data
+				txId = (payment?.txId as string) || 
+				       (payment?.transactionId as string) || 
+				       (orderStatus?.txId as string) ||
+				       (orderStatus?.transactionId as string) ||
+				       '';
+			} catch (error) {
+				// If we can't get order status, continue with empty txId
+			}
+		}
+		
+		// Return the exact API response structure
+		// Use Object.assign to ensure we preserve all fields from the API response
+		const response = Object.assign({}, orderData) as IDataObject;
+		// Add txId to the response if we have it and it's not already there
+		if (txId && txId !== '' && !response.txId) {
+			response.txId = txId;
+		}
+		return response;
 	}
 
 	// Poll until completion
@@ -312,6 +368,16 @@ export async function buyToken(
 			const updatedOrderObj = updatedOrder && typeof updatedOrder === 'object' ? updatedOrder as IDataObject : updatedOrderData;
 			currentStatus = (updatedOrderObj.status as string | undefined) || ((updatedOrderObj.payment as IDataObject | undefined)?.status as string | undefined);
 			currentOrderData = updatedOrderData;
+			
+			// Try to extract txId from order status if we don't have it yet
+			if ((!txId || txId === '') && updatedOrderObj) {
+				const payment = (updatedOrderObj.payment as IDataObject | undefined);
+				txId = (payment?.txId as string) || 
+				       (payment?.transactionId as string) || 
+				       (updatedOrderObj.txId as string) ||
+				       (updatedOrderObj.transactionId as string) ||
+				       txId || '';
+			}
 		} catch (error: unknown) {
 			throw new NodeOperationError(
 				context.getNode(),
@@ -336,12 +402,16 @@ export async function buyToken(
 		);
 	}
 
-	return {
-		orderId: orderId,
-		status: currentStatus,
-		order: currentOrderData,
-		txId: txId,
-		clientSecret: clientSecret,
-		attempts: attempts,
-	};
+	// Return the exact API response structure
+	// Use Object.assign to ensure we preserve all fields from the API response
+	const response = Object.assign({}, currentOrderData) as IDataObject;
+	// Add txId to the response if we have it and it's not already there
+	if (txId && txId !== '' && !response.txId) {
+		response.txId = txId;
+	}
+	// Add attempts count for debugging purposes (only if not already present)
+	if (!response.attempts) {
+		response.attempts = attempts;
+	}
+	return response;
 }

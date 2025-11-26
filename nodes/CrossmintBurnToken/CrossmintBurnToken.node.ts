@@ -70,8 +70,8 @@ export class CrossmintBurnToken implements INodeType {
 				type: 'string',
 				typeOptions: { password: true },
 				default: '',
-				placeholder: 'base58 encoded private key (Solana) or hex private key (EVM)',
-				description: 'Private key of the wallet that owns the tokens',
+				placeholder: '0x... (hex format for EVM)',
+				description: 'Private key of the wallet that owns the tokens (hex format for EVM chains like Base)',
 				required: true,
 			},
 			{

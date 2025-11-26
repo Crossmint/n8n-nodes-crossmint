@@ -2,6 +2,7 @@ import { NodeOperationError, INode } from 'n8n-workflow';
 import { webcrypto } from 'node:crypto';
 import * as base58 from './base58';
 import { derivePublicKeyFromSecretKey, derivePublicKeyFromSeed } from './solana-key-derivation';
+import { ethers } from 'ethers';
 
 export interface KeyPairResult {
 	address: string;
@@ -116,6 +117,48 @@ export async function signMessage(
 		throw new NodeOperationError(
 			(context as { getNode: () => INode }).getNode(),
 			`Failed to sign message: ${(error as Error).message}`,
+			{ itemIndex }
+		);
+	}
+}
+
+export async function signEVMMessage(
+	message: string,
+	privateKey: string,   // hex format (with or without 0x prefix)
+	context: unknown,
+	itemIndex: number
+): Promise<string> {
+	try {
+		// Normalize private key (remove 0x prefix if present, add it back for ethers)
+		const normalizedKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
+		
+		// Create wallet from private key
+		const wallet = new ethers.Wallet(normalizedKey);
+		
+		// Sign the message (ethers handles EIP-191 message signing automatically)
+		// The message can be a hex string or plain text
+		let messageToSign: string | Uint8Array;
+		if (message.startsWith('0x')) {
+			// Hex string - convert to bytes
+			messageToSign = ethers.getBytes(message);
+		} else {
+			// Plain text or base64 - try to decode as hex first, otherwise treat as text
+			try {
+				// Try to decode as hex
+				messageToSign = ethers.getBytes(message);
+			} catch {
+				// If not hex, treat as plain text
+				messageToSign = message;
+			}
+		}
+		
+		const signature = await wallet.signMessage(messageToSign);
+		
+		return signature;
+	} catch (error: unknown) {
+		throw new NodeOperationError(
+			(context as { getNode: () => INode }).getNode(),
+			`Failed to sign EVM message: ${(error as Error).message}`,
 			{ itemIndex }
 		);
 	}

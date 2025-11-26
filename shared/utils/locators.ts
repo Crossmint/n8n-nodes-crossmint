@@ -32,7 +32,7 @@ export function buildWalletLocator(
 		case 'x': {
 			if (!chainType || chainType.trim() === '') {
 				throw new NodeOperationError((context as { getNode: () => INode })?.getNode(), 'Chain type is required for non-address wallet locators', {
-					description: 'Please specify the blockchain type (Solana) for this wallet locator type',
+					description: 'Please specify the blockchain type (Solana or EVM) for this wallet locator type',
 					itemIndex,
 				});
 			}
