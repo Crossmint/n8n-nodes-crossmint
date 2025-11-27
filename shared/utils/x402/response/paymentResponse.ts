@@ -34,7 +34,7 @@ export function generateResponse(
 	// Generate X-PAYMENT-RESPONSE header with Base64(JSON) settlement details
 	const paymentResponseData = {
 		success: true,
-		networkId: network || 'base-sepolia',
+		networkId: network || 'solana-devnet',
 	};
 	const paymentResponseBase64 = Buffer.from(JSON.stringify(paymentResponseData)).toString('base64');
 

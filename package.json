@@ -41,13 +41,22 @@
     "devDependencies": {
         "@n8n/node-cli": "*",
         "@types/express": "^5.0.3",
-        "@types/node": "*",
+        "@types/node": "^24.10.1",
         "eslint": "9.32.0",
         "prettier": "3.6.2",
         "release-it": "^19.0.4",
-        "typescript": "5.9.2"
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.2"
     },
     "peerDependencies": {
         "n8n-workflow": "*"
+    },
+    "dependencies": {
+        "@solana/spl-token": "^0.4.14",
+        "@solana/web3.js": "^1.98.4",
+        "bs58": "^6.0.0",
+        "dotenv": "^17.2.3",
+        "node-fetch": "^3.3.2",
+        "tweetnacl": "^1.0.3"
     }
 }
