@@ -34,16 +34,16 @@ export class CrossmintCheckoutTrigger implements INodeType {
 				if (environment === 'production') {
 					return [
 						{
-							name: 'USDC (Base)',
-							value: 'base:usdc',
+							name: 'USDC (Solana)',
+							value: 'solana:usdc',
 						},
 					];
 				}
 
 				return [
 					{
-						name: 'USDC (Base Sepolia)',
-						value: 'base-sepolia:usdc',
+						name: 'USDC (Solana Devnet)',
+						value: 'solana-devnet:usdc',
 					},
 				];
 			},
@@ -217,7 +217,7 @@ export class CrossmintCheckoutTrigger implements INodeType {
 								required: true,
 								default: '',
 								description:
-									'The address that will receive the payment. Should be in the form of an EVM address with the leading 0x.',
+									'The Solana address that will receive the payment. Should be a valid Solana base58 address.',
 							},
 							{
 								displayName: 'Payment Amount',

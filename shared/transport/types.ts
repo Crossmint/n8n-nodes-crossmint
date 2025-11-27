@@ -75,14 +75,17 @@ export interface WalletLocatorData {
 	value: string;
 }
 
-// EVM exact scheme payload structure (EIP-3009)
+// Payment payload structure - supports both EVM (authorization) and Solana (transaction) formats
 export interface IPaymentPayload {
 	x402Version: number | string;
 	scheme: string;
 	network: string;
 	payload: {
-		signature: string;
-		authorization: {
+		// For Solana exact scheme: base64-encoded partially-signed transaction
+		transaction?: string;
+		// For EVM exact scheme: authorization signature
+		signature?: string;
+		authorization?: {
 			from: string;
 			to: string;
 			value: string;
@@ -105,8 +108,12 @@ export interface IPaymentRequirements {
 	maxTimeoutSeconds: number;
 	asset: string;
 	extra: {
-		version: string;
-		name: string;
+		version?: string;
+		name?: string;
+		// For Solana: enriched by facilitator /accepts endpoint
+		feePayer?: string;
+		decimals?: number;
+		recentBlockhash?: string;
 	};
 }
 
@@ -123,8 +130,12 @@ export class PaymentRequirements implements IPaymentRequirements {
 		public maxTimeoutSeconds: number,
 	public asset: string,
 	public extra: {
-		version: string;
-		name: string;
+		version?: string;
+		name?: string;
+		// For Solana: enriched by facilitator /accepts endpoint
+		feePayer?: string;
+		decimals?: number;
+		recentBlockhash?: string;
 	},
 	) {}
 }

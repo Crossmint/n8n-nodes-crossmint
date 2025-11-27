@@ -6,28 +6,45 @@ export function parseXPaymentHeader(xPaymentHeader: string): IPaymentPayload {
 }
 
 export function validateXPayment(payment: IPaymentPayload): string {
-	// Define the expected structure for EVM exact scheme (EIP-3009)
-	const requiredShape = {
-		x402Version: 'number',
-		scheme: 'string',
-		network: 'string',
-		payload: {
-			signature: 'string',
-			authorization: {
-				from: 'string',
-				to: 'string',
-				value: 'string',
-				validAfter: 'string',
-				validBefore: 'string',
-				nonce: 'string',
+	// Check if it's Solana (transaction format) or EVM (authorization format)
+	const isSolana = payment.network?.toLowerCase().includes('solana');
+	
+	if (isSolana) {
+		// Solana exact scheme: requires transaction field
+		const requiredShape = {
+			x402Version: 'number',
+			scheme: 'string',
+			network: 'string',
+			payload: {
+				transaction: 'string', // Base64-encoded partially-signed Solana transaction
 			},
-		},
-	};
-
-	const missing = checkShape(requiredShape, payment as unknown as Record<string, unknown>, '');
-
-	if (missing.length > 0) {
-		return missing.join('; ');
+		};
+		const missing = checkShape(requiredShape, payment as unknown as Record<string, unknown>, '');
+		if (missing.length > 0) {
+			return missing.join('; ');
+		}
+	} else {
+		// EVM exact scheme: requires signature and authorization
+		const requiredShape = {
+			x402Version: 'number',
+			scheme: 'string',
+			network: 'string',
+			payload: {
+				signature: 'string',
+				authorization: {
+					from: 'string',
+					to: 'string',
+					value: 'string',
+					validAfter: 'string',
+					validBefore: 'string',
+					nonce: 'string',
+				},
+			},
+		};
+		const missing = checkShape(requiredShape, payment as unknown as Record<string, unknown>, '');
+		if (missing.length > 0) {
+			return missing.join('; ');
+		}
 	}
 	return 'valid';
 }
@@ -89,54 +106,104 @@ export function verifyPaymentDetails(
 
 	// 1. Check that network exists in config
 	const network = header.network;
+	console.log('[verifyPaymentDetails] Checking network:', network);
+	console.log('[verifyPaymentDetails] Available networks:', paymentRequirements.map((r) => r.network));
+	
 	const configEntry = paymentRequirements.find(
 		(pc) => pc.network.toLowerCase() == (network || '').toLowerCase(),
 	);
 
 	if (configEntry == null) {
 		errors.push('Invalid or unsupported network: ' + network);
+		console.log('[verifyPaymentDetails] ❌ Network not found');
+	} else {
+		console.log('[verifyPaymentDetails] ✅ Network found:', configEntry.network);
 	}
 
-	// 2. Check value >= maxAmountRequired
+	// 2. For Solana, transaction validation is done by facilitator
+	// For EVM, validate authorization fields
 	if (configEntry) {
-		try {
-			const required = BigInt(configEntry.maxAmountRequired);
-			const actual = BigInt(header.payload.authorization.value);
-			if (typeof actual !== 'undefined' && actual < required) {
-				errors.push(`Value too low: got ${actual}, requires at least ${required}`);
+		const isSolana = network?.toLowerCase().includes('solana');
+		
+		if (isSolana) {
+			// For Solana, just verify transaction field exists
+			// The facilitator will validate amount, destination, etc. during /settle
+			const transaction = header.payload?.transaction;
+			if (!transaction || typeof transaction !== 'string') {
+				errors.push('Missing or invalid transaction field in payload');
+				console.log('[verifyPaymentDetails] ❌ Missing transaction');
+			} else {
+				console.log('[verifyPaymentDetails] ✅ Transaction field present (length:', transaction.length, ')');
+				console.log('[verifyPaymentDetails] Transaction validation will be done by facilitator');
 			}
-		} catch {
-			errors.push('Invalid value: must be numeric string');
-		}
-
-		// 3. Check 'to' matches payTo (case-insensitive)
-		const toAddr = header.payload?.authorization?.to;
-		if (toAddr == null) {
-			errors.push("Missing 'to' field in authorization");
-		} else if (toAddr.toLowerCase() != configEntry.payTo.toLowerCase()) {
-			errors.push(`Invalid 'to' address: expected ${configEntry.payTo}, got ${toAddr}`);
-		}
-
-		// 4. Check the validBefore and validAfter timestamps.
-		const now = Math.floor(Date.now() / 1000);
-		try {
-			const validAfter = Number(header.payload.authorization.validAfter);
-			const validBefore = Number(header.payload.authorization.validBefore);
-
-			if (validAfter > now) {
-				errors.push(
-					`Payment has not activated, validAfter is ${validAfter} but the server time is ${now}`,
-				);
+		} else {
+			// EVM authorization-based validation
+			try {
+				const required = BigInt(configEntry.maxAmountRequired);
+				const actual = BigInt(header.payload.authorization!.value);
+				console.log('[verifyPaymentDetails] Amount check:', { required: required.toString(), actual: actual.toString() });
+				if (typeof actual !== 'undefined' && actual < required) {
+					errors.push(`Value too low: got ${actual}, requires at least ${required}`);
+					console.log('[verifyPaymentDetails] ❌ Value too low');
+				} else {
+					console.log('[verifyPaymentDetails] ✅ Amount sufficient');
+				}
+			} catch {
+				errors.push('Invalid value: must be numeric string');
+				console.log('[verifyPaymentDetails] ❌ Invalid value format');
 			}
-			if (validBefore < now) {
-				errors.push(
-					`Payment has expired, validBefore is ${validBefore} but the server time is ${now}`,
-				);
+
+			// 3. Check 'to' matches payTo (case-insensitive)
+			const toAddr = header.payload?.authorization?.to;
+			console.log('[verifyPaymentDetails] Address check:', { 
+				expected: configEntry.payTo, 
+				actual: toAddr 
+			});
+			if (toAddr == null) {
+				errors.push("Missing 'to' field in authorization");
+				console.log('[verifyPaymentDetails] ❌ Missing to address');
+			} else if (toAddr.toLowerCase() != configEntry.payTo.toLowerCase()) {
+				errors.push(`Invalid 'to' address: expected ${configEntry.payTo}, got ${toAddr}`);
+				console.log('[verifyPaymentDetails] ❌ Address mismatch');
+			} else {
+				console.log('[verifyPaymentDetails] ✅ Address matches');
 			}
-		} catch {
-			errors.push(`Invalid validAfter or validBefore timestamps`);
+
+			// 4. Check the validBefore and validAfter timestamps.
+			const now = Math.floor(Date.now() / 1000);
+			console.log('[verifyPaymentDetails] Timestamp check:', { now });
+			try {
+				const validAfter = Number(header.payload.authorization!.validAfter);
+				const validBefore = Number(header.payload.authorization!.validBefore);
+				console.log('[verifyPaymentDetails] Timestamps:', { validAfter, validBefore, now });
+
+				if (validAfter > now) {
+					errors.push(
+						`Payment has not activated, validAfter is ${validAfter} but the server time is ${now}`,
+					);
+					console.log('[verifyPaymentDetails] ❌ Payment not yet valid');
+				} else {
+					console.log('[verifyPaymentDetails] ✅ Payment is valid (validAfter check)');
+				}
+				if (validBefore < now) {
+					errors.push(
+						`Payment has expired, validBefore is ${validBefore} but the server time is ${now}`,
+					);
+					console.log('[verifyPaymentDetails] ❌ Payment expired');
+				} else {
+					console.log('[verifyPaymentDetails] ✅ Payment not expired');
+				}
+			} catch {
+				errors.push(`Invalid validAfter or validBefore timestamps`);
+				console.log('[verifyPaymentDetails] ❌ Invalid timestamp format');
+			}
 		}
 	}
+
+	console.log('[verifyPaymentDetails] Final result:', { 
+		valid: errors.length == 0, 
+		errors: errors.length > 0 ? errors.join('; ') : 'none' 
+	});
 
 	return {
 		valid: errors.length == 0,

@@ -8,8 +8,8 @@ export function getSupportedTokens(environment?: string): {
 		tokens: Array<{ name: string; contractAddress: string; version: string; normalizedName?: string }>;
 	}>;
 } {
-	// Use base-sepolia for staging, base for production
-	const network = environment === 'staging' ? 'base-sepolia' : 'base';
+	// Use solana-devnet for staging, solana for production
+	const network = environment === 'staging' ? 'solana-devnet' : 'solana';
 
 	return {
 		kinds: [
@@ -20,8 +20,8 @@ export function getSupportedTokens(environment?: string): {
 					{
 						name: 'USDC',
 						contractAddress: environment === 'staging'
-							? '0x036CbD53842c5426634e7929541eC2318f3dCF7e' // Base Sepolia USDC
-							: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // Base Mainnet USDC
+							? '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' // Solana Devnet USDC
+							: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // Solana Mainnet USDC
 						version: '2',
 						normalizedName: 'usdc'
 					},
@@ -61,8 +61,8 @@ export function buildPaymentRequirements(
 			return null;
 		}
 
-		// Map 'base' to the expected network (base or base-sepolia based on environment)
-		const normalizedNetwork = network === 'base' ? expectedNetwork : network;
+		// Map 'solana' to the expected network (solana or solana-devnet based on environment)
+		const normalizedNetwork = network === 'solana' ? expectedNetwork : network;
 
 		if (configuredNetworks.includes(normalizedNetwork)) {
 			resp.writeHead(403);
