@@ -294,31 +294,10 @@ export async function findProduct(
 
 	const requestBody = buildOrderRequest(recipientData, physicalAddress, payment, lineItem);
 
-	// Log the request details
-	console.log('=== Order Create Request Details ===');
-	console.log('Platform:', platform);
-	console.log('Endpoint: orders');
-	console.log('API Version:', API_VERSIONS.ORDERS);
-	console.log('Base URL:', api.getBaseUrl());
-	console.log('Full URL:', `${api.getBaseUrl()}/${API_VERSIONS.ORDERS}/orders`);
-	console.log('Request Body:', JSON.stringify(requestBody, null, 2));
-	console.log('===================================');
-
 	try {
 		const response = await api.post('orders', requestBody as unknown as IDataObject, API_VERSIONS.ORDERS);
-		
-		// Log the response from the API
-		console.log('=== Order Create Response ===');
-		console.log(JSON.stringify(response, null, 2));
-		console.log('============================');
-		
 		return response;
 	} catch (error: unknown) {
-		// Log the error response from the API
-		console.log('=== Order Create Error Response ===');
-		console.log(JSON.stringify(error, null, 2));
-		console.log('===================================');
-		
 		// Pass through the original Crossmint API error exactly as received
 		throw new NodeApiError(context.getNode(), error as object & { message?: string });
 	}
