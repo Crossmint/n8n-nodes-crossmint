@@ -234,6 +234,7 @@ function buildLineItem(
 		const variantSize = context.getNodeParameter('variantSize', itemIndex) as string;
 		const variantColor = context.getNodeParameter('variantColor', itemIndex) as string;
 		const designUrl = context.getNodeParameter('designUrl', itemIndex) as string;
+		const embroidery = context.getNodeParameter('embroidery', itemIndex, false) as boolean;
 
 		validateRequiredField(variantSize, 'Variant size', context, itemIndex);
 		validateRequiredField(variantColor, 'Variant color', context, itemIndex);
@@ -244,6 +245,15 @@ function buildLineItem(
 			{ propertyName: 'color', value: variantColor },
 			{ propertyName: 'designUrl', value: designUrl },
 		];
+
+		if (embroidery) {
+			const designUrlSleeve = context.getNodeParameter('designUrlSleeve', itemIndex) as string;
+			validateRequiredField(designUrlSleeve, 'Design URL Sleeve', context, itemIndex);
+			lineItem.experimental_variantAttributesDetails.push(
+				{ propertyName: 'designUrlSleeve', value: designUrlSleeve },
+				{ propertyName: 'embroidery', value: 'true' }
+			);
+		}
 	}
 
 	return lineItem;
