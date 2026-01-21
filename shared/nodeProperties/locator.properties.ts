@@ -32,11 +32,82 @@ export function createWalletLocatorProperty(
 	description: string = 'Select the wallet',
 	chainType: string = 'solana',
 ): INodeProperties {
-	// Get chain provider from registry for validation rules
+	// Get chain provider for validation rules
 	const provider = ChainFactory.createProvider(chainType);
 
 	if (!provider) {
-		throw new Error(`Chain type '${chainType}' is not supported. Register it in ChainFactory.`);
+		// Fallback to basic validation if chain provider not found
+		console.warn(`Chain type '${chainType}' is not supported. Using basic address validation.`);
+		return {
+			displayName: 'Wallet',
+			name,
+			type: 'resourceLocator',
+			default: { mode: 'address', value: '' },
+			description,
+			displayOptions: { show: { resource: ['wallet'], operation: [operation] } },
+			modes: [
+				{
+					displayName: 'Address',
+					name: 'address',
+					type: 'string',
+					hint: 'Enter wallet address',
+					placeholder: 'Enter wallet address',
+				},
+				{
+					displayName: 'Email',
+					name: 'email',
+					type: 'string',
+					hint: 'Enter email address',
+					placeholder: 'user@example.com',
+					validation: [
+						{
+							type: 'regex',
+							properties: {
+								regex: LOCATOR_VALIDATION.email.regex,
+								errorMessage: LOCATOR_VALIDATION.email.errorMessage,
+							},
+						},
+					],
+				},
+				{
+					displayName: 'User ID',
+					name: 'userId',
+					type: 'string',
+					hint: 'Enter user ID',
+					placeholder: 'user-123',
+				},
+				{
+					displayName: 'Phone',
+					name: 'phoneNumber',
+					type: 'string',
+					hint: 'Enter phone number with country code',
+					placeholder: '+1234567890',
+					validation: [
+						{
+							type: 'regex',
+							properties: {
+								regex: LOCATOR_VALIDATION.phoneNumber.regex,
+								errorMessage: LOCATOR_VALIDATION.phoneNumber.errorMessage,
+							},
+						},
+					],
+				},
+				{
+					displayName: 'Twitter',
+					name: 'twitter',
+					type: 'string',
+					hint: 'Enter Twitter handle (without @)',
+					placeholder: 'username',
+				},
+				{
+					displayName: 'X',
+					name: 'x',
+					type: 'string',
+					hint: 'Enter X handle (without @)',
+					placeholder: 'username',
+				},
+			],
+		} as INodeProperties;
 	}
 
 	return {

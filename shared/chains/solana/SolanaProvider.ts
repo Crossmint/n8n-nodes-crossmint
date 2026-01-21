@@ -36,7 +36,7 @@ export class SolanaProvider extends BaseChainProvider {
 
 	validateAddress(address: string): ValidationResult {
 		// Solana addresses are base58 encoded and typically 32-44 characters
-		const regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+		const regex = new RegExp(this.getAddressValidationRegex());
 
 		if (!regex.test(address)) {
 			return this.createValidationResult(false, 'Invalid Solana address format');
