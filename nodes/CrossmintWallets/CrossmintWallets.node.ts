@@ -15,6 +15,10 @@ import { getWallet } from '../../shared/actions/wallet/getWallet.operation';
 import { getBalance } from '../../shared/actions/wallet/getBalance.operation';
 import { transferToken } from '../../shared/actions/wallet/transferToken.operation';
 import { signTransaction } from '../../shared/actions/wallet/signTransaction.operation';
+import {
+	createWalletLocatorProperty,
+	createChainTypeSelectorProperty,
+} from '../../shared/nodeProperties';
 
 export class CrossmintWallets implements INodeType {
 	description: INodeTypeDescription = {
@@ -193,96 +197,8 @@ export class CrossmintWallets implements INodeType {
 			},
 
 			// ---- Get Wallet fields
-			{
-				displayName: 'Wallet',
-				name: 'getWalletLocator',
-				type: 'resourceLocator',
-				default: { mode: 'address', value: '' },
-				description: 'Select the wallet to retrieve',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'] } },
-				modes: [
-					{
-						displayName: 'Address',
-						name: 'address',
-						type: 'string',
-						hint: 'Enter wallet address',
-						placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[1-9A-HJ-NP-Za-km-z]{32,44}$',
-									errorMessage: 'Please enter a valid Solana wallet address',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'Email',
-						name: 'email',
-						type: 'string',
-						hint: 'Enter email address',
-						placeholder: 'user@example.com',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[^@]+@[^@]+\\.[^@]+$',
-									errorMessage: 'Please enter a valid email address',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'User ID',
-						name: 'userId',
-						type: 'string',
-						hint: 'Enter user ID',
-						placeholder: 'user-123',
-					},
-					{
-						displayName: 'Phone',
-						name: 'phoneNumber',
-						type: 'string',
-						hint: 'Enter phone number with country code',
-						placeholder: '+1234567890',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^\\+[1-9]\\d{1,14}$',
-									errorMessage: 'Please enter a valid phone number with country code',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'Twitter',
-						name: 'twitter',
-						type: 'string',
-						hint: 'Enter Twitter handle (without @)',
-						placeholder: 'username',
-					},
-					{
-						displayName: 'X',
-						name: 'x',
-						type: 'string',
-						hint: 'Enter X handle (without @)',
-						placeholder: 'username',
-					},
-				],
-			},
-			{
-				displayName: 'Chain Type',
-				name: 'getWalletChainType',
-				type: 'options',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getWallet'] } },
-				options: [
-					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
-				],
-				default: 'solana',
-				description: 'Blockchain type for the wallet locator (only needed for email, userId, phoneNumber, twitter, x modes)',
-			},
+			createWalletLocatorProperty('getWalletLocator', 'getWallet', 'Select the wallet to retrieve'),
+			createChainTypeSelectorProperty('getWalletChainType', 'getWallet'),
 
 			// ---- Create Transfer fields
 			{
@@ -297,164 +213,8 @@ export class CrossmintWallets implements INodeType {
 				description: 'Blockchain type for both origin and recipient wallets',
 				required: true,
 			},
-			{
-				displayName: 'Origin Wallet',
-				name: 'originWallet',
-				type: 'resourceLocator',
-				default: { mode: 'address', value: '' },
-				description: 'Select the origin wallet for the transfer',
-				displayOptions: { show: { resource: ['wallet'], operation: ['createTransfer'] } },
-				modes: [
-					{
-						displayName: 'Address',
-						name: 'address',
-						type: 'string',
-						hint: 'Enter wallet address',
-						placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[1-9A-HJ-NP-Za-km-z]{32,44}$',
-									errorMessage: 'Please enter a valid Solana wallet address',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'Email',
-						name: 'email',
-						type: 'string',
-						hint: 'Enter email address',
-						placeholder: 'user@example.com',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[^@]+@[^@]+\\.[^@]+$',
-									errorMessage: 'Please enter a valid email address',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'User ID',
-						name: 'userId',
-						type: 'string',
-						hint: 'Enter user ID',
-						placeholder: 'user-123',
-					},
-					{
-						displayName: 'Phone',
-						name: 'phoneNumber',
-						type: 'string',
-						hint: 'Enter phone number with country code',
-						placeholder: '+1234567890',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^\\+[1-9]\\d{1,14}$',
-									errorMessage: 'Please enter a valid phone number with country code',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'Twitter',
-						name: 'twitter',
-						type: 'string',
-						hint: 'Enter Twitter handle (without @)',
-						placeholder: 'username',
-					},
-					{
-						displayName: 'X',
-						name: 'x',
-						type: 'string',
-						hint: 'Enter X handle (without @)',
-						placeholder: 'username',
-					},
-				],
-			},
-			{
-				displayName: 'Recipient Wallet',
-				name: 'recipientWallet',
-				type: 'resourceLocator',
-				default: { mode: 'address', value: '' },
-				description: 'Select the recipient wallet for the transfer',
-				displayOptions: { show: { resource: ['wallet'], operation: ['createTransfer'] } },
-				modes: [
-					{
-						displayName: 'Address',
-						name: 'address',
-						type: 'string',
-						hint: 'Enter wallet address',
-						placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[1-9A-HJ-NP-Za-km-z]{32,44}$',
-									errorMessage: 'Please enter a valid Solana wallet address',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'Email',
-						name: 'email',
-						type: 'string',
-						hint: 'Enter email address',
-						placeholder: 'user@example.com',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[^@]+@[^@]+\\.[^@]+$',
-									errorMessage: 'Please enter a valid email address',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'User ID',
-						name: 'userId',
-						type: 'string',
-						hint: 'Enter user ID',
-						placeholder: 'user-123',
-					},
-					{
-						displayName: 'Phone',
-						name: 'phoneNumber',
-						type: 'string',
-						hint: 'Enter phone number with country code',
-						placeholder: '+1234567890',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^\\+[1-9]\\d{1,14}$',
-									errorMessage: 'Please enter a valid phone number with country code',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'Twitter',
-						name: 'twitter',
-						type: 'string',
-						hint: 'Enter Twitter handle (without @)',
-						placeholder: 'username',
-					},
-					{
-						displayName: 'X',
-						name: 'x',
-						type: 'string',
-						hint: 'Enter X handle (without @)',
-						placeholder: 'username',
-					},
-				],
-			},
+			createWalletLocatorProperty('originWallet', 'createTransfer', 'Select the origin wallet for the transfer'),
+			createWalletLocatorProperty('recipientWallet', 'createTransfer', 'Select the recipient wallet for the transfer'),
 			{
 				displayName: 'Chain',
 				name: 'tknChain',
@@ -487,97 +247,8 @@ export class CrossmintWallets implements INodeType {
 			},
 
 			// ---- Get balance fields
-			{
-				displayName: 'Wallet',
-				name: 'walletLocator',
-				type: 'resourceLocator',
-				default: { mode: 'address', value: '' },
-				description: 'Select the wallet to get balance for',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
-				modes: [
-					{
-						displayName: 'Address',
-						name: 'address',
-						type: 'string',
-						hint: 'Enter wallet address',
-						placeholder: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[1-9A-HJ-NP-Za-km-z]{32,44}$',
-									errorMessage: 'Please enter a valid Solana wallet address',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'Email',
-						name: 'email',
-						type: 'string',
-						hint: 'Enter email address',
-						placeholder: 'user@example.com',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^[^@]+@[^@]+\\.[^@]+$',
-									errorMessage: 'Please enter a valid email address',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'User ID',
-						name: 'userId',
-						type: 'string',
-						hint: 'Enter user ID',
-						placeholder: 'user-123',
-					},
-					{
-						displayName: 'Phone',
-						name: 'phoneNumber',
-						type: 'string',
-						hint: 'Enter phone number with country code',
-						placeholder: '+1234567890',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '^\\+[1-9]\\d{1,14}$',
-									errorMessage: 'Please enter a valid phone number with country code',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'Twitter',
-						name: 'twitter',
-						type: 'string',
-						hint: 'Enter Twitter handle (without @)',
-						placeholder: 'username',
-					},
-					{
-						displayName: 'X',
-						name: 'x',
-						type: 'string',
-						hint: 'Enter X handle (without @)',
-						placeholder: 'username',
-					},
-				],
-			},
-			{
-				displayName: 'Chain Type',
-				name: 'balanceWalletChainType',
-				type: 'options',
-				displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
-				options: [
-					{ name: 'Solana', value: 'solana', description: 'Solana blockchain' },
-				],
-				default: 'solana',
-				description: 'Blockchain type for the wallet locator (only needed for email, userId, phoneNumber, twitter, x modes)',
-
-			},
+			createWalletLocatorProperty('walletLocator', 'getBalance', 'Select the wallet to get balance for'),
+			createChainTypeSelectorProperty('balanceWalletChainType', 'getBalance'),
 			{
 				displayName: 'Chains',
 				name: 'chains',
