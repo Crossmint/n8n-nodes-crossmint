@@ -1,4 +1,4 @@
-import { ChainRegistry } from '../chains/ChainRegistry';
+import { ChainFactory } from '../chains/ChainFactory';
 import { INodeProperties } from 'n8n-workflow';
 
 /**
@@ -10,7 +10,7 @@ import { INodeProperties } from 'n8n-workflow';
 
 /**
  * Creates a token chain/network selector property.
- * Uses ChainRegistry to generate dynamic placeholder based on available networks.
+ * Uses ChainFactory to generate dynamic placeholder based on available networks.
  *
  * @param name - The parameter name
  * @param operation - The operation this applies to
@@ -24,7 +24,7 @@ export function createTokenChainProperty(
 	chainType: string = 'solana',
 	description: string = 'Blockchain network for the token',
 ): INodeProperties {
-	const provider = ChainRegistry.getProvider(chainType);
+	const provider = ChainFactory.createProvider(chainType);
 	const networks = provider?.getNetworks() || [];
 
 	// Generate placeholder from actual networks
@@ -105,7 +105,7 @@ export function createAmountProperty(
  * @returns Array of INodeProperties for balance queries
  */
 export function createBalanceQueryFields(operation: string, chainType: string = 'solana'): INodeProperties[] {
-	const provider = ChainRegistry.getProvider(chainType);
+	const provider = ChainFactory.createProvider(chainType);
 	const networks = provider?.getNetworks() || [];
 
 	// Generate placeholder from actual networks

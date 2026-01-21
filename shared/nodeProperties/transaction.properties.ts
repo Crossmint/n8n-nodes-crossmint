@@ -1,5 +1,5 @@
 import { INodeProperties } from 'n8n-workflow';
-import { ChainRegistry } from '../chains/ChainRegistry';
+import { ChainFactory } from '../chains/ChainFactory';
 
 /**
  * Transaction Signing Properties
@@ -17,7 +17,7 @@ import { ChainRegistry } from '../chains/ChainRegistry';
  * @returns Array of INodeProperties for transaction signing
  */
 export function createTransactionSigningFields(operation: string, chainType: string = 'solana'): INodeProperties[] {
-	const provider = ChainRegistry.getProvider(chainType);
+	const provider = ChainFactory.createProvider(chainType);
 	const networks = provider?.getNetworks() || [];
 
 	return [

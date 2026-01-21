@@ -1,5 +1,5 @@
 import { INodeProperties } from 'n8n-workflow';
-import { ChainRegistry } from '../chains/ChainRegistry';
+import { ChainFactory } from '../chains/ChainFactory';
 import { createOwnerTypeFields } from './owner.properties';
 import { createWalletLocatorProperty, createChainTypeSelectorProperty } from './locator.properties';
 
@@ -17,7 +17,7 @@ import { createWalletLocatorProperty, createChainTypeSelectorProperty } from './
  * @returns Array of INodeProperties for wallet creation
  */
 export function createGetOrCreateWalletFields(chainType: string = 'solana'): INodeProperties[] {
-	const provider = ChainRegistry.getProvider(chainType);
+	const provider = ChainFactory.createProvider(chainType);
 	const networks = provider?.getNetworks() || [];
 
 	return [
@@ -67,7 +67,7 @@ export function createGetWalletFields(chainType: string = 'solana'): INodeProper
  * @returns Array of INodeProperties for token transfers
  */
 export function createTransferFields(chainType: string = 'solana'): INodeProperties[] {
-	const provider = ChainRegistry.getProvider(chainType);
+	const provider = ChainFactory.createProvider(chainType);
 
 	return [
 		{

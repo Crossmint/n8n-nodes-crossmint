@@ -1,5 +1,5 @@
 import { INodeProperties } from 'n8n-workflow';
-import { ChainRegistry } from '../chains/ChainRegistry';
+import { ChainFactory } from '../chains/ChainFactory';
 
 /**
  * Validation patterns for non-address locator types
@@ -18,7 +18,7 @@ export const LOCATOR_VALIDATION = {
 /**
  * Creates a resource locator property for wallet selection.
  * This eliminates the duplication of wallet locator definitions across the node.
- * Uses ChainRegistry to dynamically get validation rules for the specified chain.
+ * Uses ChainFactory to dynamically get validation rules for the specified chain.
  *
  * @param name - The parameter name (e.g., 'walletLocator', 'originWallet', 'recipientWallet')
  * @param operation - The operation this locator is used for
@@ -33,10 +33,10 @@ export function createWalletLocatorProperty(
 	chainType: string = 'solana',
 ): INodeProperties {
 	// Get chain provider from registry for validation rules
-	const provider = ChainRegistry.getProvider(chainType);
+	const provider = ChainFactory.createProvider(chainType);
 
 	if (!provider) {
-		throw new Error(`Chain type '${chainType}' is not supported. Register it in ChainRegistry.`);
+		throw new Error(`Chain type '${chainType}' is not supported. Register it in ChainFactory.`);
 	}
 
 	return {
@@ -123,7 +123,7 @@ export function createWalletLocatorProperty(
 /**
  * Creates a chain type selector property for wallet locators.
  * Used when the locator mode requires a chain specification (email, userId, phone, twitter, x).
- * Dynamically populates options from ChainRegistry.
+ * Dynamically populates options from ChainFactory.
  *
  * @param name - The parameter name
  * @param operation - The operation this is used for
@@ -136,7 +136,7 @@ export function createChainTypeSelectorProperty(
 	description: string = 'Blockchain type for the wallet locator (only needed for email, userId, phoneNumber, twitter, x modes)',
 ): INodeProperties {
 	// Get chain options dynamically from registry
-	const options = ChainRegistry.getChainOptions();
+	const options = ChainFactory.getChainOptions();
 
 	return {
 		displayName: 'Chain Type',

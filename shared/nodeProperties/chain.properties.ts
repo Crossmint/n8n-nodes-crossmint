@@ -1,9 +1,9 @@
 import { INodeProperties } from 'n8n-workflow';
-import { ChainRegistry } from '../chains/ChainRegistry';
+import { ChainFactory } from '../chains/ChainFactory';
 
 /**
  * Creates a blockchain type selector property.
- * Dynamically populated from ChainRegistry.
+ * Dynamically populated from ChainFactory.
  *
  * @param name - The parameter name
  * @param operations - Array of operations this applies to
@@ -17,7 +17,7 @@ export function createBlockchainTypeProperty(
 	description: string = 'Blockchain type',
 	required: boolean = true,
 ): INodeProperties {
-	const options = ChainRegistry.getChainOptions();
+	const options = ChainFactory.getChainOptions();
 
 	return {
 		displayName: 'Blockchain Type',
@@ -49,7 +49,7 @@ export function createChainNetworkProperty(
 	description: string = 'Blockchain network',
 	required: boolean = true,
 ): INodeProperties {
-	const provider = ChainRegistry.getProvider(chainType);
+	const provider = ChainFactory.getProvider(chainType);
 
 	if (!provider) {
 		// Fallback to string input if provider not found
