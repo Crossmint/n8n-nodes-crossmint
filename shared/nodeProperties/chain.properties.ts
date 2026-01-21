@@ -49,7 +49,7 @@ export function createChainNetworkProperty(
 	description: string = 'Blockchain network',
 	required: boolean = true,
 ): INodeProperties {
-	const provider = ChainFactory.getProvider(chainType);
+	const provider = ChainFactory.createProvider(chainType);
 
 	if (!provider) {
 		// Fallback to string input if provider not found

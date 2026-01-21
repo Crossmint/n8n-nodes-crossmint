@@ -5,7 +5,7 @@
  */
 
 export * from './IChainProvider';
-export * from './ChainRegistry';
+export * from './ChainFactory';
 export * from './solana/SolanaProvider';
 
 // Future exports:
