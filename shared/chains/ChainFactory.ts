@@ -96,4 +96,31 @@ export class ChainFactory {
 			description: network.isTestnet ? 'Testnet' : 'Mainnet',
 		}));
 	}
+
+	/**
+	 * Get the chainType from a network identifier
+	 * e.g., "solana-devnet" -> "solana", "ethereum" -> "evm", "polygon" -> "evm"
+	 *
+	 * @param network - The network identifier (e.g., "solana", "solana-devnet", "ethereum")
+	 * @returns The chainType or undefined if not found
+	 */
+	static getChainTypeFromNetwork(network: string): string | undefined {
+		const normalizedNetwork = network.toLowerCase();
+
+		for (const provider of this.getAllProviders()) {
+			const networks = provider.getNetworks();
+			if (networks.some(n => n.id.toLowerCase() === normalizedNetwork)) {
+				return provider.chainType;
+			}
+		}
+
+		// Fallback: check if network starts with a known chainType
+		for (const chainType of this.getSupportedChainTypes()) {
+			if (normalizedNetwork.startsWith(chainType)) {
+				return chainType;
+			}
+		}
+
+		return undefined;
+	}
 }

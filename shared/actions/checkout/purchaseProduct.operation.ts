@@ -4,6 +4,7 @@ import { API_VERSIONS } from '../../utils/constants';
 import { validateRequiredField } from '../../utils/validation';
 import { signMessage } from '../../utils/blockchain';
 import { TransactionCreateRequest, ApprovalRequest, ApiResponse } from '../../transport/types';
+import { ChainFactory } from '../../chains/ChainFactory';
 
 export async function purchaseProduct(
 	context: IExecuteFunctions,
@@ -55,7 +56,7 @@ export async function purchaseProduct(
 		signature,
 		messageToSign,
 		signerAddress,
-		chainType: 'solana',
+		chainType: ChainFactory.getChainTypeFromNetwork(chain) || 'solana',
 		chain
 	};
 

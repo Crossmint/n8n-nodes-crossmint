@@ -4,6 +4,7 @@ import { API_VERSIONS, PAGINATION } from '../../utils/constants';
 import { validatePrivateKey, validateRequiredField } from '../../utils/validation';
 import { signMessage } from '../../utils/blockchain';
 import { ApprovalRequest, ApiResponse } from '../../transport/types';
+import { ChainFactory } from '../../chains/ChainFactory';
 
 async function getTransactionStatus(
 	api: CrossmintApi,
@@ -127,7 +128,7 @@ export async function signTransaction(
 		signingDetails: {
 			signature: signature,
 			signedTransaction: signature,
-			chainType: 'solana',
+			chainType: ChainFactory.getChainTypeFromNetwork(chain) || rawResponseData.chainType || 'solana',
 			chain: chain,
 			transactionData: transactionData,
 		},
