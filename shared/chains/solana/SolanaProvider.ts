@@ -1,6 +1,7 @@
 import { BaseChainProvider, ChainNetwork, TransactionData, SignatureResult, ValidationResult } from '../IChainProvider';
 import * as base58 from '../../utils/base58';
 import { signMessage } from '../../utils/blockchain';
+import { derivePublicKeyFromSeed } from '../../utils/solana-key-derivation';
 
 /**
  * Solana Blockchain Provider
@@ -94,9 +95,9 @@ export class SolanaProvider extends BaseChainProvider {
 			// Full keypair: public key is the last 32 bytes
 			publicKeyBytes = secretKeyBytes.subarray(32, 64);
 		} else if (secretKeyBytes.length === 32) {
-			// Seed only: would need to derive public key
-			// This requires crypto operations - for now throw error
-			throw new Error('Deriving public key from 32-byte seed requires additional crypto operations');
+			// 32-byte seed: derive public key using Ed25519
+			const keyPair = derivePublicKeyFromSeed(secretKeyBytes);
+			publicKeyBytes = keyPair.publicKey;
 		} else {
 			throw new Error('Invalid private key length');
 		}
