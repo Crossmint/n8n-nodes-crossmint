@@ -7,7 +7,5 @@
 export * from './IChainProvider';
 export * from './ChainFactory';
 export * from './solana/SolanaProvider';
-
-// Future exports:
-// export * from './evm/EVMProvider';
-// export * from './bitcoin/BitcoinProvider';
+export * from './evm/EVMProvider';
+export * from './evm/EVMNetworks';

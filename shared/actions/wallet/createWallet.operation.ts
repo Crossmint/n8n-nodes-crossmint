@@ -16,7 +16,7 @@ export async function createWallet(
 
 	validateRequiredField(externalSignerDetails, 'External signer private key', context, itemIndex);
 
-	const keyPair = deriveKeyPair(externalSignerDetails, context, itemIndex);
+	const keyPair = deriveKeyPair(externalSignerDetails, context, itemIndex, chainType);
 
 	const adminSigner = {
 		type: 'external-wallet',

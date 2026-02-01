@@ -76,7 +76,11 @@ export async function signTransaction(
 	api: CrossmintApi,
 	itemIndex: number,
 ): Promise<IDataObject> {
-	const chain = context.getNodeParameter('signSubmitChain', itemIndex) as string;
+	const chainType = context.getNodeParameter('signSubmitChainType', itemIndex) as string;
+	// Read the correct network parameter based on chain type
+	const chain = chainType === 'solana'
+		? context.getNodeParameter('signSubmitChainSolana', itemIndex) as string
+		: context.getNodeParameter('signSubmitChainEvm', itemIndex) as string;
 	const privateKey = context.getNodeParameter('signSubmitPrivateKey', itemIndex) as string;
 	const transactionData = context.getNodeParameter('signSubmitTransactionData', itemIndex) as string;
 	const walletAddress = context.getNodeParameter('signSubmitWalletAddress', itemIndex) as string;
@@ -84,9 +88,9 @@ export async function signTransaction(
 	const signerAddress = context.getNodeParameter('signSubmitSignerAddress', itemIndex) as string;
 	const waitForCompletion = context.getNodeParameter('waitForCompletion', itemIndex) as boolean;
 
-	validatePrivateKey(privateKey, context, itemIndex);
+	validatePrivateKey(privateKey, context, itemIndex, chainType);
 
-	const signature = await signMessage(transactionData, privateKey, context, itemIndex);
+	const signature = await signMessage(transactionData, privateKey, context, itemIndex, chainType);
 
 	if (!signature) {
 		throw new NodeOperationError(context.getNode(), 'Failed to generate signature', {

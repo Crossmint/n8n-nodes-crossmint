@@ -1,5 +1,5 @@
 import { NodeOperationError, INode } from 'n8n-workflow';
-import { decode as base58Decode } from './base58';
+import { ChainFactory } from '../chains/ChainFactory';
 
 export function validateEmail(email: string, context: unknown, itemIndex: number): void {
 	if (!email || email.trim() === '') {
@@ -45,22 +45,29 @@ export function validateRequiredField(value: string, fieldName: string, context:
 	}
 }
 
-export function validatePrivateKey(privateKey: string, context: unknown, itemIndex: number): void {
+export function validatePrivateKey(privateKey: string, context: unknown, itemIndex: number, chainType: string = 'solana'): void {
 	if (!privateKey || privateKey.trim() === '') {
 		throw new NodeOperationError((context as { getNode: () => INode }).getNode(), 'Private key is required', {
 			itemIndex,
 		});
 	}
 
-	try {
-		const decoded = base58Decode(privateKey);
-		if (decoded.length !== 32 && decoded.length !== 64) {
-			throw new Error('Invalid key length');
-		}
-	} catch {
-		throw new NodeOperationError((context as { getNode: () => INode }).getNode(), 'Invalid base58 private key format', {
-			itemIndex,
-		});
+	const provider = ChainFactory.createProvider(chainType);
+	if (!provider) {
+		throw new NodeOperationError(
+			(context as { getNode: () => INode }).getNode(),
+			`Unsupported chain type: ${chainType}`,
+			{ itemIndex }
+		);
+	}
+
+	const validation = provider.validatePrivateKey(privateKey);
+	if (!validation.valid) {
+		throw new NodeOperationError(
+			(context as { getNode: () => INode }).getNode(),
+			validation.error || 'Invalid private key format',
+			{ itemIndex }
+		);
 	}
 }
 

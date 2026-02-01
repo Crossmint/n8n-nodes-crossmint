@@ -13,28 +13,59 @@ import { ChainFactory } from '../chains/ChainFactory';
  * Returns an array of properties needed to sign and submit a transaction.
  *
  * @param operation - The operation this applies to
- * @param chainType - The blockchain type (default: 'solana')
  * @returns Array of INodeProperties for transaction signing
  */
-export function createTransactionSigningFields(operation: string, chainType: string = 'solana'): INodeProperties[] {
-	const provider = ChainFactory.createProvider(chainType);
-	const networks = provider?.getNetworks() || [];
+export function createTransactionSigningFields(operation: string): INodeProperties[] {
+	// Get chain type options
+	const chainOptions = ChainFactory.getChainOptions();
 
 	return [
 		{
-			displayName: 'Chain',
-			name: 'signSubmitChain',
+			displayName: 'Blockchain Type',
+			name: 'signSubmitChainType',
 			type: 'options',
 			displayOptions: { show: { resource: ['wallet'], operation: [operation] } },
-			options: networks.length > 0
-				? networks.map(n => ({
-					name: n.name,
-					value: n.id,
-					description: n.isTestnet ? 'Testnet' : 'Mainnet',
-				}))
-				: [{ name: 'Solana', value: 'solana', description: 'Solana blockchain' }],
-			default: networks[0]?.id || 'solana',
-			description: 'Blockchain network for transaction signing',
+			options: chainOptions,
+			default: chainOptions[0]?.value || 'solana',
+			description: 'Blockchain type for transaction signing',
+			required: true,
+		},
+		// Solana network selector - shown when signSubmitChainType is 'solana'
+		{
+			displayName: 'Network',
+			name: 'signSubmitChainSolana',
+			type: 'options',
+			displayOptions: {
+				show: {
+					resource: ['wallet'],
+					operation: [operation],
+					signSubmitChainType: ['solana'],
+				},
+			},
+			typeOptions: {
+				loadOptionsMethod: 'getSolanaNetworkOptions',
+			},
+			default: '',
+			description: 'Solana network (filtered by credential environment)',
+			required: true,
+		},
+		// EVM network selector - shown when signSubmitChainType is 'evm'
+		{
+			displayName: 'Network',
+			name: 'signSubmitChainEvm',
+			type: 'options',
+			displayOptions: {
+				show: {
+					resource: ['wallet'],
+					operation: [operation],
+					signSubmitChainType: ['evm'],
+				},
+			},
+			typeOptions: {
+				loadOptionsMethod: 'getEvmNetworkOptions',
+			},
+			default: '',
+			description: 'EVM network (filtered by credential environment)',
 			required: true,
 		},
 		{
@@ -43,7 +74,7 @@ export function createTransactionSigningFields(operation: string, chainType: str
 			type: 'string',
 			displayOptions: { show: { resource: ['wallet'], operation: [operation] } },
 			default: '',
-			placeholder: provider?.getExampleAddress() || '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+			placeholder: 'Enter wallet address',
 			description: 'Wallet address for the API endpoint (from Create Transfer response)',
 			required: true,
 		},
@@ -73,7 +104,7 @@ export function createTransactionSigningFields(operation: string, chainType: str
 			type: 'string',
 			displayOptions: { show: { resource: ['wallet'], operation: [operation] } },
 			default: '',
-			placeholder: provider?.getExampleAddress() || '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+			placeholder: 'Enter signer address',
 			description: 'Address of the external signer (from Create Transfer response)',
 			required: true,
 		},
@@ -84,8 +115,8 @@ export function createTransactionSigningFields(operation: string, chainType: str
 			typeOptions: { password: true },
 			displayOptions: { show: { resource: ['wallet'], operation: [operation] } },
 			default: '',
-			placeholder: chainType === 'solana' ? 'base58 encoded private key' : 'private key',
-			description: `Private key to sign with${chainType === 'solana' ? ' (base58 for Solana)' : ''}`,
+			placeholder: 'Enter private key',
+			description: 'Private key to sign with (format depends on selected chain)',
 			required: true,
 		},
 		{

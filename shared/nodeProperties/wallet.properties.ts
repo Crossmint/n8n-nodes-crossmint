@@ -13,12 +13,10 @@ import { createWalletLocatorProperty, createChainTypeSelectorProperty } from './
 /**
  * Creates all properties for the "Get or Create Wallet" operation.
  *
- * @param chainType - The blockchain type (default: 'solana')
  * @returns Array of INodeProperties for wallet creation
  */
-export function createGetOrCreateWalletFields(chainType: string = 'solana'): INodeProperties[] {
-	const provider = ChainFactory.createProvider(chainType);
-	const networks = provider?.getNetworks() || [];
+export function createGetOrCreateWalletFields(): INodeProperties[] {
+	const chainOptions = ChainFactory.getChainOptions();
 
 	return [
 		{
@@ -26,10 +24,8 @@ export function createGetOrCreateWalletFields(chainType: string = 'solana'): INo
 			name: 'chainType',
 			type: 'options',
 			displayOptions: { show: { resource: ['wallet'], operation: ['getOrCreateWallet'] } },
-			options: networks.length > 0
-				? [{ name: provider?.displayName || 'Solana', value: chainType, description: `${provider?.displayName || 'Solana'} blockchain` }]
-				: [{ name: 'Solana', value: 'solana', description: 'Solana blockchain' }],
-			default: chainType,
+			options: chainOptions,
+			default: chainOptions.length > 0 ? chainOptions[0].value : 'solana',
 			description: 'Blockchain type',
 		},
 		...createOwnerTypeFields('getOrCreateWallet', false),
@@ -40,7 +36,7 @@ export function createGetOrCreateWalletFields(chainType: string = 'solana'): INo
 			typeOptions: { password: true },
 			displayOptions: { show: { resource: ['wallet'], operation: ['getOrCreateWallet'] } },
 			default: '',
-			placeholder: chainType === 'solana' ? 'Enter private key (base58 for Solana)' : 'Enter private key',
+			placeholder: 'Enter private key',
 			description: 'Private key that authorizes all transactions from this wallet. Use this link to generate them: https://www.val.town/x/Crossmint/crypto-address-generator.',
 			required: true,
 		},
@@ -50,12 +46,11 @@ export function createGetOrCreateWalletFields(chainType: string = 'solana'): INo
 /**
  * Creates all properties for the "Get Wallet" operation.
  *
- * @param chainType - The blockchain type (default: 'solana')
  * @returns Array of INodeProperties for wallet retrieval
  */
-export function createGetWalletFields(chainType: string = 'solana'): INodeProperties[] {
+export function createGetWalletFields(): INodeProperties[] {
 	return [
-		createWalletLocatorProperty('getWalletLocator', 'getWallet', 'Select the wallet to retrieve', chainType),
+		createWalletLocatorProperty('getWalletLocator', 'getWallet', 'Select the wallet to retrieve'),
 		createChainTypeSelectorProperty('getWalletChainType', 'getWallet'),
 	];
 }
@@ -63,11 +58,10 @@ export function createGetWalletFields(chainType: string = 'solana'): INodeProper
 /**
  * Creates all properties for the "Create Transfer" operation.
  *
- * @param chainType - The blockchain type (default: 'solana')
  * @returns Array of INodeProperties for token transfers
  */
-export function createTransferFields(chainType: string = 'solana'): INodeProperties[] {
-	const provider = ChainFactory.createProvider(chainType);
+export function createTransferFields(): INodeProperties[] {
+	const chainOptions = ChainFactory.getChainOptions();
 
 	return [
 		{
@@ -75,27 +69,111 @@ export function createTransferFields(chainType: string = 'solana'): INodePropert
 			name: 'blockchainType',
 			type: 'options',
 			displayOptions: { show: { resource: ['wallet'], operation: ['createTransfer'] } },
-			options: [
-				{ name: provider?.displayName || 'Solana', value: chainType, description: `${provider?.displayName || 'Solana'} blockchain` },
-			],
-			default: chainType,
+			options: chainOptions,
+			default: chainOptions.length > 0 ? chainOptions[0].value : 'solana',
 			description: 'Blockchain type for both origin and recipient wallets',
 			required: true,
 		},
-		createWalletLocatorProperty('originWallet', 'createTransfer', 'Select the origin wallet for the transfer', chainType),
-		createWalletLocatorProperty('recipientWallet', 'createTransfer', 'Select the recipient wallet for the transfer', chainType),
+		// Solana network selector - shown when blockchainType is 'solana'
+		{
+			displayName: 'Network',
+			name: 'transferNetworkSolana',
+			type: 'options',
+			displayOptions: {
+				show: {
+					resource: ['wallet'],
+					operation: ['createTransfer'],
+					blockchainType: ['solana'],
+				},
+			},
+			typeOptions: {
+				loadOptionsMethod: 'getSolanaNetworkOptions',
+			},
+			default: '',
+			description: 'Solana network (filtered by credential environment)',
+			required: true,
+		},
+		// EVM network selector - shown when blockchainType is 'evm'
+		{
+			displayName: 'Network',
+			name: 'transferNetworkEvm',
+			type: 'options',
+			displayOptions: {
+				show: {
+					resource: ['wallet'],
+					operation: ['createTransfer'],
+					blockchainType: ['evm'],
+				},
+			},
+			typeOptions: {
+				loadOptionsMethod: 'getEvmNetworkOptions',
+			},
+			default: '',
+			description: 'EVM network (filtered by credential environment)',
+			required: true,
+		},
+		createWalletLocatorProperty('originWallet', 'createTransfer', 'Select the origin wallet for the transfer'),
+		createWalletLocatorProperty('recipientWallet', 'createTransfer', 'Select the recipient wallet for the transfer'),
 	];
 }
 
 /**
  * Creates all properties for the "Get Balance" operation.
  *
- * @param chainType - The blockchain type (default: 'solana')
  * @returns Array of INodeProperties for balance queries
  */
-export function createGetBalanceFields(chainType: string = 'solana'): INodeProperties[] {
+export function createGetBalanceFields(): INodeProperties[] {
+	const chainOptions = ChainFactory.getChainOptions();
+
 	return [
-		createWalletLocatorProperty('walletLocator', 'getBalance', 'Select the wallet to get balance for', chainType),
-		createChainTypeSelectorProperty('balanceWalletChainType', 'getBalance'),
+		{
+			displayName: 'Blockchain Type',
+			name: 'balanceBlockchainType',
+			type: 'options',
+			displayOptions: { show: { resource: ['wallet'], operation: ['getBalance'] } },
+			options: chainOptions,
+			default: chainOptions.length > 0 ? chainOptions[0].value : 'solana',
+			description: 'Blockchain type for the wallet',
+			required: true,
+		},
+		// Solana network selector - shown when balanceBlockchainType is 'solana'
+		{
+			displayName: 'Network',
+			name: 'balanceNetworkSolana',
+			type: 'options',
+			displayOptions: {
+				show: {
+					resource: ['wallet'],
+					operation: ['getBalance'],
+					balanceBlockchainType: ['solana'],
+				},
+			},
+			typeOptions: {
+				loadOptionsMethod: 'getSolanaNetworkOptions',
+			},
+			default: '',
+			description: 'Solana network (filtered by credential environment)',
+			required: true,
+		},
+		// EVM network selector - shown when balanceBlockchainType is 'evm'
+		{
+			displayName: 'Network',
+			name: 'balanceNetworkEvm',
+			type: 'options',
+			displayOptions: {
+				show: {
+					resource: ['wallet'],
+					operation: ['getBalance'],
+					balanceBlockchainType: ['evm'],
+				},
+			},
+			typeOptions: {
+				loadOptionsMethod: 'getEvmNetworkOptions',
+			},
+			default: '',
+			description: 'EVM network (filtered by credential environment)',
+			required: true,
+		},
+		createWalletLocatorProperty('walletLocator', 'getBalance', 'Select the wallet to get balance for'),
 	];
 }

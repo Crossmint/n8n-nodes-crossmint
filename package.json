@@ -49,5 +49,8 @@
     },
     "peerDependencies": {
         "n8n-workflow": "*"
+    },
+    "dependencies": {
+        "ethers": "^6.16.0"
     }
 }

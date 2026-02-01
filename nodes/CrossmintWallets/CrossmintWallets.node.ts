@@ -1,6 +1,8 @@
 import {
 	IDataObject,
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 	INodeExecutionData,
@@ -27,8 +29,33 @@ import {
 	createBalanceQueryFields,
 	createTransactionSigningFields,
 } from '../../shared/nodeProperties';
+import { ChainFactory } from '../../shared/chains/ChainFactory';
 
 export class CrossmintWallets implements INodeType {
+	methods = {
+		loadOptions: {
+			// Solana network options - filtered by credential environment
+			async getSolanaNetworkOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const credentials = await this.getCredentials<CrossmintCredentials>('crossmintApi');
+				const isProduction = credentials.environment === 'production';
+
+				return isProduction
+					? ChainFactory.getSolanaMainnetOptions()
+					: ChainFactory.getSolanaTestnetOptions();
+			},
+
+			// EVM network options - filtered by credential environment
+			async getEvmNetworkOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const credentials = await this.getCredentials<CrossmintCredentials>('crossmintApi');
+				const isProduction = credentials.environment === 'production';
+
+				return isProduction
+					? ChainFactory.getEvmMainnetOptions()
+					: ChainFactory.getEvmTestnetOptions();
+			},
+		},
+	};
+
 	description: INodeTypeDescription = {
 		displayName: 'Crossmint Wallets',
 		name: 'crossmintWallets',

@@ -1,5 +1,6 @@
 import { IChainProvider } from './IChainProvider';
 import { SolanaProvider } from './solana/SolanaProvider';
+import { EVMProvider } from './evm/EVMProvider';
 
 /**
  * Chain Factory
@@ -23,11 +24,8 @@ export class ChainFactory {
 		switch (chainType.toLowerCase()) {
 			case 'solana':
 				return new SolanaProvider();
-			// Future chains can be added here:
-			// case 'evm':
-			//   return new EVMProvider();
-			// case 'bitcoin':
-			//   return new BitcoinProvider();
+			case 'evm':
+				return new EVMProvider();
 			default:
 				return undefined;
 		}
@@ -39,9 +37,7 @@ export class ChainFactory {
 	 * @returns Array of supported chain type identifiers
 	 */
 	static getSupportedChainTypes(): string[] {
-		return ['solana'];
-		// When adding new chains, add them here:
-		// return ['solana', 'evm', 'bitcoin'];
+		return ['solana', 'evm'];
 	}
 
 	/**
@@ -122,5 +118,69 @@ export class ChainFactory {
 		}
 
 		return undefined;
+	}
+
+	/**
+	 * Get testnet network options for a specific chain
+	 *
+	 * @param chainType - The chain type
+	 * @returns Array of testnet network options
+	 */
+	static getTestnetNetworkOptions(chainType: string): Array<{ name: string; value: string; description: string }> {
+		const provider = this.createProvider(chainType);
+		if (!provider) {
+			return [];
+		}
+
+		return provider.getNetworks()
+			.filter(network => network.isTestnet)
+			.map(network => ({
+				name: network.name,
+				value: network.id,
+				description: 'Testnet',
+			}));
+	}
+
+	/**
+	 * Get mainnet network options for a specific chain
+	 *
+	 * @param chainType - The chain type
+	 * @returns Array of mainnet network options
+	 */
+	static getMainnetNetworkOptions(chainType: string): Array<{ name: string; value: string; description: string }> {
+		const provider = this.createProvider(chainType);
+		if (!provider) {
+			return [];
+		}
+
+		return provider.getNetworks()
+			.filter(network => !network.isTestnet)
+			.map(network => ({
+				name: network.name,
+				value: network.id,
+				description: 'Mainnet',
+			}));
+	}
+
+	// Convenience methods for specific chain + environment combinations
+
+	/** Solana testnet networks (for staging credentials) */
+	static getSolanaTestnetOptions(): Array<{ name: string; value: string; description: string }> {
+		return this.getTestnetNetworkOptions('solana');
+	}
+
+	/** Solana mainnet networks (for production credentials) */
+	static getSolanaMainnetOptions(): Array<{ name: string; value: string; description: string }> {
+		return this.getMainnetNetworkOptions('solana');
+	}
+
+	/** EVM testnet networks (for staging credentials) */
+	static getEvmTestnetOptions(): Array<{ name: string; value: string; description: string }> {
+		return this.getTestnetNetworkOptions('evm');
+	}
+
+	/** EVM mainnet networks (for production credentials) */
+	static getEvmMainnetOptions(): Array<{ name: string; value: string; description: string }> {
+		return this.getMainnetNetworkOptions('evm');
 	}
 }
