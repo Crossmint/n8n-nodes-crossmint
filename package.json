@@ -49,5 +49,8 @@
     },
     "peerDependencies": {
         "n8n-workflow": "*"
+    },
+    "overrides": {
+        "basic-ftp": "5.2.0"
     }
 }
