@@ -188,7 +188,7 @@ export class CrossmintWallets implements INodeType {
 				displayOptions: { show: { resource: ['wallet'], operation: ['getOrCreateWallet'] } },
 				default: '',
 				placeholder: 'Enter private key (base58 for Solana)',
-				description: 'Private key that authorizes all transactions from this wallet. Use this link to generate them: https://www.val.town/x/Crossmint/crypto-address-generator.',
+				description: 'Private key that authorizes all transactions from this wallet. You can export a base58 private key from a Solana wallet app, such as Phantom.',
 				required: true,
 			},
 

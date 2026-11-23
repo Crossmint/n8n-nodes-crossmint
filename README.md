@@ -253,7 +253,6 @@ The Admin Signer is the private key that acts as the "master key" for your smart
 ### Generating Private Keys
 
 You can generate secure private keys using:
-- **Crossmint Generator**: [https://www.val.town/x/Crossmint/crypto-address-generator](https://www.val.town/x/Crossmint/crypto-address-generator)
 - **Phantom Wallet**: Export private key from an existing Solana wallet
 - **Solana CLI**: Generate Solana keypairs
 - **Hardware wallets**: Export or derive keys securely
